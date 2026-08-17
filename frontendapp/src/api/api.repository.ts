@@ -1,17 +1,54 @@
+export type RequestOptions = Omit<RequestInit, "headers"> & {
+    headers?: Record<string, string>;
+};
+
+export class ApiError extends Error {
+    readonly status: number;
+    readonly data: unknown;
+
+    constructor(status: number, message: string, data: unknown) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+        this.data = data;
+    }
+
+    /**
+     * Nest's ValidationPipe replies with `message: string[]`. Everything else
+     * (404, 409, network errors) has a single message.
+     */
+    get messages(): string[] {
+        const payload = this.data as { message?: unknown } | null;
+
+        if (payload && Array.isArray(payload.message)) {
+            return payload.message.map(String);
+        }
+
+        return [this.message];
+    }
+}
+
 class ApiRepository {
+    private readonly baseURL: string;
+
     constructor(baseURL = "") {
         this.baseURL = baseURL;
     }
 
     // Default Headers
-    getHeaders(isJson = true) {
-        const headers = {};
+    getHeaders(isJson = true): Record<string, string> {
+        const headers: Record<string, string> = {};
 
         if (isJson) {
             headers["Content-Type"] = "application/json";
         }
 
-        const token = localStorage.getItem("token"); // Change according to your app
+        // Guarded so the repository can also be used on the server
+        // (Server Components / Server Actions), where there is no localStorage.
+        const token =
+            typeof window === "undefined"
+                ? null
+                : window.localStorage.getItem("token"); // Change according to your app
 
         if (token) {
             headers["Authorization"] = `Bearer ${token}`;
@@ -21,104 +58,103 @@ class ApiRepository {
     }
 
     // Common Request Method
-    async request(url, options = {}) {
-        try {
-            const response = await fetch(`${this.baseURL}${url}`, {
-                headers: {
-                    ...this.getHeaders(),
-                    ...options.headers,
-                },
-                ...options,
-            });
+    async request<T>(url: string, options: RequestOptions = {}): Promise<T> {
+        const { headers, ...rest } = options;
 
-            let data;
+        const response = await fetch(`${this.baseURL}${url}`, {
+            cache: "no-store",
+            ...rest,
+            headers: {
+                ...this.getHeaders(),
+                ...headers,
+            },
+        });
 
-            const contentType = response.headers.get("content-type");
+        let data: unknown;
 
-            if (contentType && contentType.includes("application/json")) {
-                data = await response.json();
-            } else {
-                data = await response.text();
-            }
+        const contentType = response.headers.get("content-type");
 
-            if (!response.ok) {
-                throw {
-                    status: response.status,
-                    message: data.message || response.statusText,
-                    data,
-                };
-            }
-
-            return data;
-        } catch (error) {
-            console.error("API Error:", error);
-            throw error;
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            data = await response.text();
         }
+
+        if (!response.ok) {
+            const message = (data as { message?: unknown })?.message;
+
+            throw new ApiError(
+                response.status,
+                Array.isArray(message)
+                    ? message.join(", ")
+                    : typeof message === "string" && message
+                      ? message
+                      : response.statusText,
+                data
+            );
+        }
+
+        return data as T;
     }
 
     // GET
-    get(url) {
-        return this.request(url, {
+    get<T>(url: string) {
+        return this.request<T>(url, {
             method: "GET",
         });
     }
 
     // GET with Query Parameters
-    getWithParams(url, params = {}) {
+    getWithParams<T>(url: string, params: Record<string, string> = {}) {
         const query = new URLSearchParams(params).toString();
 
-        return this.request(`${url}?${query}`, {
+        return this.request<T>(`${url}?${query}`, {
             method: "GET",
         });
     }
 
     // POST
-    post(url, body = {}) {
-        return this.request(url, {
+    post<T>(url: string, body: unknown = {}) {
+        return this.request<T>(url, {
             method: "POST",
             body: JSON.stringify(body),
         });
     }
 
     // PUT
-    put(url, body = {}) {
-        return this.request(url, {
+    put<T>(url: string, body: unknown = {}) {
+        return this.request<T>(url, {
             method: "PUT",
             body: JSON.stringify(body),
         });
     }
 
     // PATCH
-    patch(url, body = {}) {
-        return this.request(url, {
+    patch<T>(url: string, body: unknown = {}) {
+        return this.request<T>(url, {
             method: "PATCH",
             body: JSON.stringify(body),
         });
     }
 
     // DELETE
-    delete(url) {
-        return this.request(url, {
+    delete<T>(url: string) {
+        return this.request<T>(url, {
             method: "DELETE",
         });
     }
 
     // Upload File
-    upload(url, formData) {
-        const token = localStorage.getItem("token");
-
-        return this.request(url, {
+    upload<T>(url: string, formData: FormData) {
+        // No Content-Type header: the browser sets the multipart boundary.
+        return this.request<T>(url, {
             method: "POST",
-            headers: token
-                ? {
-                      Authorization: `Bearer ${token}`,
-                  }
-                : {},
+            headers: this.getHeaders(false),
             body: formData,
         });
     }
 }
 
 export const apiRepository = new ApiRepository(
-    "https://your-api-url.com/api"
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"
 );
