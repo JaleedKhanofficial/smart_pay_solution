@@ -54,8 +54,19 @@ export function CustomerForm({ customer }: Props) {
     const g1 = guarantorAt(customer, 1);
     const g2 = guarantorAt(customer, 2);
 
+    // React 19 clears an uncontrolled form once the action returns, so after a
+    // rejected save the fields are re-seeded from what was submitted. Keying on
+    // the attempt number remounts them, which is what makes defaultValue apply
+    // a second time.
+    const initial = (name: string, stored?: string | null) =>
+        state.values?.[name] ?? stored ?? "";
+
     return (
-        <form action={formAction} className="flex flex-col gap-6">
+        <form
+            key={state.attempt}
+            action={formAction}
+            className="flex flex-col gap-6"
+        >
             <Section
                 title="Customer"
                 description="CNIC and mobile are reformatted as you type and validated again on the server."
@@ -65,7 +76,7 @@ export function CustomerForm({ customer }: Props) {
                     name="fullName"
                     required
                     maxLength={150}
-                    defaultValue={customer?.fullName ?? ""}
+                    defaultValue={initial("fullName", customer?.fullName)}
                     placeholder="Enter Name"
                 />
                 <TextField
@@ -73,7 +84,7 @@ export function CustomerForm({ customer }: Props) {
                     name="fatherHusbandName"
                     required
                     maxLength={150}
-                    defaultValue={customer?.fatherHusbandName ?? ""}
+                    defaultValue={initial("fatherHusbandName", customer?.fatherHusbandName)}
                     placeholder="Enter Father / Husband Name"
                 />
                 <MaskedField
@@ -81,20 +92,20 @@ export function CustomerForm({ customer }: Props) {
                     name="cnicNumber"
                     mask="cnic"
                     required
-                    defaultValue={customer?.cnicNumber ?? ""}
+                    defaultValue={initial("cnicNumber", customer?.cnicNumber)}
                 />
                 <MaskedField
                     label="Mobile #"
                     name="mobileNumber"
                     mask="mobile"
                     required
-                    defaultValue={customer?.mobileNumber ?? ""}
+                    defaultValue={initial("mobileNumber", customer?.mobileNumber)}
                 />
                 <TextField
                     label="Occupation"
                     name="occupation"
                     maxLength={120}
-                    defaultValue={customer?.occupation ?? ""}
+                    defaultValue={initial("occupation", customer?.occupation)}
                     placeholder="Enter Occupation"
                 />
                 <TextField
@@ -103,7 +114,7 @@ export function CustomerForm({ customer }: Props) {
                     type="number"
                     min={0}
                     step="0.01"
-                    defaultValue={customer?.monthlyIncome ?? ""}
+                    defaultValue={initial("monthlyIncome", customer?.monthlyIncome)}
                     placeholder="30,000"
                 />
                 <div className="sm:col-span-2">
@@ -113,7 +124,7 @@ export function CustomerForm({ customer }: Props) {
                         required
                         rows={2}
                         maxLength={500}
-                        defaultValue={customer?.address ?? ""}
+                        defaultValue={initial("address", customer?.address)}
                         placeholder="House 12, Street 5"
                     />
                 </div>
@@ -142,7 +153,7 @@ export function CustomerForm({ customer }: Props) {
                             name={`g${position}FullName`}
                             required={position === 1}
                             maxLength={150}
-                            defaultValue={guarantor?.fullName ?? ""}
+                            defaultValue={initial(`g${position}FullName`, guarantor?.fullName)}
                             placeholder="Guarantor Name"
                         />
                         <TextField
@@ -150,7 +161,7 @@ export function CustomerForm({ customer }: Props) {
                             name={`g${position}FatherName`}
                             required={position === 1}
                             maxLength={150}
-                            defaultValue={guarantor?.fatherName ?? ""}
+                            defaultValue={initial(`g${position}FatherName`, guarantor?.fatherName)}
                             placeholder="Father Name"
                         />
                         <TextField
@@ -158,7 +169,7 @@ export function CustomerForm({ customer }: Props) {
                             name={`g${position}Relationship`}
                             required={position === 1}
                             maxLength={60}
-                            defaultValue={guarantor?.relationship ?? ""}
+                            defaultValue={initial(`g${position}Relationship`, guarantor?.relationship)}
                             placeholder="Enter Relationship"
                         />
                         <MaskedField
@@ -166,14 +177,14 @@ export function CustomerForm({ customer }: Props) {
                             name={`g${position}CnicNumber`}
                             mask="cnic"
                             required={position === 1}
-                            defaultValue={guarantor?.cnicNumber ?? ""}
+                            defaultValue={initial(`g${position}CnicNumber`, guarantor?.cnicNumber)}
                         />
                         <MaskedField
                             label="Mobile #"
                             name={`g${position}MobileNumber`}
                             mask="mobile"
                             required={position === 1}
-                            defaultValue={guarantor?.mobileNumber ?? ""}
+                            defaultValue={initial(`g${position}MobileNumber`, guarantor?.mobileNumber)}
                         />
                         <ImageField
                             label="CNIC image"
@@ -187,7 +198,7 @@ export function CustomerForm({ customer }: Props) {
                                 required={position === 1}
                                 rows={2}
                                 maxLength={500}
-                                defaultValue={guarantor?.address ?? ""}
+                                defaultValue={initial(`g${position}Address`, guarantor?.address)}
                                 placeholder="House 12, Street 5"
                             />
                         </div>

@@ -61,10 +61,19 @@ export type FormState = {
     ok: boolean;
     message: string | null;
     errors: string[];
+    /**
+     * React 19 resets an uncontrolled form once its action finishes, whether or
+     * not it succeeded, so a rejected submission would wipe everything the user
+     * typed. The values are echoed back here and re-seeded into the fields.
+     */
+    values?: Record<string, string>;
+    /** Bumped per submission so the form knows to re-apply those values. */
+    attempt: number;
 };
 
 export const EMPTY_FORM_STATE: FormState = {
     ok: false,
     message: null,
     errors: [],
+    attempt: 0,
 };

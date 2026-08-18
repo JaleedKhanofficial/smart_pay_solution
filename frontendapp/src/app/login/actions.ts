@@ -5,12 +5,25 @@ import { ApiError, apiRepository } from "@/api/api.repository";
 import { clearSession, readTokens, writeSession } from "@/lib/session";
 import type { AuthResponse, FormState } from "@/types/customer";
 
-function toFailure(error: unknown): FormState {
+function toFailure(
+    error: unknown,
+    email: string,
+    attempt: number
+): FormState {
+    // The email is echoed back so a wrong password does not clear it too.
+    const base = { values: { email }, attempt };
+
     if (error instanceof ApiError) {
-        return { ok: false, message: error.message, errors: error.messages };
+        return {
+            ...base,
+            ok: false,
+            message: error.message,
+            errors: error.messages,
+        };
     }
 
     return {
+        ...base,
         ok: false,
         message:
             "Could not reach the API. Is the NestJS server running on port 5000?",
@@ -19,11 +32,12 @@ function toFailure(error: unknown): FormState {
 }
 
 export async function loginAction(
-    _prevState: FormState,
+    prevState: FormState,
     formData: FormData
 ): Promise<FormState> {
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
+    const attempt = prevState.attempt + 1;
 
     let auth: AuthResponse;
 
@@ -33,7 +47,7 @@ export async function loginAction(
             password,
         });
     } catch (error) {
-        return toFailure(error);
+        return toFailure(error, email, attempt);
     }
 
     await writeSession(auth);

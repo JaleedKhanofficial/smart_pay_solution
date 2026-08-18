@@ -81,12 +81,51 @@ function toApiForm(formData: FormData): FormData {
     return form;
 }
 
-function toFailure(error: unknown): FormState {
+const GUARANTOR_SUFFIXES = [
+    "FullName",
+    "FatherName",
+    "Relationship",
+    "CnicNumber",
+    "MobileNumber",
+    "Address",
+] as const;
+
+/** Everything the user typed, so a rejected submission can be re-seeded. */
+function submittedValues(formData: FormData): Record<string, string> {
+    const values: Record<string, string> = {};
+
+    for (const field of SCALAR_FIELDS) {
+        values[field] = String(formData.get(field) ?? "");
+    }
+
+    for (const position of [1, 2]) {
+        for (const suffix of GUARANTOR_SUFFIXES) {
+            const name = `g${position}${suffix}`;
+            values[name] = String(formData.get(name) ?? "");
+        }
+    }
+
+    return values;
+}
+
+function toFailure(
+    error: unknown,
+    formData: FormData,
+    attempt: number
+): FormState {
+    const base = { values: submittedValues(formData), attempt };
+
     if (error instanceof ApiError) {
-        return { ok: false, message: error.message, errors: error.messages };
+        return {
+            ...base,
+            ok: false,
+            message: error.message,
+            errors: error.messages,
+        };
     }
 
     return {
+        ...base,
         ok: false,
         message:
             "Could not reach the API. Is the NestJS server running on port 5000?",
@@ -100,9 +139,11 @@ function listUrlWithFlash(message: string): string {
 
 export async function saveCustomer(
     id: number | null,
-    _prevState: FormState,
+    prevState: FormState,
     formData: FormData
 ): Promise<FormState> {
+    const attempt = prevState.attempt + 1;
+
     try {
         await apiSendForm<Customer>(
             id ? `${CUSTOMERS_PATH}/${id}` : CUSTOMERS_PATH,
@@ -110,7 +151,7 @@ export async function saveCustomer(
             toApiForm(formData)
         );
     } catch (error) {
-        return toFailure(error);
+        return toFailure(error, formData, attempt);
     }
 
     revalidatePath("/customers");
@@ -125,10 +166,10 @@ export async function deleteCustomer(id: number): Promise<FormState> {
     try {
         await apiCallWithRefresh<void>(`${CUSTOMERS_PATH}/${id}`, "DELETE");
     } catch (error) {
-        return toFailure(error);
+        return toFailure(error, new FormData(), 0);
     }
 
     revalidatePath("/customers");
 
-    return { ok: true, message: "Customer deleted.", errors: [] };
+    return { ok: true, message: "Customer deleted.", errors: [], attempt: 0 };
 }

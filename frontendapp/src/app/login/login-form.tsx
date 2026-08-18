@@ -17,7 +17,12 @@ export function LoginForm() {
     );
 
     return (
-        <form action={formAction} className="flex flex-col gap-4">
+        // Keyed so the email is restored after React resets the form.
+        <form
+            key={state.attempt}
+            action={formAction}
+            className="flex flex-col gap-4"
+        >
             <div>
                 <label className={labelClass} htmlFor="email">
                     Email
@@ -29,6 +34,7 @@ export function LoginForm() {
                     required
                     autoComplete="username"
                     autoFocus
+                    defaultValue={state.values?.email ?? ""}
                     placeholder="Enter Email"
                     className={fieldClass}
                 />
