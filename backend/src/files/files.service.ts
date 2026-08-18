@@ -5,7 +5,10 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/** Derived so the limit is stated in exactly one place. */
+export const MAX_UPLOAD_MB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
 
 /** One sub-directory per subject, so a customer's three scans do not mingle. */
 export const UPLOAD_FOLDERS = {
@@ -116,8 +119,10 @@ export class FilesService {
       throw new BadRequestException({
         statusCode: 400,
         error: 'Bad Request',
-        message: `${field}: image must be 5 MB or smaller`,
-        fieldErrors: { [field]: 'Image must be 5 MB or smaller' },
+        message: `${field}: image must be ${MAX_UPLOAD_MB} MB or smaller`,
+        fieldErrors: {
+          [field]: `Image must be ${MAX_UPLOAD_MB} MB or smaller`,
+        },
       });
     }
 

@@ -180,7 +180,7 @@ Single API call `GET /api/v1/dashboard` returning one aggregate payload (replace
 | FR-CUS-01 | Paginated customer list (default 25/page), newest first, with search on name, CNIC, mobile; CNIC image thumbnail where present. |
 | FR-CUS-02 | Create/edit a customer: full name, father/husband name, CNIC, mobile, address, occupation, monthly income. CNIC input auto-formats `#####-#######-#`; mobile auto-formats `0300-1234567`; both validated server-side by regex. |
 | FR-CUS-03-v2 | Exactly two guarantor records per customer, each capturing full name, **father name** (now persisted; v1 bug fix), relationship, CNIC, mobile, address, CNIC image. Stored in the normalised `guarantors` table. |
-| FR-CUS-04-v2 | Up to three image uploads (customer, G1, G2 CNIC): jpg/jpeg/png/webp, 5 MB max, MIME verified by magic bytes server-side, stored under UUID filenames outside the web root. |
+| FR-CUS-04-v2 | Up to three image uploads (customer, G1, G2 CNIC): jpg/jpeg/png/webp, 10 MB max, MIME verified by magic bytes server-side, stored under UUID filenames outside the web root. |
 | FR-CUS-05-v2 | Images are served only via `GET /api/v1/files/{uuid}` with a valid session; direct URL access without auth returns 401. |
 | FR-CUS-06 | A failed upload aborts the whole save atomically and returns a field-level error naming which upload failed. |
 | FR-CUS-07 | On edit, an omitted image keeps the existing file; a replacement marks the old file for deletion after the transaction commits. |

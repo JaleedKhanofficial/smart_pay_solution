@@ -176,7 +176,7 @@ export function ImageField({ label, name, existingFileId }: ImageFieldProps) {
                             ? fileName
                             : existingFileId
                               ? "Stored image kept unless you choose a new one"
-                              : "JPG, PNG or WebP · 5 MB max"}
+                              : "JPG, PNG or WebP · 10 MB max"}
                     </p>
                 </div>
             </div>
