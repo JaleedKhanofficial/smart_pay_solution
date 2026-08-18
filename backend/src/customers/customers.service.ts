@@ -47,6 +47,11 @@ function uploadFieldFor(position: number): keyof CustomerUploads {
   return position === 1 ? 'guarantor1Cnic' : 'guarantor2Cnic';
 }
 
+/** Local midnight for a `YYYY-MM-DD` filter value. */
+function startOfDay(iso: string): Date {
+  return new Date(`${iso.slice(0, 10)}T00:00:00`);
+}
+
 function folderFor(position: number): UploadFolder {
   return position === 1 ? UPLOAD_FOLDERS.guarantor1 : UPLOAD_FOLDERS.guarantor2;
 }
@@ -154,26 +159,32 @@ export class CustomersService {
     }
   }
 
-  /** FR-CUS-01: newest first, paginated, searchable by name, CNIC or mobile. */
+  /** Distinct occupations across live customers, for the filter dropdown. */
+  async occupations(): Promise<string[]> {
+    const rows = await this.prisma.customer.findMany({
+      where: { deletedAt: null },
+      distinct: ['occupation'],
+      select: { occupation: true },
+      orderBy: { occupation: 'asc' },
+    });
+
+    return rows.map((row) => row.occupation);
+  }
+
+  /** FR-CUS-01: newest first, paginated, searchable and filterable. */
   async findAll(
     query: ListCustomersDto,
   ): Promise<Paginated<CustomerWithGuarantors>> {
-    const where: Prisma.CustomerWhereInput = { deletedAt: null };
-
-    if (query.search) {
-      where.OR = [
-        { fullName: { contains: query.search, mode: 'insensitive' } },
-        { cnicNumber: { contains: query.search } },
-        { mobileNumber: { contains: query.search } },
-      ];
-    }
+    const where = this.buildWhere(query);
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.customer.count({ where }),
       this.prisma.customer.findMany({
         where,
         include: CUSTOMER_INCLUDE,
-        orderBy: { createdAt: 'desc' },
+        // Field and direction are whitelisted by the DTO, so this cannot
+        // become an arbitrary column reference.
+        orderBy: [{ [query.sort]: query.dir }, { id: 'desc' }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),
@@ -439,6 +450,68 @@ export class CustomersService {
         fieldErrors: { guarantors: 'Guarantor 1 is required' },
       });
     }
+  }
+
+  /**
+   * Filters are AND-ed with each other; the free-text search stays an OR across
+   * the three identifying fields (FR-CUS-01).
+   */
+  private buildWhere(query: ListCustomersDto): Prisma.CustomerWhereInput {
+    const and: Prisma.CustomerWhereInput[] = [];
+
+    if (query.search) {
+      and.push({
+        OR: [
+          { fullName: { contains: query.search, mode: 'insensitive' } },
+          { cnicNumber: { contains: query.search } },
+          { mobileNumber: { contains: query.search } },
+        ],
+      });
+    }
+
+    if (query.occupation) {
+      and.push({
+        occupation: { equals: query.occupation, mode: 'insensitive' },
+      });
+    }
+
+    if (query.cnicImage) {
+      and.push(
+        query.cnicImage === 'with'
+          ? { cnicFileId: { not: null } }
+          : { cnicFileId: null },
+      );
+    }
+
+    // Positions are unique per customer, so presence at each position expresses
+    // "two", "one" and "none" without needing a count query.
+    if (query.guarantors === 'none') {
+      and.push({ guarantors: { none: {} } });
+    } else if (query.guarantors === 'two') {
+      and.push({ guarantors: { some: { position: 1 } } });
+      and.push({ guarantors: { some: { position: 2 } } });
+    } else if (query.guarantors === 'one') {
+      and.push({
+        OR: [
+          { guarantors: { some: { position: 1 }, none: { position: 2 } } },
+          { guarantors: { some: { position: 2 }, none: { position: 1 } } },
+        ],
+      });
+    }
+
+    if (query.addedFrom) {
+      and.push({ createdAt: { gte: startOfDay(query.addedFrom) } });
+    }
+
+    if (query.addedTo) {
+      // Inclusive of the whole day the user picked.
+      const end = startOfDay(query.addedTo);
+      end.setDate(end.getDate() + 1);
+
+      and.push({ createdAt: { lt: end } });
+    }
+
+    return and.length ? { deletedAt: null, AND: and } : { deletedAt: null };
   }
 
   private validateUploads(uploads: CustomerUploads): void {

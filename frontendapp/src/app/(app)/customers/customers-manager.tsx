@@ -3,15 +3,25 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { deleteCustomer } from "./actions";
+import { CustomerFilters } from "./customer-filters";
 import { FlashToast } from "@/components/flash-toast";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/components/toast";
-import type { Customer, Paginated } from "@/types/customer";
+import type {
+    Customer,
+    CustomerFilterValues,
+    CustomerSort,
+    Paginated,
+    SortDirection,
+    SortField,
+} from "@/types/customer";
 
 type Props = {
     page: Paginated<Customer>;
-    search: string;
+    filters: CustomerFilterValues;
+    sort: CustomerSort;
+    occupations: string[];
     flash?: string;
     loadError: string | null;
 };
@@ -49,18 +59,20 @@ function Thumbnail({ fileId, alt }: { fileId: string | null; alt: string }) {
     );
 }
 
-function EmptyState({ search }: { search: string }) {
+function EmptyState({ filtered }: { filtered: boolean }) {
     return (
         <div className="text-center">
             <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
                 <Icon name="users" className="size-5" />
             </span>
             <p className="text-sm font-medium text-foreground">
-                {search ? "No customers match that search" : "No customers yet"}
+                {filtered
+                    ? "No customers match these filters"
+                    : "No customers yet"}
             </p>
             <p className="mt-1 text-xs text-muted">
-                {search
-                    ? "Try a different name, CNIC or mobile."
+                {filtered
+                    ? "Try widening or clearing the filters."
                     : "Add your first customer to get started."}
             </p>
         </div>
@@ -89,12 +101,64 @@ function GuarantorThumbs({ customer }: { customer: Customer }) {
     );
 }
 
+/**
+ * Declared at module level: defining it inside the manager would recreate the
+ * component on every render, which the React Compiler rejects.
+ * Clicking the active column flips direction; a new column starts ascending.
+ */
+function SortableHeader({
+    field,
+    label,
+    sort,
+    hrefFor,
+}: {
+    field: SortField;
+    label: string;
+    sort: CustomerSort;
+    hrefFor: (field: SortField, dir: SortDirection) => string;
+}) {
+    const active = sort.field === field;
+    const nextDir: SortDirection = active && sort.dir === "asc" ? "desc" : "asc";
+
+    return (
+        <th
+            className="px-4 py-3 font-medium"
+            aria-sort={
+                active
+                    ? sort.dir === "asc"
+                        ? "ascending"
+                        : "descending"
+                    : "none"
+            }
+        >
+            <Link
+                href={hrefFor(field, nextDir)}
+                className={`inline-flex items-center gap-1 transition-colors hover:text-foreground ${
+                    active ? "text-foreground" : ""
+                }`}
+            >
+                {label}
+                <span
+                    aria-hidden="true"
+                    className={active ? "text-gold" : "text-muted/40"}
+                >
+                    {active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+                </span>
+            </Link>
+        </th>
+    );
+}
+
 export default function CustomersManager({
     page,
-    search,
+    filters,
+    sort,
+    occupations,
     flash,
     loadError,
 }: Props) {
+    const activeFilters = Object.values(filters).filter(Boolean).length;
+    const filtered = activeFilters > 0;
     const { push } = useToast();
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [, startTransition] = useTransition();
@@ -118,16 +182,39 @@ export default function CustomersManager({
         });
     }
 
-    function pageHref(target: number): string {
+    function hrefWith(overrides: {
+        page?: number;
+        sort?: SortField;
+        dir?: SortDirection;
+    }): string {
         const params = new URLSearchParams();
 
-        if (search) params.set("search", search);
+        for (const [key, value] of Object.entries(filters)) {
+            if (value) params.set(key, value);
+        }
+
+        const field = overrides.sort ?? sort.field;
+        const dir = overrides.dir ?? sort.dir;
+
+        if (field !== "createdAt" || dir !== "desc") {
+            params.set("sort", field);
+            params.set("dir", dir);
+        }
+
+        const target = overrides.page ?? page.page;
         if (target > 1) params.set("page", String(target));
 
         const query = params.toString();
 
         return query ? `/customers?${query}` : "/customers";
     }
+
+    function pageHref(target: number): string {
+        return hrefWith({ page: target });
+    }
+
+    const sortHref = (field: SortField, dir: SortDirection) =>
+        hrefWith({ sort: field, dir, page: 1 });
 
     const from = (page.page - 1) * page.pageSize + 1;
     const to = Math.min(page.page * page.pageSize, page.total);
@@ -143,47 +230,24 @@ export default function CustomersManager({
                     page.total === 0
                         ? "No records yet."
                         : `${page.total} record${page.total === 1 ? "" : "s"}${
-                              search ? ` matching “${search}”` : ""
+                              filtered ? " matching the filters" : ""
                           }`
                 }
                 actions={
-                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-                        <form
-                            action="/customers"
-                            method="get"
-                            className="flex w-full gap-2 sm:w-auto"
-                        >
-                            <input
-                                type="search"
-                                name="search"
-                                defaultValue={search}
-                                placeholder="Name, CNIC or mobile"
-                                className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600 sm:w-56 sm:flex-none sm:py-2 sm:text-sm"
-                            />
-                            <button
-                                type="submit"
-                                className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-                            >
-                                Search
-                            </button>
-                            {search ? (
-                                <Link
-                                    href="/customers"
-                                    className="rounded-md px-2 py-2 text-sm text-muted underline-offset-4 hover:underline"
-                                >
-                                    Clear
-                                </Link>
-                            ) : null}
-                        </form>
-
-                        <Link
-                            href="/customers/new"
-                            className="w-full rounded-md bg-navy-800 px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-navy-700 sm:w-auto sm:py-2"
-                        >
-                            Add customer
-                        </Link>
-                    </div>
+                    <Link
+                        href="/customers/new"
+                        className="w-full rounded-md bg-navy-800 px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-navy-700 sm:w-auto sm:py-2"
+                    >
+                        Add customer
+                    </Link>
                 }
+            />
+
+            <CustomerFilters
+                values={filters}
+                occupations={occupations}
+                activeCount={activeFilters}
+                sort={sort}
             />
 
             {loadError ? (
@@ -197,7 +261,7 @@ export default function CustomersManager({
             <div className="flex flex-col gap-3 lg:hidden">
                 {page.data.length === 0 ? (
                     <div className="rounded-xl border border-border bg-surface px-4 py-14">
-                        <EmptyState search={search} />
+                        <EmptyState filtered={filtered} />
                     </div>
                 ) : (
                     page.data.map((customer) => (
@@ -297,10 +361,30 @@ export default function CustomersManager({
                             <th className="hidden px-4 py-3 font-medium xl:table-cell">
                                 CNIC image
                             </th>
-                            <th className="px-4 py-3 font-medium">Name</th>
-                            <th className="px-4 py-3 font-medium">CNIC</th>
-                            <th className="px-4 py-3 font-medium">Mobile</th>
-                            <th className="px-4 py-3 font-medium">Occupation</th>
+                            <SortableHeader
+                                field="fullName"
+                                label="Name"
+                                sort={sort}
+                                hrefFor={sortHref}
+                            />
+                            <SortableHeader
+                                field="cnicNumber"
+                                label="CNIC"
+                                sort={sort}
+                                hrefFor={sortHref}
+                            />
+                            <SortableHeader
+                                field="mobileNumber"
+                                label="Mobile"
+                                sort={sort}
+                                hrefFor={sortHref}
+                            />
+                            <SortableHeader
+                                field="occupation"
+                                label="Occupation"
+                                sort={sort}
+                                hrefFor={sortHref}
+                            />
                             {/* <th className="px-4 py-3 font-medium">Income</th> */}
                             <th className="px-4 py-3 font-medium">Guarantors</th>
                             <th className="px-4 py-3 text-right font-medium">
@@ -312,7 +396,7 @@ export default function CustomersManager({
                         {page.data.length === 0 ? (
                             <tr>
                                 <td colSpan={7} className="px-4 py-14">
-                                    <EmptyState search={search} />
+                                    <EmptyState filtered={filtered} />
                                 </td>
                             </tr>
                         ) : (

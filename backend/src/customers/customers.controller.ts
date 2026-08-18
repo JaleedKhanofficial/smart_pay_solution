@@ -84,6 +84,14 @@ export class CustomersController {
     return this.customers.findAll(query);
   }
 
+  /** Distinct occupations for the filter dropdown. Declared before ':id' so
+   *  the literal path is matched first. */
+  @Get('occupations')
+  @ApiOperation({ summary: 'Occupations present in the register' })
+  occupations(): Promise<string[]> {
+    return this.customers.occupations();
+  }
+
   @Get(':id')
   findOne(
     @Param('id', ParseIntPipe) id: number,

@@ -57,6 +57,44 @@ export type Paginated<T> = {
     totalPages: number;
 };
 
+/** Columns the register can be ordered by; mirrors the API whitelist. */
+export const SORT_FIELDS = [
+    "fullName",
+    "cnicNumber",
+    "mobileNumber",
+    "occupation",
+    "createdAt",
+] as const;
+
+export type SortField = (typeof SORT_FIELDS)[number];
+export type SortDirection = "asc" | "desc";
+
+export type CustomerSort = {
+    field: SortField;
+    dir: SortDirection;
+};
+
+export const DEFAULT_SORT: CustomerSort = { field: "createdAt", dir: "desc" };
+
+/** Every filter the customer register accepts, as it appears in the URL. */
+export type CustomerFilterValues = {
+    search: string;
+    occupation: string;
+    guarantors: string;
+    cnicImage: string;
+    addedFrom: string;
+    addedTo: string;
+};
+
+export const EMPTY_FILTERS: CustomerFilterValues = {
+    search: "",
+    occupation: "",
+    guarantors: "",
+    cnicImage: "",
+    addedFrom: "",
+    addedTo: "",
+};
+
 export type FormState = {
     ok: boolean;
     message: string | null;
