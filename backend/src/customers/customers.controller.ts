@@ -6,21 +6,54 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Customer } from '@prisma/client';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CustomersService, type Paginated } from './customers.service';
+import { MAX_UPLOAD_BYTES } from '../files/files.service';
+import {
+  CustomersService,
+  type CustomerUploads,
+  type CustomerWithGuarantors,
+  type Paginated,
+} from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+
+const UPLOAD_FIELDS = [
+  { name: 'customerCnic', maxCount: 1 },
+  { name: 'guarantor1Cnic', maxCount: 1 },
+  { name: 'guarantor2Cnic', maxCount: 1 },
+];
+
+const UPLOAD_OPTIONS = {
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: UPLOAD_FIELDS.length },
+};
+
+type UploadedFieldMap = Record<string, Express.Multer.File[] | undefined>;
+
+function toUploads(files: UploadedFieldMap | undefined): CustomerUploads {
+  return {
+    customerCnic: files?.customerCnic?.[0],
+    guarantor1Cnic: files?.guarantor1Cnic?.[0],
+    guarantor2Cnic: files?.guarantor2Cnic?.[0],
+  };
+}
 
 @ApiTags('customers')
 @ApiBearerAuth()
@@ -29,41 +62,54 @@ export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a customer (FR-CUS-02)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Create a customer with two guarantors (FR-CUS-02, FR-CUS-03-v2)',
+  })
+  @UseInterceptors(FileFieldsInterceptor(UPLOAD_FIELDS, UPLOAD_OPTIONS))
   create(
     @Body() dto: CreateCustomerDto,
+    @UploadedFiles() files: UploadedFieldMap,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
-  ): Promise<Customer> {
-    return this.customers.create(dto, user, req.ip);
+  ): Promise<CustomerWithGuarantors> {
+    return this.customers.create(dto, toUploads(files), user, req.ip);
   }
 
   @Get()
   @ApiOperation({ summary: 'List customers (FR-CUS-01)' })
-  findAll(@Query() query: ListCustomersDto): Promise<Paginated<Customer>> {
+  findAll(
+    @Query() query: ListCustomersDto,
+  ): Promise<Paginated<CustomerWithGuarantors>> {
     return this.customers.findAll(query);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Customer> {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<CustomerWithGuarantors> {
     return this.customers.findOne(id);
   }
 
   @Patch(':id')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Update a customer (FR-CUS-07)' })
+  @UseInterceptors(FileFieldsInterceptor(UPLOAD_FIELDS, UPLOAD_OPTIONS))
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCustomerDto,
+    @UploadedFiles() files: UploadedFieldMap,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
-  ): Promise<Customer> {
-    return this.customers.update(id, dto, user, req.ip);
+  ): Promise<CustomerWithGuarantors> {
+    return this.customers.update(id, dto, toUploads(files), user, req.ip);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a customer (FR-CUS-09-v2)' })
   remove(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<void> {

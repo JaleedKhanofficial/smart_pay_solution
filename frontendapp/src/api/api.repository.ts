@@ -61,11 +61,16 @@ class ApiRepository {
     async request<T>(url: string, options: RequestOptions = {}): Promise<T> {
         const { headers, ...rest } = options;
 
+        // FormData must set its own multipart boundary, so the JSON content
+        // type is dropped for those requests.
+        const isMultipart =
+            typeof FormData !== "undefined" && rest.body instanceof FormData;
+
         const response = await fetch(`${this.baseURL}${url}`, {
             cache: "no-store",
             ...rest,
             headers: {
-                ...this.getHeaders(),
+                ...this.getHeaders(!isMultipart),
                 ...headers,
             },
         });

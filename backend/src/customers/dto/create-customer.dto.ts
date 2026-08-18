@@ -1,34 +1,46 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
-import { IsNumber, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { plainToInstance, Transform, Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsNumber,
+  IsString,
+  Length,
+  Matches,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import {
+  CNIC_MESSAGE,
+  CNIC_PATTERN,
+  MOBILE_MESSAGE,
+  MOBILE_PATTERN,
+  normaliseCnic,
+  normaliseMobile,
+  trim,
+} from '../../common/normalise';
+import { GuarantorDto } from './guarantor.dto';
 
-const trim = ({ value }: { value: unknown }): unknown =>
-  typeof value === 'string' ? value.trim() : value;
-
-/** Accepts `1234512345671` or `12345-1234567-1`, stores `12345-1234567-1`. */
-export const normaliseCnic = ({ value }: { value: unknown }): unknown => {
+/**
+ * Customers are submitted as multipart/form-data so the three CNIC images ride
+ * along with the record (FR-CUS-06 atomicity), which means guarantors arrive as
+ * a JSON string in one field.
+ */
+const parseGuarantors = ({ value }: { value: unknown }): unknown => {
   if (typeof value !== 'string') return value;
 
-  const digits = value.replace(/\D/g, '');
+  try {
+    const parsed: unknown = JSON.parse(value);
 
-  if (digits.length !== 13) return value.trim();
-
-  return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
-};
-
-/** Accepts `03001234567`, `0300-1234567` or `+923001234567`; stores `0300-1234567`. */
-export const normaliseMobile = ({ value }: { value: unknown }): unknown => {
-  if (typeof value !== 'string') return value;
-
-  let digits = value.replace(/\D/g, '');
-
-  if (digits.length === 12 && digits.startsWith('92')) {
-    digits = `0${digits.slice(2)}`;
+    return Array.isArray(parsed)
+      ? plainToInstance(GuarantorDto, parsed)
+      : value;
+  } catch {
+    // Left as a string so @IsArray reports it rather than throwing a 500.
+    return value;
   }
-
-  if (digits.length !== 11) return value.trim();
-
-  return `${digits.slice(0, 4)}-${digits.slice(4)}`;
 };
 
 export class CreateCustomerDto {
@@ -47,17 +59,13 @@ export class CreateCustomerDto {
   @ApiProperty({ example: '12345-1234567-1' })
   @Transform(normaliseCnic)
   @IsString()
-  @Matches(/^\d{5}-\d{7}-\d$/, {
-    message: 'cnicNumber must be 13 digits, e.g. 12345-1234567-1',
-  })
+  @Matches(CNIC_PATTERN, { message: `cnicNumber ${CNIC_MESSAGE}` })
   cnicNumber: string;
 
   @ApiProperty({ example: '0300-1234567' })
   @Transform(normaliseMobile)
   @IsString()
-  @Matches(/^03\d{2}-\d{7}$/, {
-    message: 'mobileNumber must be a Pakistani mobile, e.g. 0300-1234567',
-  })
+  @Matches(MOBILE_PATTERN, { message: `mobileNumber ${MOBILE_MESSAGE}` })
   mobileNumber: string;
 
   @ApiProperty({ example: 'House 12, Street 5, Lahore' })
@@ -78,4 +86,17 @@ export class CreateCustomerDto {
   @Min(0)
   @Max(9_999_999_999)
   monthlyIncome: number;
+
+  @ApiProperty({
+    type: [GuarantorDto],
+    description:
+      'Exactly two, positions 1 and 2. Sent as a JSON string in multipart requests.',
+  })
+  @Transform(parseGuarantors)
+  @IsArray()
+  @ArrayMinSize(2, { message: 'exactly two guarantors are required' })
+  @ArrayMaxSize(2, { message: 'exactly two guarantors are required' })
+  @ValidateNested({ each: true })
+  @Type(() => GuarantorDto)
+  guarantors: GuarantorDto[];
 }

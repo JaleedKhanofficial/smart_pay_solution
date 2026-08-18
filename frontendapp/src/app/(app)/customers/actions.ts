@@ -1,34 +1,73 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ApiError } from "@/api/api.repository";
-import { apiCallWithRefresh } from "@/lib/api";
+import { apiCallWithRefresh, apiSendForm } from "@/lib/api";
 import type { Customer, FormState } from "@/types/customer";
 
 const CUSTOMERS_PATH = "/customers";
 
-type CustomerPayload = {
-    fullName: string;
-    fatherHusbandName: string;
-    cnicNumber: string;
-    mobileNumber: string;
-    address: string;
-    occupation: string;
-    monthlyIncome: number;
-};
+const SCALAR_FIELDS = [
+    "fullName",
+    "fatherHusbandName",
+    "cnicNumber",
+    "mobileNumber",
+    "address",
+    "occupation",
+    "monthlyIncome",
+] as const;
 
-function toPayload(formData: FormData): CustomerPayload {
-    const text = (key: string) => String(formData.get(key) ?? "").trim();
+const UPLOAD_FIELDS = [
+    "customerCnic",
+    "guarantor1Cnic",
+    "guarantor2Cnic",
+] as const;
+
+function guarantorFrom(formData: FormData, position: 1 | 2) {
+    const text = (suffix: string) =>
+        String(formData.get(`g${position}${suffix}`) ?? "").trim();
 
     return {
-        fullName: text("fullName"),
-        fatherHusbandName: text("fatherHusbandName"),
-        cnicNumber: text("cnicNumber"),
-        mobileNumber: text("mobileNumber"),
-        address: text("address"),
-        occupation: text("occupation"),
-        monthlyIncome: Number(text("monthlyIncome") || 0),
+        position,
+        fullName: text("FullName"),
+        fatherName: text("FatherName"),
+        relationship: text("Relationship"),
+        cnicNumber: text("CnicNumber"),
+        mobileNumber: text("MobileNumber"),
+        address: text("Address"),
     };
+}
+
+/**
+ * Rebuilds the browser's FormData into the API's shape: scalars, the two
+ * guarantors as a JSON field, and only the images the user actually picked
+ * (an untouched file input keeps the stored image — FR-CUS-07).
+ */
+function toApiForm(formData: FormData): FormData {
+    const form = new FormData();
+
+    for (const field of SCALAR_FIELDS) {
+        form.set(field, String(formData.get(field) ?? "").trim());
+    }
+
+    form.set(
+        "guarantors",
+        JSON.stringify([
+            guarantorFrom(formData, 1),
+            guarantorFrom(formData, 2),
+        ])
+    );
+
+    for (const field of UPLOAD_FIELDS) {
+        const file = formData.get(field);
+
+        if (file instanceof File && file.size > 0) {
+            form.set(field, file);
+        }
+    }
+
+    return form;
 }
 
 function toFailure(error: unknown): FormState {
@@ -44,15 +83,20 @@ function toFailure(error: unknown): FormState {
     };
 }
 
-export async function createCustomer(
+function listUrlWithFlash(message: string): string {
+    return `/customers?flash=${encodeURIComponent(message)}`;
+}
+
+export async function saveCustomer(
+    id: number | null,
     _prevState: FormState,
     formData: FormData
 ): Promise<FormState> {
     try {
-        await apiCallWithRefresh<Customer>(
-            CUSTOMERS_PATH,
-            "POST",
-            toPayload(formData)
+        await apiSendForm<Customer>(
+            id ? `${CUSTOMERS_PATH}/${id}` : CUSTOMERS_PATH,
+            id ? "PATCH" : "POST",
+            toApiForm(formData)
         );
     } catch (error) {
         return toFailure(error);
@@ -60,30 +104,13 @@ export async function createCustomer(
 
     revalidatePath("/customers");
 
-    return { ok: true, message: "Customer created.", errors: [] };
+    // redirect() throws a control-flow signal, so it must sit outside the try.
+    redirect(
+        listUrlWithFlash(id ? "Customer updated." : "Customer created.")
+    );
 }
 
-export async function updateCustomer(
-    id: string,
-    _prevState: FormState,
-    formData: FormData
-): Promise<FormState> {
-    try {
-        await apiCallWithRefresh<Customer>(
-            `${CUSTOMERS_PATH}/${id}`,
-            "PATCH",
-            toPayload(formData)
-        );
-    } catch (error) {
-        return toFailure(error);
-    }
-
-    revalidatePath("/customers");
-
-    return { ok: true, message: "Customer updated.", errors: [] };
-}
-
-export async function deleteCustomer(id: string): Promise<FormState> {
+export async function deleteCustomer(id: number): Promise<FormState> {
     try {
         await apiCallWithRefresh<void>(`${CUSTOMERS_PATH}/${id}`, "DELETE");
     } catch (error) {

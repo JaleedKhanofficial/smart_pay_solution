@@ -27,6 +27,41 @@ export async function apiCall<T>(
 }
 
 /**
+ * Multipart variant for customer saves, which carry up to three CNIC images
+ * (FR-CUS-04-v2). The repository omits the JSON content type for FormData so
+ * fetch can set the multipart boundary.
+ */
+export async function apiSendForm<T>(
+    path: string,
+    method: "POST" | "PATCH",
+    form: FormData
+): Promise<T> {
+    const send = async (): Promise<T> => {
+        const { access } = await readTokens();
+
+        return apiRepository.request<T>(path, {
+            method,
+            headers: bearer(access),
+            body: form,
+        });
+    };
+
+    try {
+        return await send();
+    } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 401) {
+            throw error;
+        }
+
+        if (!(await refreshSession())) {
+            throw error;
+        }
+
+        return send();
+    }
+}
+
+/**
  * For Server Actions: retries once through a token refresh if the access token
  * expired mid-action. Only safe here, because actions may write cookies.
  */

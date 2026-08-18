@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { deleteCustomer } from "./actions";
-import { CustomerForm } from "./customer-form";
+import { FlashToast } from "@/components/flash-toast";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { useToast } from "@/components/toast";
 import type { Customer, Paginated } from "@/types/customer";
 
 type Props = {
     page: Paginated<Customer>;
     search: string;
+    flash?: string;
     loadError: string | null;
 };
 
@@ -23,27 +25,39 @@ function formatPkr(value: string): string {
     return Number.isFinite(amount) ? `Rs. ${money.format(amount)}` : value;
 }
 
-export default function CustomersManager({ page, search, loadError }: Props) {
-    const [editing, setEditing] = useState<Customer | null>(null);
-    const [notice, setNotice] = useState<string | null>(null);
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
-    const [, startTransition] = useTransition();
-
-    const handleSaved = useCallback((message: string) => {
-        setEditing(null);
-        setActionError(null);
-        setNotice(message);
-    }, []);
-
-    const handleCancel = useCallback(() => setEditing(null), []);
-
-    function handleEdit(customer: Customer) {
-        setNotice(null);
-        setActionError(null);
-        setEditing(customer);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+function Thumbnail({ fileId, alt }: { fileId: string | null; alt: string }) {
+    if (!fileId) {
+        return (
+            <span
+                title="No CNIC image"
+                className="grid size-9 place-items-center rounded-md border border-dashed border-border text-muted"
+            >
+                <Icon name="fileText" className="size-4" />
+            </span>
+        );
     }
+
+    return (
+        // Plain <img>: the optimiser would fetch /media without the session
+        // cookie and get a 401.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={`/media/${fileId}`}
+            alt={alt}
+            className="size-9 rounded-md border border-border object-cover"
+        />
+    );
+}
+
+export default function CustomersManager({
+    page,
+    search,
+    flash,
+    loadError,
+}: Props) {
+    const { push } = useToast();
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [, startTransition] = useTransition();
 
     function handleDelete(customer: Customer) {
         if (
@@ -54,23 +68,13 @@ export default function CustomersManager({ page, search, loadError }: Props) {
             return;
         }
 
-        setNotice(null);
-        setActionError(null);
         setDeletingId(customer.id);
 
         startTransition(async () => {
             const result = await deleteCustomer(customer.id);
 
             setDeletingId(null);
-
-            if (result.ok) {
-                setNotice(result.message);
-                setEditing((current) =>
-                    current?.id === customer.id ? null : current
-                );
-            } else {
-                setActionError(result.message);
-            }
+            push(result.message ?? "Done.", result.ok ? "success" : "error");
         });
     }
 
@@ -90,6 +94,8 @@ export default function CustomersManager({ page, search, loadError }: Props) {
 
     return (
         <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+            <FlashToast message={flash} cleanUrl={pageHref(page.page)} />
+
             <PageHeader
                 eyebrow="Module 2"
                 title="Customers"
@@ -101,33 +107,42 @@ export default function CustomersManager({ page, search, loadError }: Props) {
                           }`
                 }
                 actions={
-                    <form
-                        action="/customers"
-                        method="get"
-                        className="flex gap-2"
-                    >
-                        <input
-                            type="search"
-                            name="search"
-                            defaultValue={search}
-                            placeholder="Name, CNIC or mobile"
-                            className="w-56 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600"
-                        />
-                        <button
-                            type="submit"
-                            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+                    <div className="flex flex-wrap items-center gap-2">
+                        <form
+                            action="/customers"
+                            method="get"
+                            className="flex gap-2"
                         >
-                            Search
-                        </button>
-                        {search ? (
-                            <Link
-                                href="/customers"
-                                className="rounded-md px-2 py-2 text-sm text-muted underline-offset-4 hover:underline"
+                            <input
+                                type="search"
+                                name="search"
+                                defaultValue={search}
+                                placeholder="Name, CNIC or mobile"
+                                className="w-56 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600"
+                            />
+                            <button
+                                type="submit"
+                                className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
                             >
-                                Clear
-                            </Link>
-                        ) : null}
-                    </form>
+                                Search
+                            </button>
+                            {search ? (
+                                <Link
+                                    href="/customers"
+                                    className="rounded-md px-2 py-2 text-sm text-muted underline-offset-4 hover:underline"
+                                >
+                                    Clear
+                                </Link>
+                            ) : null}
+                        </form>
+
+                        <Link
+                            href="/customers/new"
+                            className="rounded-md bg-navy-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-700"
+                        >
+                            Add customer
+                        </Link>
+                    </div>
                 }
             />
 
@@ -137,37 +152,17 @@ export default function CustomersManager({ page, search, loadError }: Props) {
                 </p>
             ) : null}
 
-            {notice ? (
-                <p className="mb-6 rounded-md border border-positive/40 bg-positive/8 px-3 py-2 text-sm text-positive">
-                    {notice}
-                </p>
-            ) : null}
-
-            {actionError ? (
-                <p className="mb-6 rounded-md border border-negative/40 bg-negative/8 px-3 py-2 text-sm text-negative">
-                    {actionError}
-                </p>
-            ) : null}
-
-            <CustomerForm
-                key={editing?.id ?? "new"}
-                customer={editing}
-                onSaved={handleSaved}
-                onCancel={handleCancel}
-            />
-
-            <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-surface">
-                <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+            <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+                <table className="w-full min-w-[960px] border-collapse text-left text-sm">
                     <thead className="border-b border-border bg-surface-muted text-[11px] uppercase tracking-wide text-muted">
                         <tr>
+                            <th className="px-4 py-3 font-medium">CNIC image</th>
                             <th className="px-4 py-3 font-medium">Name</th>
                             <th className="px-4 py-3 font-medium">CNIC</th>
                             <th className="px-4 py-3 font-medium">Mobile</th>
-                            <th className="px-4 py-3 font-medium">
-                                Occupation
-                            </th>
-                            <th className="px-4 py-3 font-medium">Income</th>
-                            <th className="px-4 py-3 font-medium">Address</th>
+                            <th className="px-4 py-3 font-medium">Occupation</th>
+                            {/* <th className="px-4 py-3 font-medium">Income</th> */}
+                            <th className="px-4 py-3 font-medium">Guarantors</th>
                             <th className="px-4 py-3 text-right font-medium">
                                 Actions
                             </th>
@@ -176,7 +171,7 @@ export default function CustomersManager({ page, search, loadError }: Props) {
                     <tbody className="divide-y divide-border">
                         {page.data.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-14">
+                                <td colSpan={8} className="px-4 py-14">
                                     <div className="text-center">
                                         <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
                                             <Icon
@@ -192,7 +187,7 @@ export default function CustomersManager({ page, search, loadError }: Props) {
                                         <p className="mt-1 text-xs text-muted">
                                             {search
                                                 ? "Try a different name, CNIC or mobile."
-                                                : "Add your first customer using the form above."}
+                                                : "Add your first customer to get started."}
                                         </p>
                                     </div>
                                 </td>
@@ -201,12 +196,21 @@ export default function CustomersManager({ page, search, loadError }: Props) {
                             page.data.map((customer) => (
                                 <tr
                                     key={customer.id}
-                                    className="align-top text-foreground transition-colors hover:bg-surface-muted"
+                                    className="align-middle text-foreground transition-colors hover:bg-surface-muted"
                                 >
                                     <td className="px-4 py-3">
-                                        <div className="font-medium">
+                                        <Thumbnail
+                                            fileId={customer.cnicFileId}
+                                            alt={`CNIC of ${customer.fullName}`}
+                                        />
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <Link
+                                            href={`/customers/${customer.id}/edit`}
+                                            className="font-medium underline-offset-2 hover:underline"
+                                        >
                                             {customer.fullName}
-                                        </div>
+                                        </Link>
                                         <div className="text-xs text-muted">
                                             s/o {customer.fatherHusbandName}
                                         </div>
@@ -220,23 +224,43 @@ export default function CustomersManager({ page, search, loadError }: Props) {
                                     <td className="px-4 py-3">
                                         {customer.occupation}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap tabular-nums">
+                                    {/* <td className="px-4 py-3 whitespace-nowrap tabular-nums">
                                         {formatPkr(customer.monthlyIncome)}
-                                    </td>
-                                    <td className="max-w-xs px-4 py-3 text-muted">
-                                        {customer.address}
+                                    </td> */}
+                                    <td className="px-4 py-3">
+                                        <div className="flex items-center gap-1">
+                                            {customer.guarantors.map(
+                                                (guarantor) => (
+                                                    <Thumbnail
+                                                        key={guarantor.id}
+                                                        fileId={
+                                                            guarantor.cnicFileId
+                                                        }
+                                                        alt={`CNIC of ${guarantor.fullName}`}
+                                                    />
+                                                )
+                                            )}
+                                            {customer.guarantors.length < 2 ? (
+                                                <span
+                                                    title="Fewer than two guarantors"
+                                                    className="text-negative"
+                                                >
+                                                    <Icon
+                                                        name="alert"
+                                                        className="size-4"
+                                                    />
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex justify-end gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleEdit(customer)
-                                                }
+                                            <Link
+                                                href={`/customers/${customer.id}/edit`}
                                                 className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
                                             >
                                                 Edit
-                                            </button>
+                                            </Link>
                                             <button
                                                 type="button"
                                                 onClick={() =>

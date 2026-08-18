@@ -15,9 +15,26 @@ export type AuthResponse = {
     user: SessionUser;
 };
 
-/** SRS §5.3. Money arrives as a string: Prisma Decimal keeps exactness. */
-export type Customer = {
+/** SRS §5.4 — exactly two per customer (FR-CUS-03-v2). */
+export type Guarantor = {
     id: string;
+    customerId: number;
+    position: number;
+    fullName: string;
+    fatherName: string;
+    relationship: string;
+    cnicNumber: string;
+    mobileNumber: string;
+    address: string;
+    cnicFileId: string | null;
+};
+
+/**
+ * SRS §5.3. Money arrives as a string: Prisma Decimal keeps exactness.
+ * `id` is a sequential integer rather than a UUID — see prisma/schema.prisma.
+ */
+export type Customer = {
+    id: number;
     fullName: string;
     fatherHusbandName: string;
     cnicNumber: string;
@@ -26,6 +43,7 @@ export type Customer = {
     occupation: string;
     monthlyIncome: string;
     cnicFileId: string | null;
+    guarantors: Guarantor[];
     createdAt: string;
     updatedAt: string;
     deletedAt: string | null;

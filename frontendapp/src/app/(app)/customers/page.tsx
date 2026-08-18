@@ -19,7 +19,7 @@ const EMPTY_PAGE: Paginated<Customer> = {
 export default async function CustomersPage({
     searchParams,
 }: {
-    searchParams: Promise<{ page?: string; search?: string }>;
+    searchParams: Promise<{ page?: string; search?: string; flash?: string }>;
 }) {
     const params = await searchParams;
     const search = params.search?.trim() ?? "";
@@ -46,6 +46,7 @@ export default async function CustomersPage({
         <CustomersManager
             page={customers}
             search={search}
+            flash={params.flash}
             loadError={loadError}
         />
     );

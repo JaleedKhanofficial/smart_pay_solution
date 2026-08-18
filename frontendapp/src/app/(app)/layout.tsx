@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ApiError } from "@/api/api.repository";
 import { AppShell } from "@/components/app-shell";
+import { ToastProvider } from "@/components/toast";
 import { apiCall } from "@/lib/api";
 import { visibleSections } from "@/lib/navigation";
 import type { SessionUser } from "@/types/customer";
@@ -26,8 +27,10 @@ export default async function AppLayout({
     if (!user) redirect("/login");
 
     return (
-        <AppShell sections={visibleSections(user.role)} user={user}>
-            {children}
-        </AppShell>
+        <ToastProvider>
+            <AppShell sections={visibleSections(user.role)} user={user}>
+                {children}
+            </AppShell>
+        </ToastProvider>
     );
 }
