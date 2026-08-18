@@ -4,6 +4,7 @@ import { CustomerForm } from "../../customer-form";
 import { ApiError } from "@/api/api.repository";
 import { PageHeader } from "@/components/page-header";
 import { apiCall } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 import type { Customer } from "@/types/customer";
 
 export const metadata: Metadata = {
@@ -36,7 +37,7 @@ export default async function EditCustomerPage({
             <PageHeader
                 eyebrow="Module 2"
                 title={customer.fullName}
-                description={`CNIC ${customer.cnicNumber} · added ${customer.createdAt.slice(0, 10)}`}
+                description={`CNIC ${customer.cnicNumber} · added ${formatDate(customer.createdAt)}`}
             />
 
             <CustomerForm customer={customer} />

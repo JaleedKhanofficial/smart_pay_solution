@@ -8,6 +8,7 @@ import { FlashToast } from "@/components/flash-toast";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/components/toast";
+import { formatDate, formatDateTime } from "@/lib/format";
 import type {
     Customer,
     CustomerFilterValues,
@@ -320,6 +321,17 @@ export default function CustomersManager({
                                         {customer.occupation}
                                     </dd>
                                 </div>
+                                <div className="min-w-0">
+                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                        Created At
+                                    </dt>
+                                    <dd
+                                        className="text-sm tabular-nums text-foreground"
+                                        title={formatDateTime(customer.createdAt)}
+                                    >
+                                        {formatDate(customer.createdAt)}
+                                    </dd>
+                                </div>
                             </dl>
 
                             <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
@@ -358,6 +370,7 @@ export default function CustomersManager({
                 <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                     <thead className="border-b border-border bg-surface-muted text-[11px] uppercase tracking-wide text-muted">
                         <tr>
+                            <th className="px-4 py-3 font-medium">Sr #</th>
                             <th className="hidden px-4 py-3 font-medium xl:table-cell">
                                 CNIC image
                             </th>
@@ -385,7 +398,12 @@ export default function CustomersManager({
                                 sort={sort}
                                 hrefFor={sortHref}
                             />
-                            {/* <th className="px-4 py-3 font-medium">Income</th> */}
+                            <SortableHeader
+                                field="createdAt"
+                                label="Created At"
+                                sort={sort}
+                                hrefFor={sortHref}
+                            />
                             <th className="px-4 py-3 font-medium">Guarantors</th>
                             <th className="px-4 py-3 text-right font-medium">
                                 Actions
@@ -395,16 +413,19 @@ export default function CustomersManager({
                     <tbody className="divide-y divide-border">
                         {page.data.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-14">
+                                <td colSpan={8} className="px-4 py-14">
                                     <EmptyState filtered={filtered} />
                                 </td>
                             </tr>
                         ) : (
-                            page.data.map((customer) => (
+                            page.data.map((customer, index) => (
                                 <tr
                                     key={customer.id}
                                     className="align-middle text-foreground transition-colors hover:bg-surface-muted"
                                 >
+                                    <td className="px-4 py-3 tabular-nums text-muted">
+                                        {from + index}
+                                    </td>
                                     <td className="hidden px-4 py-3 xl:table-cell">
                                         <Thumbnail
                                             fileId={customer.cnicFileId}
@@ -431,9 +452,12 @@ export default function CustomersManager({
                                     <td className="px-4 py-3">
                                         {customer.occupation}
                                     </td>
-                                    {/* <td className="px-4 py-3 whitespace-nowrap tabular-nums">
-                                        {formatPkr(customer.monthlyIncome)}
-                                    </td> */}
+                                    <td
+                                        className="px-4 py-3 whitespace-nowrap tabular-nums text-muted"
+                                        // title={formatDateTime(customer.createdAt)}
+                                    >
+                                        {formatDate(customer.createdAt)}
+                                    </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-1">
                                             <GuarantorThumbs
