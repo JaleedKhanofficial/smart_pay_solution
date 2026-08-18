@@ -240,9 +240,9 @@ export default function CustomersManager({
                                                     />
                                                 )
                                             )}
-                                            {customer.guarantors.length < 2 ? (
+                                            {customer.guarantors.length === 0 ? (
                                                 <span
-                                                    title="Fewer than two guarantors"
+                                                    title="No guarantor on record"
                                                     className="text-negative"
                                                 >
                                                     <Icon

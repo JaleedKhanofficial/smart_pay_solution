@@ -413,22 +413,30 @@ export class CustomersService {
   }
 
   /**
-   * FR-CUS-03-v2 wants one guarantor at position 1 and one at position 2. The
-   * DTO only checks that each value is 1 or 2, so two at the same position
-   * would otherwise reach the unique index and surface as a 500.
+   * Guarantor 1 is required, guarantor 2 is optional — a deliberate relaxation
+   * of FR-CUS-03-v2, which asks for exactly two. A repeated position would
+   * otherwise reach the unique index and surface as a 500.
    */
   private assertGuarantorPositions(guarantors: GuarantorDto[]): void {
-    const positions = new Set(guarantors.map((row) => row.position));
+    const positions = guarantors.map((row) => row.position);
 
-    if (positions.size !== 2) {
+    if (positions.length !== new Set(positions).size) {
       throw new BadRequestException({
         statusCode: 400,
         error: 'Bad Request',
-        message: 'guarantors must be one at position 1 and one at position 2',
+        message: 'each guarantor must have a different position',
         fieldErrors: {
-          guarantors:
-            'Provide one guarantor at position 1 and one at position 2',
+          guarantors: 'Guarantor 1 and guarantor 2 cannot share a position',
         },
+      });
+    }
+
+    if (!positions.includes(1)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'guarantor 1 is required',
+        fieldErrors: { guarantors: 'Guarantor 1 is required' },
       });
     }
   }

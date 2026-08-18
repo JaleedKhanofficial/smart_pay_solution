@@ -131,11 +131,16 @@ export function CustomerForm({ customer }: Props) {
                     <Section
                         key={position}
                         title={`Guarantor ${position}`}
-                        description="Both guarantors are required on every customer record."
+                        description={
+                            position === 1
+                                ? "Required on every customer record."
+                                : "Optional — leave blank if there is no second guarantor."
+                        }
                     >
                         <TextField
                             label="Full name"
                             name={`g${position}FullName`}
+                            required={position === 1}
                             maxLength={150}
                             defaultValue={guarantor?.fullName ?? ""}
                             placeholder="Guarantor Name"
@@ -143,6 +148,7 @@ export function CustomerForm({ customer }: Props) {
                         <TextField
                             label="Father name"
                             name={`g${position}FatherName`}
+                            required={position === 1}
                             maxLength={150}
                             defaultValue={guarantor?.fatherName ?? ""}
                             placeholder="Father Name"
@@ -150,6 +156,7 @@ export function CustomerForm({ customer }: Props) {
                         <TextField
                             label="Relationship"
                             name={`g${position}Relationship`}
+                            required={position === 1}
                             maxLength={60}
                             defaultValue={guarantor?.relationship ?? ""}
                             placeholder="Enter Relationship"
@@ -158,12 +165,14 @@ export function CustomerForm({ customer }: Props) {
                             label="CNIC"
                             name={`g${position}CnicNumber`}
                             mask="cnic"
+                            required={position === 1}
                             defaultValue={guarantor?.cnicNumber ?? ""}
                         />
                         <MaskedField
                             label="Mobile #"
                             name={`g${position}MobileNumber`}
                             mask="mobile"
+                            required={position === 1}
                             defaultValue={guarantor?.mobileNumber ?? ""}
                         />
                         <ImageField
@@ -175,6 +184,7 @@ export function CustomerForm({ customer }: Props) {
                             <TextAreaField
                                 label="Address"
                                 name={`g${position}Address`}
+                                required={position === 1}
                                 rows={2}
                                 maxLength={500}
                                 defaultValue={guarantor?.address ?? ""}

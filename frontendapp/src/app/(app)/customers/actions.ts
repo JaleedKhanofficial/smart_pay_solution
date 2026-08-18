@@ -51,13 +51,24 @@ function toApiForm(formData: FormData): FormData {
         form.set(field, String(formData.get(field) ?? "").trim());
     }
 
-    form.set(
-        "guarantors",
-        JSON.stringify([
-            guarantorFrom(formData, 1),
-            guarantorFrom(formData, 2),
-        ])
-    );
+    // Guarantor 1 is required and guarantor 2 optional, so an untouched block
+    // is left out entirely rather than sent as a row of empty strings — the
+    // server then reports "guarantor 1 is required" instead of six field errors.
+    const guarantors = ([1, 2] as const)
+        .map((position) => ({
+            position,
+            details: guarantorFrom(formData, position),
+            image: formData.get(`guarantor${position}Cnic`),
+        }))
+        .filter(
+            ({ details, image }) =>
+                Object.values(details).some(
+                    (value) => typeof value === "string" && value !== ""
+                ) || (image instanceof File && image.size > 0)
+        )
+        .map(({ details }) => details);
+
+    form.set("guarantors", JSON.stringify(guarantors));
 
     for (const field of UPLOAD_FIELDS) {
         const file = formData.get(field);

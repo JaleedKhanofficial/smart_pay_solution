@@ -44,13 +44,13 @@ const parseGuarantors = ({ value }: { value: unknown }): unknown => {
 };
 
 export class CreateCustomerDto {
-  @ApiProperty({ example: 'Ali Raza', maxLength: 150 })
+  @ApiProperty({ example: 'ABC KHAN', maxLength: 150 })
   @Transform(trim)
   @IsString()
   @Length(2, 150)
   fullName: string;
 
-  @ApiProperty({ example: 'Muhammad Raza', maxLength: 150 })
+  @ApiProperty({ example: 'ABC KHAN', maxLength: 150 })
   @Transform(trim)
   @IsString()
   @Length(2, 150)
@@ -68,13 +68,13 @@ export class CreateCustomerDto {
   @Matches(MOBILE_PATTERN, { message: `mobileNumber ${MOBILE_MESSAGE}` })
   mobileNumber: string;
 
-  @ApiProperty({ example: 'House 12, Street 5, Lahore' })
+  @ApiProperty({ example: 'House 12, Street 5' })
   @Transform(trim)
   @IsString()
   @Length(5, 500)
   address: string;
 
-  @ApiProperty({ example: 'Shopkeeper', maxLength: 120 })
+  @ApiProperty({ example: 'Businessman', maxLength: 120 })
   @Transform(trim)
   @IsString()
   @Length(2, 120)
@@ -90,12 +90,13 @@ export class CreateCustomerDto {
   @ApiProperty({
     type: [GuarantorDto],
     description:
-      'Exactly two, positions 1 and 2. Sent as a JSON string in multipart requests.',
+      'One or two. Position 1 is required, position 2 is optional. Sent as a ' +
+      'JSON string in multipart requests.',
   })
   @Transform(parseGuarantors)
   @IsArray()
-  @ArrayMinSize(2, { message: 'exactly two guarantors are required' })
-  @ArrayMaxSize(2, { message: 'exactly two guarantors are required' })
+  @ArrayMinSize(1, { message: 'guarantor 1 is required' })
+  @ArrayMaxSize(2, { message: 'a customer can have at most two guarantors' })
   @ValidateNested({ each: true })
   @Type(() => GuarantorDto)
   guarantors: GuarantorDto[];
