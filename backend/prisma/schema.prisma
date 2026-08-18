@@ -90,10 +90,11 @@ model RefreshToken {
 
 /// SRS §5.5 — served only through the authenticated file endpoint (FR-CUS-05-v2)
 model File {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  /// "<name> - <cnic> - <dd-mm-yyyy>.<ext>"; unique only within its folder,
-  /// so the full path carries the uniqueness constraint.
-  storedName   String   @map("stored_name")
+  /// The filename on disk, e.g. "Ali Raza - 35201-1234567-1 - 18-08-2026.png".
+  /// It doubles as the key, so customers.cnic_file_id reads as the filename
+  /// rather than an opaque id. Names are made unique across every folder by
+  /// appending " (2)", " (3)" … when they would otherwise clash.
+  id           String   @id
   originalName String   @map("original_name")
   mime         String   @db.VarChar(120)
   sizeBytes    Int      @map("size_bytes")
@@ -121,7 +122,7 @@ model Customer {
   address           String
   occupation        String    @db.VarChar(120)
   monthlyIncome     Decimal   @map("monthly_income") @db.Decimal(12, 2)
-  cnicFileId        String?   @map("cnic_file_id") @db.Uuid
+  cnicFileId        String?   @map("cnic_file_id")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
@@ -137,7 +138,8 @@ model Customer {
 
 /// SRS §5.4 — exactly two per customer (FR-CUS-03-v2), enforced in the service
 model Guarantor {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Sequential like the customer key, so staff can quote a short number.
+  id           Int       @id @default(autoincrement())
   customerId   Int       @map("customer_id")
   position     Int
   fullName     String    @map("full_name") @db.VarChar(150)
@@ -146,7 +148,7 @@ model Guarantor {
   cnicNumber   String    @map("cnic_number") @db.VarChar(15)
   mobileNumber String    @map("mobile_number") @db.VarChar(20)
   address      String
-  cnicFileId   String?   @map("cnic_file_id") @db.Uuid
+  cnicFileId   String?   @map("cnic_file_id")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -266,7 +268,7 @@ model LedgerSnapshot {
   contractId  String   @map("contract_id") @db.Uuid
   snapshotNo  String   @unique @map("snapshot_no") @db.VarChar(40)
   payload     Json
-  pdfFileId   String?  @map("pdf_file_id") @db.Uuid
+  pdfFileId   String?  @map("pdf_file_id")
   createdById String   @map("created_by") @db.Uuid
   legacy      Boolean  @default(false)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz

@@ -17,7 +17,7 @@ export type AuthResponse = {
 
 /** SRS §5.4 — exactly two per customer (FR-CUS-03-v2). */
 export type Guarantor = {
-    id: string;
+    id: number;
     customerId: number;
     position: number;
     fullName: string;

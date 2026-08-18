@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -15,6 +16,7 @@ import {
 } from '../files/files.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
+import type { GuarantorDto } from './dto/guarantor.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
@@ -64,6 +66,7 @@ export class CustomersService {
     ip?: string,
   ): Promise<CustomerWithGuarantors> {
     await this.assertCnicIsFree(dto.cnicNumber);
+    this.assertGuarantorPositions(dto.guarantors);
 
     // Every image is checked before anything is written, so a bad third upload
     // cannot leave the first two on disk (FR-CUS-06).
@@ -210,6 +213,8 @@ export class CustomersService {
     if (dto.cnicNumber && dto.cnicNumber !== before.cnicNumber) {
       await this.assertCnicIsFree(dto.cnicNumber, id);
     }
+
+    if (dto.guarantors) this.assertGuarantorPositions(dto.guarantors);
 
     this.validateUploads(uploads);
 
@@ -405,6 +410,27 @@ export class CustomersService {
       before: this.forAudit(before),
       ip,
     });
+  }
+
+  /**
+   * FR-CUS-03-v2 wants one guarantor at position 1 and one at position 2. The
+   * DTO only checks that each value is 1 or 2, so two at the same position
+   * would otherwise reach the unique index and surface as a 500.
+   */
+  private assertGuarantorPositions(guarantors: GuarantorDto[]): void {
+    const positions = new Set(guarantors.map((row) => row.position));
+
+    if (positions.size !== 2) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'guarantors must be one at position 1 and one at position 2',
+        fieldErrors: {
+          guarantors:
+            'Provide one guarantor at position 1 and one at position 2',
+        },
+      });
+    }
   }
 
   private validateUploads(uploads: CustomerUploads): void {

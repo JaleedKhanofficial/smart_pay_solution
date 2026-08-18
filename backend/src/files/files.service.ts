@@ -155,25 +155,35 @@ export class FilesService {
     const directory = join(this.uploadDir, target.folder);
     await mkdir(directory, { recursive: true });
 
-    const { storedName, storagePath } = await this.writeUnique(
+    const { fileName, storagePath } = await this.writeUnique(
+      tx,
       directory,
       this.baseName(target),
       signature.extension,
       file.buffer,
     );
 
-    const record = await tx.file.create({
-      data: {
-        storedName,
-        originalName: file.originalname.slice(0, 255),
-        mime: signature.mime,
-        sizeBytes: file.size,
-        storagePath,
-        uploadedById,
-      },
-    });
+    try {
+      const record = await tx.file.create({
+        data: {
+          // The filename is the key, so cnic_file_id reads as the filename.
+          id: fileName,
+          originalName: file.originalname.slice(0, 255),
+          mime: signature.mime,
+          sizeBytes: file.size,
+          storagePath,
+          uploadedById,
+        },
+      });
 
-    return { fileId: record.id, storagePath };
+      return { fileId: record.id, storagePath };
+    } catch (error) {
+      // The bytes are on disk but the row failed, and this path was never
+      // handed back to the caller, so its discard list will not cover it.
+      await unlink(storagePath).catch(() => undefined);
+
+      throw error;
+    }
   }
 
   findById(id: string): Promise<FileRecord | null> {
@@ -218,27 +228,36 @@ export class FilesService {
 
   /**
    * Re-uploading the same person's scan on the same day would collide, so the
-   * name gains a " (2)" suffix. The `wx` flag makes each attempt atomic, which
-   * beats checking for existence and then writing.
+   * name gains a " (2)" suffix. Because the name is the primary key it has to
+   * be free in every folder, not just this one, so both the table and the
+   * directory are checked. The `wx` flag makes the write itself atomic.
    */
   private async writeUnique(
+    tx: Prisma.TransactionClient,
     directory: string,
     base: string,
     extension: string,
     contents: Buffer,
-  ): Promise<{ storedName: string; storagePath: string }> {
+  ): Promise<{ fileName: string; storagePath: string }> {
     for (let attempt = 1; attempt <= 50; attempt += 1) {
-      const storedName =
+      const fileName =
         attempt === 1
           ? `${base}.${extension}`
           : `${base} (${attempt}).${extension}`;
 
-      const storagePath = join(directory, storedName);
+      const taken = await tx.file.findUnique({
+        where: { id: fileName },
+        select: { id: true },
+      });
+
+      if (taken) continue;
+
+      const storagePath = join(directory, fileName);
 
       try {
         await writeFile(storagePath, contents, { flag: 'wx' });
 
-        return { storedName, storagePath };
+        return { fileName, storagePath };
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
 

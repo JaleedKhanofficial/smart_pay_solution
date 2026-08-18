@@ -42,7 +42,7 @@ function Thumbnail({ fileId, alt }: { fileId: string | null; alt: string }) {
         // cookie and get a 401.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-            src={`/media/${fileId}`}
+            src={`/media/${encodeURIComponent(fileId)}`}
             alt={alt}
             className="size-9 rounded-md border border-border object-cover"
         />

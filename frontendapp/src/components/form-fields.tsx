@@ -130,7 +130,11 @@ export function ImageField({ label, name, existingFileId }: ImageFieldProps) {
         };
     }, [preview]);
 
-    const shown = preview ?? (existingFileId ? `/media/${existingFileId}` : null);
+    const shown =
+        preview ??
+        (existingFileId
+            ? `/media/${encodeURIComponent(existingFileId)}`
+            : null);
 
     return (
         <div>

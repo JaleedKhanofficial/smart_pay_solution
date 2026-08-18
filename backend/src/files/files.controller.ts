@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  ParseUUIDPipe,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { createReadStream } from 'node:fs';
@@ -24,10 +17,7 @@ export class FilesController {
    */
   @Get(':id')
   @ApiOperation({ summary: 'Stream an uploaded file (FR-CUS-05-v2)' })
-  async serve(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Res() res: Response,
-  ): Promise<void> {
+  async serve(@Param('id') id: string, @Res() res: Response): Promise<void> {
     const record = await this.files.findById(id);
 
     if (!record) {
@@ -44,12 +34,12 @@ export class FilesController {
     res.setHeader('Content-Length', record.sizeBytes);
     // Stored names carry spaces and non-ASCII, so the RFC 5987 form is the one
     // that survives; the quoted fallback is stripped down for old clients.
-    const asciiName = record.storedName.replace(/[^\x20-\x7E]/g, '_');
+    const asciiName = record.id.replace(/[^\x20-\x7E]/g, '_');
 
     res.setHeader(
       'Content-Disposition',
       `inline; filename="${asciiName.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(
-        record.storedName,
+        record.id,
       )}`,
     );
     res.setHeader('Cache-Control', 'private, max-age=300');
