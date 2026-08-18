@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ApiError } from "@/api/api.repository";
@@ -5,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
 import { apiCall } from "@/lib/api";
 import { visibleSections } from "@/lib/navigation";
+import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import type { SessionUser } from "@/types/customer";
 
 /**
@@ -26,9 +28,17 @@ export default async function AppLayout({
 
     if (!user) redirect("/login");
 
+    // Read on the server so the rail renders at its stored width on first paint.
+    const collapsed =
+        (await cookies()).get(SIDEBAR_COOKIE)?.value === "collapsed";
+
     return (
         <ToastProvider>
-            <AppShell sections={visibleSections(user.role)} user={user}>
+            <AppShell
+                sections={visibleSections(user.role)}
+                user={user}
+                defaultCollapsed={collapsed}
+            >
                 {children}
             </AppShell>
         </ToastProvider>

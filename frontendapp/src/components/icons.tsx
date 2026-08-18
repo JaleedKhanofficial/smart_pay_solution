@@ -15,7 +15,8 @@ export type IconName =
     | "menu"
     | "close"
     | "logout"
-    | "alert";
+    | "alert"
+    | "chevronLeft";
 
 /** Inline so the app has no runtime CDN or icon-package dependency (NFR-10). */
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -105,6 +106,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
             <path d="M21 12H9" />
         </>
     ),
+    chevronLeft: <path d="m15 18-6-6 6-6" />,
     alert: (
         <>
             <path d="M12 9v4" />

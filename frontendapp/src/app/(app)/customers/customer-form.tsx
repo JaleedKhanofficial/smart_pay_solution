@@ -30,13 +30,13 @@ function Section({
 }) {
     return (
         <section className="rounded-xl border border-border bg-surface">
-            <div className="border-b border-border px-5 py-4">
+            <div className="border-b border-border px-4 py-3 sm:px-5 sm:py-4">
                 <h2 className="text-sm font-semibold text-foreground">
                     {title}
                 </h2>
                 <p className="mt-0.5 text-xs text-muted">{description}</p>
             </div>
-            <div className="grid gap-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5 sm:py-5 lg:grid-cols-3">
                 {children}
             </div>
         </section>
@@ -225,11 +225,11 @@ export function CustomerForm({ customer }: Props) {
                 </div>
             ) : null}
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
                 <button
                     type="submit"
                     disabled={pending}
-                    className="rounded-md bg-navy-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-700 disabled:opacity-60"
+                    className="w-full rounded-md bg-navy-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-navy-700 disabled:opacity-60 sm:w-auto sm:py-2"
                 >
                     {pending
                         ? "Saving…"
@@ -239,7 +239,7 @@ export function CustomerForm({ customer }: Props) {
                 </button>
                 <Link
                     href="/customers"
-                    className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+                    className="w-full rounded-md border border-border px-4 py-2.5 text-center text-sm font-medium text-foreground transition-colors hover:bg-surface-muted sm:w-auto sm:py-2"
                 >
                     Cancel
                 </Link>

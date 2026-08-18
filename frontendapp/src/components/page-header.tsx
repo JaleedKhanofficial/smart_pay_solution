@@ -9,7 +9,7 @@ type Props = {
 
 export function PageHeader({ title, description, eyebrow, actions }: Props) {
     return (
-        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div>
                 {eyebrow ? (
                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
@@ -23,7 +23,9 @@ export function PageHeader({ title, description, eyebrow, actions }: Props) {
                     <p className="mt-1 text-sm text-muted">{description}</p>
                 ) : null}
             </div>
-            {actions ? <div className="flex gap-2">{actions}</div> : null}
+            {actions ? (
+                <div className="flex w-full gap-2 sm:w-auto">{actions}</div>
+            ) : null}
         </header>
     );
 }

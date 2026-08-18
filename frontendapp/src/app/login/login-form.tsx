@@ -2,13 +2,9 @@
 
 import { useActionState } from "react";
 import { loginAction } from "./actions";
+// Shared with the customer form so the mobile sizing stays in one place.
+import { fieldClass, labelClass } from "@/components/form-fields";
 import { EMPTY_FORM_STATE } from "@/types/customer";
-
-const fieldClass =
-    "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600 disabled:opacity-60";
-
-const labelClass =
-    "mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted";
 
 export function LoginForm() {
     const [state, formAction, pending] = useActionState(
@@ -64,7 +60,7 @@ export function LoginForm() {
             <button
                 type="submit"
                 disabled={pending}
-                className="mt-2 rounded-md bg-navy-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-navy-700 disabled:opacity-60"
+                className="mt-2 w-full rounded-md bg-navy-800 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-navy-700 disabled:opacity-60 sm:py-2.5"
             >
                 {pending ? "Signing in…" : "Sign in"}
             </button>

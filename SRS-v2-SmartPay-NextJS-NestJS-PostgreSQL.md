@@ -4,8 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.0 |
-| **Date** | 08-17-2026 |
+| **Document version** | 2.1 |
+| **Date** | 08-17-2026, amended 08-18-2026 |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -75,7 +76,7 @@ PostgreSQL 16 (schema `sps`)          Local disk or S3-compatible
 
 | Layer | Decision |
 |---|---|
-| Frontend | Next.js 15, App Router. Server Components for list/detail reads; Client Components for the contract calculator, ledger, and summary workbook. |
+| Frontend | Next.js 15, App Router. Server Components for list/detail reads; Client Components for the contract calculator, ledger, and summary workbook. Responsive from 320 px per NFR-12. |
 | API | NestJS 11, REST, versioned under `/api/v1`. |
 | ORM / migrations | Prisma with `prisma migrate`. The Prisma schema is the single source of DDL truth; no hand-run SQL bootstrap (replaces v1 `/setup`, which had drifted from the live schema). |
 | Database | PostgreSQL 16. `NUMERIC(12,2)` for all money. UTC timestamps (`timestamptz`); dates as `date`. |
@@ -434,6 +435,31 @@ All list endpoints support `page`, `pageSize` (default 25, max 100), `sort`, and
 | NFR-09 | **Testability:** unit tests on the formula package (BR-01..BR-13) and payment/void/status transitions; e2e happy-path tests (login → customer → contract → payment → ledger). CI runs tests + `prisma migrate diff` drift check on every push. |
 | NFR-10 | **Browser support:** evergreen browsers; no CDN dependencies at runtime. |
 | NFR-11 | **Type safety:** end-to-end TypeScript; API types shared with the frontend (generated from the OpenAPI spec or a shared package). |
+| NFR-12 | **Responsive layout:** every screen is usable from 320 px upward, with no horizontal page scrolling at any width. Layout rules per §8.1. |
+
+### 8.1 Responsive layout (NFR-12)
+
+Two breakpoints carry the whole application: **`sm` at 640 px** and **`lg` at 1024 px**. Anything between them is a tablet tier that must be explicitly accounted for, not left to fall through.
+
+| Width | Navigation | Data-entry forms | List screens | Login |
+|---|---|---|---|---|
+| < 640 px | Slide-over drawer | Single column | **Cards** | Card, brand mark above |
+| 640–1023 px | Slide-over drawer | Two columns | **Cards** | Card, centred |
+| 1024–1279 px | Fixed sidebar | Three columns | Table (decorative columns hidden) | Split, brand panel |
+| ≥ 1280 px | Fixed sidebar | Three columns | Full table | Split, brand panel |
+
+**Rules**
+
+| ID | Requirement |
+|---|---|
+| NFR-12.1 | **Lists become cards below `lg`.** A register with more than four columns is unreadable on a phone, so small and medium screens render one card per record instead of a table row: identifying image and name at the top, the key fields beneath, and the row actions in a footer. The card and the table are generated from the same data and share their empty state, so the two cannot drift apart. |
+| NFR-12.2 | **No table may require horizontal scrolling at its own breakpoint.** A table's minimum width must fit the space available at the width where it first appears — that is, viewport minus sidebar (240 px) minus page padding (64 px). Where it does not fit, decorative columns (thumbnails) are deferred to `xl` rather than the table being allowed to overflow. |
+| NFR-12.3 | **Form fields render at 16 px below `sm`.** Anything smaller makes iOS Safari zoom the viewport on focus. Field sizing is defined once, in a shared style constant, and every form imports it — no screen keeps a private copy. |
+| NFR-12.4 | **Primary actions are full width and stacked on phones**, with the confirming action first in reading order; they return to an inline row from `sm` up. Interactive targets are at least 44 px tall on touch widths. |
+| NFR-12.5 | **The sidebar collapses to a 64 px icon rail** on `lg` and above, toggled by the user and remembered per browser. The preference is stored in a cookie and read on the server so the rail renders at its stored width on first paint; a client-side read would flash the expanded state on every load. Collapsed, each item exposes its label as a tooltip. Below `lg` the drawer always shows full labels. |
+| NFR-12.6 | **Mobile-native affordances** where they cost nothing: telephone numbers are `tel:` links, numeric fields set the numeric input mode, and card padding tightens below `sm` to buy back screen width. |
+
+> **Verification.** Each screen is checked at 320, 375, 768, 1024 and 1280 px. 1024 px is the critical one: it is where the sidebar, the table and the three-column form all appear at once, and it is the width at which layout defects surface first.
 
 ---
 
@@ -475,4 +501,4 @@ One-time ETL script, run against a frozen copy of `smartpaysolution`, idempotent
 
 ---
 
-*Prepared 08-17-2026. Supersedes SRS 1.0. Traceability: every v1 FR is carried, renumbered with a `-v2` suffix where behaviour changed; every §9 defect in SRS 1.0 maps to a resolution in §2.6 of this document.*
+*Prepared 08-17-2026, amended 08-18-2026. Supersedes SRS 1.0. Traceability: every v1 FR is carried, renumbered with a `-v2` suffix where behaviour changed; every §9 defect in SRS 1.0 maps to a resolution in §2.6 of this document.*

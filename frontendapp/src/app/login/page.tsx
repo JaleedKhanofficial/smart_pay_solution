@@ -46,26 +46,34 @@ export default async function LoginPage() {
                 </p>
             </div>
 
-            <div className="flex flex-1 items-center justify-center px-6 py-16">
+            <div className="flex flex-1 items-center justify-center px-5 py-12 sm:px-6 sm:py-16">
                 <div className="w-full max-w-sm">
-                    <header className="mb-8">
-                        <div className="mb-6 flex items-center gap-3 lg:hidden">
-                            <span className="grid size-9 place-items-center rounded-md bg-gold text-base font-bold text-navy-900">
-                                S
-                            </span>
-                            <span className="text-sm font-semibold text-foreground">
-                                SmartPay Solutions
-                            </span>
-                        </div>
-                        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                            Sign in
-                        </h1>
-                        <p className="mt-1 text-sm text-muted">
-                            Use your staff account to continue.
-                        </p>
-                    </header>
+                    {/* The brand panel is hidden below lg, so the mark is
+                        repeated above the card on small screens. */}
+                    <div className="mb-6 flex items-center justify-center gap-3 lg:hidden">
+                        <span className="grid size-9 place-items-center rounded-md bg-gold text-base font-bold text-navy-900">
+                            S
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">
+                            SmartPay Solutions
+                        </span>
+                    </div>
 
-                    <LoginForm />
+                    {/* Same card shell as the customer form sections. */}
+                    <div className="rounded-xl border border-border bg-surface">
+                        <header className="border-b border-border px-5 py-4 sm:px-6 sm:py-5">
+                            <h1 className="text-base font-semibold tracking-tight text-foreground">
+                                Sign in
+                            </h1>
+                            <p className="mt-0.5 text-xs text-muted">
+                                Use your staff account to continue.
+                            </p>
+                        </header>
+
+                        <div className="px-5 py-5 sm:px-6 sm:py-6">
+                            <LoginForm />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

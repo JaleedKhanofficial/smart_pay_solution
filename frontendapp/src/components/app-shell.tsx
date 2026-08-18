@@ -6,11 +6,15 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { logoutAction } from "@/app/login/actions";
 import type { NavSection } from "@/lib/navigation";
+import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import type { SessionUser } from "@/types/customer";
 
 type Props = {
     sections: NavSection[];
     user: SessionUser;
+    /** Read from the cookie on the server so the rail renders at the right
+     *  width immediately — a localStorage read would flash open then collapse. */
+    defaultCollapsed: boolean;
     children: ReactNode;
 };
 
@@ -22,20 +26,45 @@ function initials(name: string): string {
         .join("");
 }
 
-export function AppShell({ sections, user, children }: Props) {
+export function AppShell({
+    sections,
+    user,
+    defaultCollapsed,
+    children,
+}: Props) {
     const pathname = usePathname();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
     const isActive = (href: string) =>
         pathname === href || pathname.startsWith(`${href}/`);
 
-    const nav = (
-        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-4">
-            {sections.map((section) => (
+    function toggleCollapsed() {
+        const next = !collapsed;
+
+        setCollapsed(next);
+        // A year is plenty for a UI preference; not httpOnly because the
+        // toggle itself writes it.
+        document.cookie = `${SIDEBAR_COOKIE}=${
+            next ? "collapsed" : "expanded"
+        }; path=/; max-age=31536000; samesite=lax`;
+    }
+
+    /** `rail` is false in the mobile drawer, which always shows labels. */
+    const renderNav = (rail: boolean) => (
+        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-4">
+            {sections.map((section, index) => (
                 <div key={section.title}>
-                    <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
-                        {section.title}
-                    </p>
+                    {rail ? (
+                        index > 0 ? (
+                            <div className="mx-2 mb-2 h-px bg-white/10" />
+                        ) : null
+                    ) : (
+                        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
+                            {section.title}
+                        </p>
+                    )}
+
                     <ul className="flex flex-col gap-0.5">
                         {section.items.map((item) => {
                             const active = isActive(item.href);
@@ -45,10 +74,13 @@ export function AppShell({ sections, user, children }: Props) {
                                     <Link
                                         href={item.href}
                                         onClick={() => setMobileOpen(false)}
-                                        aria-current={
-                                            active ? "page" : undefined
-                                        }
-                                        className={`group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                                        aria-current={active ? "page" : undefined}
+                                        title={rail ? item.label : undefined}
+                                        className={`group relative flex items-center rounded-md py-2 text-sm transition-colors ${
+                                            rail
+                                                ? "justify-center px-2"
+                                                : "gap-3 px-3"
+                                        } ${
                                             active
                                                 ? "bg-white/10 font-medium text-white"
                                                 : "text-white/65 hover:bg-white/5 hover:text-white"
@@ -65,15 +97,19 @@ export function AppShell({ sections, user, children }: Props) {
                                                     : "text-white/45 group-hover:text-white/70"
                                             }`}
                                         />
-                                        <span className="truncate">
-                                            {item.label}
-                                        </span>
-                                        {!item.built ? (
-                                            <span
-                                                title="Not built yet"
-                                                className="ml-auto size-1.5 shrink-0 rounded-full bg-white/25"
-                                            />
-                                        ) : null}
+                                        {rail ? null : (
+                                            <>
+                                                <span className="truncate">
+                                                    {item.label}
+                                                </span>
+                                                {!item.built ? (
+                                                    <span
+                                                        title="Not built yet"
+                                                        className="ml-auto size-1.5 shrink-0 rounded-full bg-white/25"
+                                                    />
+                                                ) : null}
+                                            </>
+                                        )}
                                     </Link>
                                 </li>
                             );
@@ -84,36 +120,53 @@ export function AppShell({ sections, user, children }: Props) {
         </nav>
     );
 
-    const brand = (
-        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
-            <span className="grid size-8 place-items-center rounded-md bg-gold text-sm font-bold text-navy-900">
+    const renderBrand = (rail: boolean) => (
+        <div
+            className={`flex h-16 shrink-0 items-center border-b border-white/10 ${
+                rail ? "justify-center px-2" : "gap-3 px-5"
+            }`}
+        >
+            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-gold text-sm font-bold text-navy-900">
                 S
             </span>
-            <span className="leading-tight">
-                <span className="block text-sm font-semibold text-white">
-                    SmartPay
+            {rail ? null : (
+                <span className="leading-tight">
+                    <span className="block text-sm font-semibold text-white">
+                        SmartPay
+                    </span>
+                    <span className="block text-[10px] uppercase tracking-[0.14em] text-gold-soft">
+                        Solutions
+                    </span>
                 </span>
-                <span className="block text-[10px] uppercase tracking-[0.14em] text-gold-soft">
-                    Solutions
-                </span>
-            </span>
+            )}
         </div>
     );
 
-    const account = (
-        <div className="shrink-0 border-t border-white/10 p-3">
-            <div className="flex items-center gap-3 rounded-md px-2 py-2">
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
+    const renderAccount = (rail: boolean) => (
+        <div className="shrink-0 border-t border-white/10 p-2">
+            <div
+                className={`flex rounded-md px-1 py-2 ${
+                    rail ? "flex-col items-center gap-2" : "items-center gap-3"
+                }`}
+            >
+                <span
+                    title={rail ? `${user.name} · ${user.role}` : undefined}
+                    className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white"
+                >
                     {initials(user.name)}
                 </span>
-                <span className="min-w-0 flex-1 leading-tight">
-                    <span className="block truncate text-sm text-white">
-                        {user.name}
+
+                {rail ? null : (
+                    <span className="min-w-0 flex-1 leading-tight">
+                        <span className="block truncate text-sm text-white">
+                            {user.name}
+                        </span>
+                        <span className="block truncate text-[11px] uppercase tracking-wide text-gold-soft">
+                            {user.role}
+                        </span>
                     </span>
-                    <span className="block truncate text-[11px] uppercase tracking-wide text-gold-soft">
-                        {user.role}
-                    </span>
-                </span>
+                )}
+
                 <form action={logoutAction}>
                     <button
                         type="submit"
@@ -130,14 +183,39 @@ export function AppShell({ sections, user, children }: Props) {
 
     return (
         <div className="flex min-h-dvh bg-background">
-            {/* Desktop sidebar */}
-            <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-navy-900 lg:flex">
-                {brand}
-                {nav}
-                {account}
+            {/* Desktop rail */}
+            <aside
+                className={`fixed inset-y-0 left-0 z-30 hidden flex-col bg-navy-900 transition-[width] duration-200 lg:flex ${
+                    collapsed ? "w-16" : "w-60"
+                }`}
+            >
+                {renderBrand(collapsed)}
+                {renderNav(collapsed)}
+                {renderAccount(collapsed)}
+
+                <button
+                    type="button"
+                    onClick={toggleCollapsed}
+                    aria-label={
+                        collapsed ? "Expand navigation" : "Collapse navigation"
+                    }
+                    aria-expanded={!collapsed}
+                    title={collapsed ? "Expand" : "Collapse"}
+                    className="flex h-10 shrink-0 items-center justify-center gap-2 border-t border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                    <Icon
+                        name="chevronLeft"
+                        className={`size-4 transition-transform duration-200 ${
+                            collapsed ? "rotate-180" : ""
+                        }`}
+                    />
+                    {collapsed ? null : (
+                        <span className="text-xs">Collapse</span>
+                    )}
+                </button>
             </aside>
 
-            {/* Mobile drawer */}
+            {/* Mobile drawer — always full labels */}
             {mobileOpen ? (
                 <div className="fixed inset-0 z-40 lg:hidden">
                     <button
@@ -147,14 +225,18 @@ export function AppShell({ sections, user, children }: Props) {
                         className="absolute inset-0 bg-black/50"
                     />
                     <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-navy-900">
-                        {brand}
-                        {nav}
-                        {account}
+                        {renderBrand(false)}
+                        {renderNav(false)}
+                        {renderAccount(false)}
                     </aside>
                 </div>
             ) : null}
 
-            <div className="flex min-w-0 flex-1 flex-col lg:pl-60">
+            <div
+                className={`flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ${
+                    collapsed ? "lg:pl-16" : "lg:pl-60"
+                }`}
+            >
                 <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur sm:px-6">
                     <button
                         type="button"
@@ -165,7 +247,10 @@ export function AppShell({ sections, user, children }: Props) {
                         <Icon name="menu" className="size-4" />
                     </button>
 
-                    <span className="text-sm text-muted">
+                    <span className="text-sm font-semibold text-foreground sm:hidden">
+                        SmartPay
+                    </span>
+                    <span className="hidden text-sm text-muted sm:block">
                         Installment Sales &amp; Recovery Management
                     </span>
 

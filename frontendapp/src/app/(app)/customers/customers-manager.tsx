@@ -49,6 +49,46 @@ function Thumbnail({ fileId, alt }: { fileId: string | null; alt: string }) {
     );
 }
 
+function EmptyState({ search }: { search: string }) {
+    return (
+        <div className="text-center">
+            <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
+                <Icon name="users" className="size-5" />
+            </span>
+            <p className="text-sm font-medium text-foreground">
+                {search ? "No customers match that search" : "No customers yet"}
+            </p>
+            <p className="mt-1 text-xs text-muted">
+                {search
+                    ? "Try a different name, CNIC or mobile."
+                    : "Add your first customer to get started."}
+            </p>
+        </div>
+    );
+}
+
+function GuarantorThumbs({ customer }: { customer: Customer }) {
+    if (customer.guarantors.length === 0) {
+        return (
+            <span title="No guarantor on record" className="text-negative">
+                <Icon name="alert" className="size-4" />
+            </span>
+        );
+    }
+
+    return (
+        <>
+            {customer.guarantors.map((guarantor) => (
+                <Thumbnail
+                    key={guarantor.id}
+                    fileId={guarantor.cnicFileId}
+                    alt={`CNIC of ${guarantor.fullName}`}
+                />
+            ))}
+        </>
+    );
+}
+
 export default function CustomersManager({
     page,
     search,
@@ -107,18 +147,18 @@ export default function CustomersManager({
                           }`
                 }
                 actions={
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                         <form
                             action="/customers"
                             method="get"
-                            className="flex gap-2"
+                            className="flex w-full gap-2 sm:w-auto"
                         >
                             <input
                                 type="search"
                                 name="search"
                                 defaultValue={search}
                                 placeholder="Name, CNIC or mobile"
-                                className="w-56 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600"
+                                className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600 sm:w-56 sm:flex-none sm:py-2 sm:text-sm"
                             />
                             <button
                                 type="submit"
@@ -138,7 +178,7 @@ export default function CustomersManager({
 
                         <Link
                             href="/customers/new"
-                            className="rounded-md bg-navy-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-700"
+                            className="w-full rounded-md bg-navy-800 px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-navy-700 sm:w-auto sm:py-2"
                         >
                             Add customer
                         </Link>
@@ -152,11 +192,111 @@ export default function CustomersManager({
                 </p>
             ) : null}
 
-            <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-                <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+            {/* Seven columns do not fit a phone, so small screens get cards
+                and the table takes over from lg up. */}
+            <div className="flex flex-col gap-3 lg:hidden">
+                {page.data.length === 0 ? (
+                    <div className="rounded-xl border border-border bg-surface px-4 py-14">
+                        <EmptyState search={search} />
+                    </div>
+                ) : (
+                    page.data.map((customer) => (
+                        <article
+                            key={customer.id}
+                            className="rounded-xl border border-border bg-surface p-4"
+                        >
+                            <div className="flex items-start gap-3">
+                                <Thumbnail
+                                    fileId={customer.cnicFileId}
+                                    alt={`CNIC of ${customer.fullName}`}
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <Link
+                                        href={`/customers/${customer.id}/edit`}
+                                        className="block truncate font-medium text-foreground underline-offset-2 hover:underline"
+                                    >
+                                        {customer.fullName}
+                                    </Link>
+                                    <p className="truncate text-xs text-muted">
+                                        s/o {customer.fatherHusbandName}
+                                    </p>
+                                </div>
+                                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+                                    #{customer.id}
+                                </span>
+                            </div>
+
+                            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                                <div className="col-span-2">
+                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                        CNIC
+                                    </dt>
+                                    <dd className="font-mono text-xs text-foreground">
+                                        {customer.cnicNumber}
+                                    </dd>
+                                </div>
+                                <div className="min-w-0">
+                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                        Mobile
+                                    </dt>
+                                    <dd className="text-sm">
+                                        <a
+                                            href={`tel:${customer.mobileNumber.replace(/\D/g, "")}`}
+                                            className="text-foreground underline-offset-2 hover:underline"
+                                        >
+                                            {customer.mobileNumber}
+                                        </a>
+                                    </dd>
+                                </div>
+                                <div className="min-w-0">
+                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                        Occupation
+                                    </dt>
+                                    <dd className="truncate text-sm text-foreground">
+                                        {customer.occupation}
+                                    </dd>
+                                </div>
+                            </dl>
+
+                            <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+                                <div className="flex items-center gap-1">
+                                    <span className="mr-1 text-[11px] uppercase tracking-wide text-muted">
+                                        Guarantors
+                                    </span>
+                                    <GuarantorThumbs customer={customer} />
+                                </div>
+
+                                <div className="flex shrink-0 gap-2">
+                                    <Link
+                                        href={`/customers/${customer.id}/edit`}
+                                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                                    >
+                                        Edit
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDelete(customer)}
+                                        disabled={deletingId === customer.id}
+                                        className="rounded-md border border-negative/40 px-3 py-1.5 text-xs font-medium text-negative transition-colors hover:bg-negative/8 disabled:opacity-60"
+                                    >
+                                        {deletingId === customer.id
+                                            ? "Deleting…"
+                                            : "Delete"}
+                                    </button>
+                                </div>
+                            </div>
+                        </article>
+                    ))
+                )}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface lg:block">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                     <thead className="border-b border-border bg-surface-muted text-[11px] uppercase tracking-wide text-muted">
                         <tr>
-                            <th className="px-4 py-3 font-medium">CNIC image</th>
+                            <th className="hidden px-4 py-3 font-medium xl:table-cell">
+                                CNIC image
+                            </th>
                             <th className="px-4 py-3 font-medium">Name</th>
                             <th className="px-4 py-3 font-medium">CNIC</th>
                             <th className="px-4 py-3 font-medium">Mobile</th>
@@ -171,25 +311,8 @@ export default function CustomersManager({
                     <tbody className="divide-y divide-border">
                         {page.data.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-4 py-14">
-                                    <div className="text-center">
-                                        <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
-                                            <Icon
-                                                name="users"
-                                                className="size-5"
-                                            />
-                                        </span>
-                                        <p className="text-sm font-medium text-foreground">
-                                            {search
-                                                ? "No customers match that search"
-                                                : "No customers yet"}
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted">
-                                            {search
-                                                ? "Try a different name, CNIC or mobile."
-                                                : "Add your first customer to get started."}
-                                        </p>
-                                    </div>
+                                <td colSpan={7} className="px-4 py-14">
+                                    <EmptyState search={search} />
                                 </td>
                             </tr>
                         ) : (
@@ -198,7 +321,7 @@ export default function CustomersManager({
                                     key={customer.id}
                                     className="align-middle text-foreground transition-colors hover:bg-surface-muted"
                                 >
-                                    <td className="px-4 py-3">
+                                    <td className="hidden px-4 py-3 xl:table-cell">
                                         <Thumbnail
                                             fileId={customer.cnicFileId}
                                             alt={`CNIC of ${customer.fullName}`}
@@ -229,28 +352,9 @@ export default function CustomersManager({
                                     </td> */}
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-1">
-                                            {customer.guarantors.map(
-                                                (guarantor) => (
-                                                    <Thumbnail
-                                                        key={guarantor.id}
-                                                        fileId={
-                                                            guarantor.cnicFileId
-                                                        }
-                                                        alt={`CNIC of ${guarantor.fullName}`}
-                                                    />
-                                                )
-                                            )}
-                                            {customer.guarantors.length === 0 ? (
-                                                <span
-                                                    title="No guarantor on record"
-                                                    className="text-negative"
-                                                >
-                                                    <Icon
-                                                        name="alert"
-                                                        className="size-4"
-                                                    />
-                                                </span>
-                                            ) : null}
+                                            <GuarantorThumbs
+                                                customer={customer}
+                                            />
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
