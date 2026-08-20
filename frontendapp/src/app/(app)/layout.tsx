@@ -7,6 +7,11 @@ import { ToastProvider } from "@/components/toast";
 import { apiCall } from "@/lib/api";
 import { visibleSections } from "@/lib/navigation";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
+import {
+    DEFAULT_THEME_MODE,
+    THEME_MODE_COOKIE,
+    isThemeMode,
+} from "@/lib/theme-mode";
 import type { SessionUser } from "@/types/customer";
 
 /**
@@ -29,8 +34,11 @@ export default async function AppLayout({
     if (!user) redirect("/login");
 
     // Read on the server so the rail renders at its stored width on first paint.
-    const collapsed =
-        (await cookies()).get(SIDEBAR_COOKIE)?.value === "collapsed";
+    const store = await cookies();
+    const collapsed = store.get(SIDEBAR_COOKIE)?.value === "collapsed";
+
+    const storedMode = store.get(THEME_MODE_COOKIE)?.value;
+    const mode = isThemeMode(storedMode) ? storedMode : DEFAULT_THEME_MODE;
 
     return (
         <ToastProvider>
@@ -38,6 +46,7 @@ export default async function AppLayout({
                 sections={visibleSections(user.role)}
                 user={user}
                 defaultCollapsed={collapsed}
+                themeMode={mode}
             >
                 {children}
             </AppShell>

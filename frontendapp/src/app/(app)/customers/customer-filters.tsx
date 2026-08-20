@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/icons";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CARD_CLASS } from "@/components/ui/card";
 import type { CustomerFilterValues, CustomerSort } from "@/types/customer";
 
 const controlClass =
-    "w-full rounded-md border border-border bg-surface px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600 sm:py-2 sm:text-sm";
+    "w-full rounded-md border border-border bg-surface px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-chrome-600 sm:py-2 sm:text-sm";
 
 const labelClass =
-    "mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted";
+    "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted";
 
 type Props = {
     values: CustomerFilterValues;
@@ -48,7 +51,7 @@ export function CustomerFilters({
         <form
             action="/customers"
             method="get"
-            className="mb-6 rounded-xl border border-border bg-surface"
+            className={`mb-6 ${CARD_CLASS}`}
         >
             <div className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
                 <input
@@ -60,27 +63,22 @@ export function CustomerFilters({
                 />
 
                 <div className="flex gap-2">
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
                         onClick={() => setOpen(!open)}
                         aria-expanded={open}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted sm:flex-none sm:py-2"
+                        className="flex-1 sm:flex-none"
                     >
                         <Icon name="settings" className="size-4" />
                         Filters
                         {activeCount > 0 ? (
-                            <span className="rounded-full bg-navy-800 px-1.5 text-[11px] font-semibold text-white">
-                                {activeCount}
-                            </span>
+                            <Badge tone="solid">{activeCount}</Badge>
                         ) : null}
-                    </button>
+                    </Button>
 
-                    <button
-                        type="submit"
-                        className="flex-1 rounded-md bg-navy-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-navy-700 sm:flex-none sm:py-2"
-                    >
+                    <Button type="submit" className="flex-1 sm:flex-none">
                         Apply
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -93,7 +91,7 @@ export function CustomerFilters({
                                 defaultValue={values.occupation}
                                 className={controlClass}
                             >
-                                <option value="">Any</option>
+                                <option value="">All</option>
                                 {occupations.map((occupation) => (
                                     <option key={occupation} value={occupation}>
                                         {occupation}
@@ -108,7 +106,7 @@ export function CustomerFilters({
                                 defaultValue={values.guarantors}
                                 className={controlClass}
                             >
-                                <option value="">Any</option>
+                                <option value="">All</option>
                                 <option value="two">Both on file</option>
                                 <option value="one">Only one</option>
                                 <option value="none">None</option>
@@ -121,7 +119,7 @@ export function CustomerFilters({
                                 defaultValue={values.cnicImage}
                                 className={controlClass}
                             >
-                                <option value="">Any</option>
+                                <option value="">All</option>
                                 <option value="with">Uploaded</option>
                                 <option value="without">Missing</option>
                             </select>
@@ -184,7 +182,7 @@ export function CustomerFilters({
                         <div className="mt-3 flex justify-end">
                             <Link
                                 href="/customers"
-                                className="text-sm text-muted underline-offset-4 hover:underline"
+                                className="text-sm underline-offset-4 hover:underline"
                             >
                                 Clear all filters
                             </Link>

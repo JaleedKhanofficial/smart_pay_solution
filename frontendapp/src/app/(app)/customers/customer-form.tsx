@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 import { saveCustomer } from "./actions";
 import {
@@ -9,6 +8,8 @@ import {
     TextAreaField,
     TextField,
 } from "@/components/form-fields";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Card, CardFields, CardHeader } from "@/components/ui/card";
 import { EMPTY_FORM_STATE, type Customer, type Guarantor } from "@/types/customer";
 
 type Props = {
@@ -17,30 +18,6 @@ type Props = {
 
 function guarantorAt(customer: Customer | null, position: number): Guarantor | undefined {
     return customer?.guarantors.find((row) => row.position === position);
-}
-
-function Section({
-    title,
-    description,
-    children,
-}: {
-    title: string;
-    description: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <section className="rounded-xl border border-border bg-surface">
-            <div className="border-b border-border px-4 py-3 sm:px-5 sm:py-4">
-                <h2 className="text-sm font-semibold text-foreground">
-                    {title}
-                </h2>
-                <p className="mt-0.5 text-xs text-muted">{description}</p>
-            </div>
-            <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5 sm:py-5 lg:grid-cols-3">
-                {children}
-            </div>
-        </section>
-    );
 }
 
 export function CustomerForm({ customer }: Props) {
@@ -67,10 +44,12 @@ export function CustomerForm({ customer }: Props) {
             action={formAction}
             className="flex flex-col gap-6"
         >
-            <Section
-                title="Customer"
-                description="CNIC and mobile are reformatted as you type and validated again on the server."
-            >
+            <Card>
+                <CardHeader
+                    title="Customer"
+                    description="CNIC and mobile are reformatted as you type and validated again on the server."
+                />
+                <CardFields>
                 <TextField
                     label="Full name"
                     name="fullName"
@@ -133,21 +112,23 @@ export function CustomerForm({ customer }: Props) {
                     name="customerCnic"
                     existingFileId={customer?.cnicFileId}
                 />
-            </Section>
+                </CardFields>
+            </Card>
 
             {([1, 2] as const).map((position) => {
                 const guarantor = position === 1 ? g1 : g2;
 
                 return (
-                    <Section
-                        key={position}
-                        title={`Guarantor ${position}`}
-                        description={
-                            position === 1
-                                ? "Required on every customer record."
-                                : "Optional — leave blank if there is no second guarantor."
-                        }
-                    >
+                    <Card key={position}>
+                        <CardHeader
+                            title={`Guarantor ${position}`}
+                            description={
+                                position === 1
+                                    ? "Required on every customer record."
+                                    : "Optional — leave blank if there is no second guarantor."
+                            }
+                        />
+                        <CardFields>
                         <TextField
                             label="Full name"
                             name={`g${position}FullName`}
@@ -202,7 +183,8 @@ export function CustomerForm({ customer }: Props) {
                                 placeholder="House 12, Street 5"
                             />
                         </div>
-                    </Section>
+                    </CardFields>
+                    </Card>
                 );
             })}
 
@@ -226,23 +208,16 @@ export function CustomerForm({ customer }: Props) {
             ) : null}
 
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-                <button
-                    type="submit"
-                    disabled={pending}
-                    className="w-full rounded-md bg-navy-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-navy-700 disabled:opacity-60 sm:w-auto sm:py-2"
-                >
+                <Button type="submit" disabled={pending} stackOnMobile>
                     {pending
                         ? "Saving…"
                         : isEditing
                           ? "Save changes"
                           : "Create customer"}
-                </button>
-                <Link
-                    href="/customers"
-                    className="w-full rounded-md border border-border px-4 py-2.5 text-center text-sm font-medium text-foreground transition-colors hover:bg-surface-muted sm:w-auto sm:py-2"
-                >
+                </Button>
+                <ButtonLink href="/customers" variant="secondary" stackOnMobile>
                     Cancel
-                </Link>
+                </ButtonLink>
             </div>
         </form>
     );

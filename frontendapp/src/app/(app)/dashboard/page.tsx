@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { StatTile } from "@/components/stat-tile";
+import { Card } from "@/components/ui/card";
 import { apiCall } from "@/lib/api";
 import type { Customer, Paginated } from "@/types/customer";
 
@@ -30,7 +31,7 @@ export default async function DashboardPage() {
             />
 
             <div className="mb-8 flex items-start gap-3 rounded-xl border border-gold/30 bg-gold/8 px-4 py-3">
-                <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-gold" />
+                <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-gold-ink" />
                 <p className="text-sm text-foreground">
                     <span className="font-medium">
                         The dashboard API is not built yet.
@@ -115,7 +116,7 @@ export default async function DashboardPage() {
                     <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
                         Recent payments
                     </h2>
-                    <div className="rounded-xl border border-border bg-surface">
+                    <Card>
                         <div className="px-5 py-12 text-center">
                             <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
                                 <Icon name="creditCard" className="size-5" />
@@ -128,14 +129,14 @@ export default async function DashboardPage() {
                                 (FR-DSH-09) once Module 6 is built.
                             </p>
                         </div>
-                    </div>
+                    </Card>
                 </section>
 
                 <section>
                     <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
                         Attention
                     </h2>
-                    <div className="flex h-[calc(100%-1.75rem)] flex-col rounded-xl border border-border bg-surface p-5">
+                    <Card className="flex h-[calc(100%-1.75rem)] flex-col p-5">
                         <p className="text-sm font-medium text-foreground">
                             Past-due installments
                         </p>
@@ -151,13 +152,13 @@ export default async function DashboardPage() {
                             Needs the installment schedule from{" "}
                             <Link
                                 href="/contracts"
-                                className="text-gold underline-offset-2 hover:underline"
+                                className="text-gold-ink underline-offset-2 hover:underline"
                             >
                                 Module 4
                             </Link>
                             .
                         </p>
-                    </div>
+                    </Card>
                 </section>
             </div>
         </div>

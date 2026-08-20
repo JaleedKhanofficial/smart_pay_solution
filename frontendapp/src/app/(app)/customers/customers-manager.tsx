@@ -8,6 +8,8 @@ import { FlashToast } from "@/components/flash-toast";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/components/toast";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { formatDate, formatDateTime } from "@/lib/format";
 import type {
     Customer,
@@ -141,7 +143,7 @@ function SortableHeader({
                 {label}
                 <span
                     aria-hidden="true"
-                    className={active ? "text-gold" : "text-muted/40"}
+                    className={active ? "text-gold-ink" : "text-muted/40"}
                 >
                     {active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
                 </span>
@@ -235,12 +237,9 @@ export default function CustomersManager({
                           }`
                 }
                 actions={
-                    <Link
-                        href="/customers/new"
-                        className="w-full rounded-md bg-navy-800 px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-navy-700 sm:w-auto sm:py-2"
-                    >
+                    <ButtonLink href="/customers/new" stackOnMobile>
                         Add customer
-                    </Link>
+                    </ButtonLink>
                 }
             />
 
@@ -261,15 +260,12 @@ export default function CustomersManager({
                 and the table takes over from lg up. */}
             <div className="flex flex-col gap-3 lg:hidden">
                 {page.data.length === 0 ? (
-                    <div className="rounded-xl border border-border bg-surface px-4 py-14">
+                    <Card className="px-4 py-14">
                         <EmptyState filtered={filtered} />
-                    </div>
+                    </Card>
                 ) : (
                     page.data.map((customer) => (
-                        <article
-                            key={customer.id}
-                            className="rounded-xl border border-border bg-surface p-4"
-                        >
+                        <Card key={customer.id} className="p-4">
                             <div className="flex items-start gap-3">
                                 <Thumbnail
                                     fileId={customer.cnicFileId}
@@ -293,7 +289,7 @@ export default function CustomersManager({
 
                             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
                                 <div className="col-span-2">
-                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                                         CNIC
                                     </dt>
                                     <dd className="font-mono text-xs text-foreground">
@@ -301,7 +297,7 @@ export default function CustomersManager({
                                     </dd>
                                 </div>
                                 <div className="min-w-0">
-                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                                         Mobile
                                     </dt>
                                     <dd className="text-sm">
@@ -314,7 +310,7 @@ export default function CustomersManager({
                                     </dd>
                                 </div>
                                 <div className="min-w-0">
-                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                                         Occupation
                                     </dt>
                                     <dd className="truncate text-sm text-foreground">
@@ -322,7 +318,7 @@ export default function CustomersManager({
                                     </dd>
                                 </div>
                                 <div className="min-w-0">
-                                    <dt className="text-[11px] uppercase tracking-wide text-muted">
+                                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                                         Created At
                                     </dt>
                                     <dd
@@ -336,39 +332,40 @@ export default function CustomersManager({
 
                             <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
                                 <div className="flex items-center gap-1">
-                                    <span className="mr-1 text-[11px] uppercase tracking-wide text-muted">
+                                    <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-muted">
                                         Guarantors
                                     </span>
                                     <GuarantorThumbs customer={customer} />
                                 </div>
 
                                 <div className="flex shrink-0 gap-2">
-                                    <Link
+                                    <ButtonLink
                                         href={`/customers/${customer.id}/edit`}
-                                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                                        variant="secondary"
+                                        size="sm"
                                     >
                                         Edit
-                                    </Link>
-                                    <button
-                                        type="button"
+                                    </ButtonLink>
+                                    <Button
+                                        variant="danger"
+                                        size="sm"
                                         onClick={() => handleDelete(customer)}
                                         disabled={deletingId === customer.id}
-                                        className="rounded-md border border-negative/40 px-3 py-1.5 text-xs font-medium text-negative transition-colors hover:bg-negative/8 disabled:opacity-60"
                                     >
                                         {deletingId === customer.id
                                             ? "Deleting…"
                                             : "Delete"}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
-                        </article>
+                        </Card>
                     ))
                 )}
             </div>
 
-            <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface lg:block">
+            <Card className="hidden overflow-x-auto lg:block">
                 <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-                    <thead className="border-b border-border bg-surface-muted text-[11px] uppercase tracking-wide text-muted">
+                    <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
                         <tr>
                             <th className="px-4 py-3 font-medium">Sr #</th>
                             <th className="hidden px-4 py-3 font-medium xl:table-cell">
@@ -467,26 +464,27 @@ export default function CustomersManager({
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex justify-end gap-2">
-                                            <Link
+                                            <ButtonLink
                                                 href={`/customers/${customer.id}/edit`}
-                                                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+                                                variant="secondary"
+                                                size="sm"
                                             >
                                                 Edit
-                                            </Link>
-                                            <button
-                                                type="button"
+                                            </ButtonLink>
+                                            <Button
+                                                variant="danger"
+                                                size="sm"
                                                 onClick={() =>
                                                     handleDelete(customer)
                                                 }
                                                 disabled={
                                                     deletingId === customer.id
                                                 }
-                                                className="rounded-md border border-negative/40 px-3 py-1.5 text-xs font-medium text-negative transition-colors hover:bg-negative/8 disabled:opacity-60"
                                             >
                                                 {deletingId === customer.id
                                                     ? "Deleting…"
                                                     : "Delete"}
-                                            </button>
+                                            </Button>
                                         </div>
                                     </td>
                                 </tr>
@@ -494,7 +492,7 @@ export default function CustomersManager({
                         )}
                     </tbody>
                 </table>
-            </div>
+            </Card>
 
             {page.total > 0 ? (
                 <nav className="mt-4 flex items-center justify-between text-sm">
@@ -504,23 +502,25 @@ export default function CustomersManager({
                     {page.totalPages > 1 ? (
                         <div className="flex items-center gap-2">
                             {page.page > 1 ? (
-                                <Link
+                                <ButtonLink
                                     href={pageHref(page.page - 1)}
-                                    className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
+                                    variant="secondary"
+                                    size="sm"
                                 >
                                     Previous
-                                </Link>
+                                </ButtonLink>
                             ) : null}
                             <span className="text-xs text-muted">
                                 Page {page.page} of {page.totalPages}
                             </span>
                             {page.page < page.totalPages ? (
-                                <Link
+                                <ButtonLink
                                     href={pageHref(page.page + 1)}
-                                    className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
+                                    variant="secondary"
+                                    size="sm"
                                 >
                                     Next
-                                </Link>
+                                </ButtonLink>
                             ) : null}
                         </div>
                     ) : null}

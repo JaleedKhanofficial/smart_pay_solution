@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Icon } from "./icons";
+import { ThemeModeToggle } from "./theme-mode-toggle";
 import { logoutAction } from "@/app/login/actions";
 import type { NavSection } from "@/lib/navigation";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
+import type { ThemeMode } from "@/lib/theme-mode";
 import type { SessionUser } from "@/types/customer";
 
 type Props = {
@@ -15,6 +17,7 @@ type Props = {
     /** Read from the cookie on the server so the rail renders at the right
      *  width immediately — a localStorage read would flash open then collapse. */
     defaultCollapsed: boolean;
+    themeMode: ThemeMode;
     children: ReactNode;
 };
 
@@ -30,6 +33,7 @@ export function AppShell({
     sections,
     user,
     defaultCollapsed,
+    themeMode,
     children,
 }: Props) {
     const pathname = usePathname();
@@ -126,7 +130,7 @@ export function AppShell({
                 rail ? "justify-center px-2" : "gap-3 px-5"
             }`}
         >
-            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-gold text-sm font-bold text-navy-900">
+            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-gold text-sm font-bold text-chrome-900">
                 S
             </span>
             {rail ? null : (
@@ -185,7 +189,7 @@ export function AppShell({
         <div className="flex min-h-dvh bg-background">
             {/* Desktop rail */}
             <aside
-                className={`fixed inset-y-0 left-0 z-30 hidden flex-col bg-navy-900 transition-[width] duration-200 lg:flex ${
+                className={`fixed inset-y-0 left-0 z-30 hidden flex-col bg-chrome-900 transition-[width] duration-200 lg:flex ${
                     collapsed ? "w-16" : "w-60"
                 }`}
             >
@@ -224,7 +228,7 @@ export function AppShell({
                         onClick={() => setMobileOpen(false)}
                         className="absolute inset-0 bg-black/50"
                     />
-                    <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-navy-900">
+                    <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-chrome-900">
                         {renderBrand(false)}
                         {renderNav(false)}
                         {renderAccount(false)}
@@ -237,26 +241,31 @@ export function AppShell({
                     collapsed ? "lg:pl-16" : "lg:pl-60"
                 }`}
             >
-                <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur sm:px-6">
+                {/* Dark chrome continues across the top bar; the content area
+                    below stays light so records remain easy to read. */}
+                <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-white/10 bg-chrome-900 px-4 sm:px-6">
                     <button
                         type="button"
                         onClick={() => setMobileOpen(true)}
                         aria-label="Open navigation"
-                        className="grid size-9 place-items-center rounded-md border border-border text-muted transition-colors hover:text-foreground lg:hidden"
+                        className="grid size-9 place-items-center rounded-md border border-white/15 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
                     >
                         <Icon name="menu" className="size-4" />
                     </button>
 
-                    <span className="text-sm font-semibold text-foreground sm:hidden">
+                    <span className="text-sm font-semibold text-white sm:hidden">
                         SmartPay
                     </span>
-                    <span className="hidden text-sm text-muted sm:block">
+                    <span className="hidden text-sm text-white/70 sm:block">
                         Installment Sales &amp; Recovery Management
                     </span>
 
-                    <span className="ml-auto hidden text-xs text-muted sm:block">
-                        {user.email}
-                    </span>
+                    <div className="ml-auto flex items-center gap-3">
+                        <span className="hidden text-xs text-white/60 sm:block">
+                            {user.email}
+                        </span>
+                        <ThemeModeToggle current={themeMode} />
+                    </div>
                 </header>
 
                 <main className="min-w-0 flex-1">{children}</main>

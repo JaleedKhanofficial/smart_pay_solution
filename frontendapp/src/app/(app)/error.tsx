@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 export default function AppError({
     error,
     reset,
@@ -16,13 +18,9 @@ export default function AppError({
                 {error.message ||
                     "The API did not respond. Check that the NestJS server is running on port 5000."}
             </p>
-            <button
-                type="button"
-                onClick={reset}
-                className="mt-6 rounded-md bg-navy-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-navy-700"
-            >
+            <Button onClick={reset} className="mt-6">
                 Try again
-            </button>
+            </Button>
         </div>
     );
 }

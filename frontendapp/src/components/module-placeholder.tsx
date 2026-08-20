@@ -1,5 +1,6 @@
 import { Icon } from "./icons";
 import { PageHeader } from "./page-header";
+import { Card } from "./ui/card";
 import type { NavItem } from "@/lib/navigation";
 
 /**
@@ -16,9 +17,9 @@ export function ModulePlaceholder({ item }: { item: NavItem }) {
                 description={item.summary}
             />
 
-            <div className="rounded-xl border border-border bg-surface">
+            <Card>
                 <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold/12 text-gold">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold/12 text-gold-ink">
                         <Icon name={item.icon} className="size-4.5" />
                     </span>
                     <div>
@@ -48,7 +49,7 @@ export function ModulePlaceholder({ item }: { item: NavItem }) {
                         ))}
                     </ul>
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

@@ -4,10 +4,10 @@ import { useEffect, useState, type InputHTMLAttributes } from "react";
 import { Icon } from "./icons";
 
 export const fieldClass =
-    "w-full rounded-md border border-border bg-surface px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-navy-600 disabled:opacity-60 sm:py-2 sm:text-sm";
+    "w-full rounded-md border border-border bg-surface px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-chrome-600 disabled:opacity-60 sm:py-2 sm:text-sm";
 
 export const labelClass =
-    "mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted";
+    "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted";
 
 /** FR-CUS-02: `#####-#######-#` as the user types. */
 export function formatCnic(value: string): string {
