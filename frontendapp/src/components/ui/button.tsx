@@ -1,5 +1,10 @@
 import Link from "next/link";
-import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from "react";
+import type {
+    ButtonHTMLAttributes,
+    ComponentProps,
+    ReactNode,
+    Ref,
+} from "react";
 
 /**
  * One definition for every button in the application. A `<button>` and a
@@ -18,6 +23,12 @@ const SIZES: Record<ButtonSize, string> = {
     md: "px-4 py-2.5 text-sm sm:py-2",
 };
 
+/** Square padding for a button whose only child is an icon. */
+const ICON_SIZES: Record<ButtonSize, string> = {
+    sm: "p-1.5 text-xs",
+    md: "p-2.5 text-sm sm:p-2",
+};
+
 const VARIANTS: Record<ButtonVariant, string> = {
     primary: "bg-chrome-800 text-white hover:bg-chrome-700",
     secondary: "border border-border text-foreground hover:bg-surface-muted",
@@ -32,6 +43,12 @@ export type ButtonStyleProps = {
     fullWidth?: boolean;
     /** Full width on phones, natural width from sm: up. The usual choice. */
     stackOnMobile?: boolean;
+    /**
+     * The button shows an icon and nothing else. Padding goes square, and the
+     * caller MUST supply `aria-label` — the icon itself is aria-hidden, so
+     * without one the control has no accessible name at all.
+     */
+    iconOnly?: boolean;
     className?: string;
 };
 
@@ -40,6 +57,7 @@ export function buttonClasses({
     size = "md",
     fullWidth = false,
     stackOnMobile = false,
+    iconOnly = false,
     className = "",
 }: ButtonStyleProps = {}): string {
     const width = fullWidth
@@ -48,32 +66,42 @@ export function buttonClasses({
           ? "w-full sm:w-auto"
           : "";
 
-    return [BASE, SIZES[size], VARIANTS[variant], width, className]
+    const padding = iconOnly ? ICON_SIZES[size] : SIZES[size];
+
+    return [BASE, padding, VARIANTS[variant], width, className]
         .filter(Boolean)
         .join(" ");
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-    ButtonStyleProps & { children: ReactNode };
+    ButtonStyleProps & {
+        children: ReactNode;
+        /** React 19 hands `ref` through as a normal prop — no forwardRef. */
+        ref?: Ref<HTMLButtonElement>;
+    };
 
 export function Button({
     variant,
     size,
     fullWidth,
     stackOnMobile,
+    iconOnly,
     className,
     type = "button",
+    ref,
     children,
     ...props
 }: ButtonProps) {
     return (
         <button
+            ref={ref}
             type={type}
             className={buttonClasses({
                 variant,
                 size,
                 fullWidth,
                 stackOnMobile,
+                iconOnly,
                 className,
             })}
             {...props}
@@ -92,6 +120,7 @@ export function ButtonLink({
     size,
     fullWidth,
     stackOnMobile,
+    iconOnly,
     className,
     children,
     ...props
@@ -103,6 +132,7 @@ export function ButtonLink({
                 size,
                 fullWidth,
                 stackOnMobile,
+                iconOnly,
                 className,
             })}
             {...props}

@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.1 |
+| **Document version** | 2.2 |
 | **Date** | 08-17-2026, amended 08-18-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -120,6 +120,26 @@ Any Docker-capable Linux host. Evergreen browsers. Internet access is not requir
 | 11 | Plan months 3-15 vs 1-20 inconsistency (§9.3) | Unified 1-20, configurable system setting. |
 | 12 | Dashboard profit tile hard-coded at 15% (§4.1 defect) | Real mature-profit figure from BR-09. |
 | 13 | Stored XSS via unescaped output (§9.1 item 4) | React escapes by default; no `dangerouslySetInnerHTML` on user data; API returns JSON only. |
+
+---
+
+### 2.7 As-built deviations
+
+Module 2 is built. These decisions differ from the text above; each was taken
+deliberately and each binds the modules still to come. They are recorded here so
+the document and the code stop disagreeing.
+
+| # | Clause | As built | Reason |
+|---|---|---|---|
+| 1 | §5 — `id UUID PK` on every table | `customers.id` and `guarantors.id` are **sequential integers** | staff quote a short reference number; ids appear in conversation and on paper |
+| 2 | §5.5 / FR-CUS-04-v2 — UUID filenames | uploads are stored as `<name> - <cnic> - <dd-mm-yyyy>.<ext>` in a folder per subject (`customer/`, `guarantor_1/`, `guarantor_2/`), and **the filename is the `files` key**, so `cnic_file_id` reads as the filename | a filename that means something is worth more than an opaque one; the security property is unaffected because filenames never appear in a URL — files are fetched by key through the authenticated endpoint (FR-CUS-05-v2) |
+| 3 | FR-CUS-04-v2 — 5 MB max | **10 MB** per image (the clause text is updated) | phone cameras exceed 5 MB routinely |
+| 4 | FR-CUS-03-v2 — exactly two guarantors | **guarantor 1 required, guarantor 2 optional**; positions must still be unique, enforced by `(customer_id, position)` | a second guarantor is not always available at registration |
+| 5 | §5 — `updated_at` trigger-maintained | maintained by the ORM (`@updatedAt`) | Prisma is the only writer, so a trigger adds no guarantee |
+| 6 | FR-CUS-10 / NFR-01 — toast feedback | **result dialogs** replace toasts for create, update and delete (§8.3) | the owner preferred an explicit acknowledgement over a self-dismissing toast |
+| 7 | §2.2 — TanStack Query, react-hook-form + zod, shadcn/ui | Server Components and Server Actions, native form validation, a hand-built component set (§8.3) | **open decision, not settled** — every screen now depends on it, and retrofitting costs more the longer it waits |
+
+Item 7 is the one still worth revisiting. Items 1–6 are closed.
 
 ---
 
@@ -436,6 +456,8 @@ All list endpoints support `page`, `pageSize` (default 25, max 100), `sort`, and
 | NFR-10 | **Browser support:** evergreen browsers; no CDN dependencies at runtime. |
 | NFR-11 | **Type safety:** end-to-end TypeScript; API types shared with the frontend (generated from the OpenAPI spec or a shared package). |
 | NFR-12 | **Responsive layout:** every screen is usable from 320 px upward, with no horizontal page scrolling at any width. Layout rules per §8.1. |
+| NFR-13 | **List-screen consistency:** every register presents, filters, sorts and paginates the same way. Rules per §8.2. |
+| NFR-14 | **Interface system:** one set of colour tokens, components and icons across the application. Rules per §8.3. |
 
 ### 8.1 Responsive layout (NFR-12)
 
@@ -460,6 +482,42 @@ Two breakpoints carry the whole application: **`sm` at 640 px** and **`lg` at 10
 | NFR-12.6 | **Mobile-native affordances** where they cost nothing: telephone numbers are `tel:` links, numeric fields set the numeric input mode, and card padding tightens below `sm` to buy back screen width. |
 
 > **Verification.** Each screen is checked at 320, 375, 768, 1024 and 1280 px. 1024 px is the critical one: it is where the sidebar, the table and the three-column form all appear at once, and it is the width at which layout defects surface first.
+
+### 8.2 List-screen conventions (NFR-13)
+
+Every register — customers, products, contracts, payments, the recycle bin, the
+audit log — presents the same way, so staff learn one screen and know them all.
+Module 2 is the reference implementation.
+
+| ID | Requirement |
+|---|---|
+| NFR-13.1 | **Serial column first.** A `Sr #` column numbers rows as displayed: it follows the active sort and filters and continues across pages (page 2 of 25/page starts at 26). It is a position, not a record id, and is never sortable. |
+| NFR-13.2 | **Search plus a filter panel.** Free-text search across the register's identifying fields is always visible; the remaining filters live in a collapsible panel that opens automatically when any filter is active and carries a count badge. Dropdown options are read from the data, so they can only offer values that exist. |
+| NFR-13.3 | **Sortable columns.** Any column carrying a value worth ordering by is a sort link, showing direction on the active column and exposing `aria-sort`. Clicking the active column flips direction; a new column starts ascending; sorting returns to page 1. Small screens have no headers to click, so the same sort is offered inside the filter panel. |
+| NFR-13.4 | **Filters, sort and page live in the URL.** A filtered, sorted view is shareable and survives a reload, and every link on the screen carries the whole state — paging must not drop the filters, and re-sorting must not drop them either. |
+| NFR-13.5 | **Sort fields are whitelisted server-side.** The API validates the sort column against a fixed list, so a query string can never name an arbitrary column. Results carry a stable secondary ordering so rows do not shuffle between pages. |
+| NFR-13.6 | **Dates read `dd-mm-yyyy`** (NFR-02), formatted against a fixed locale and the business time zone — never the viewer's machine, and never by truncating the stored UTC string, which mis-files anything created after 19:00 local. The exact timestamp is available on hover. |
+| NFR-13.7 | **Empty states distinguish "nothing yet" from "nothing matches"**, and the filtered case offers a way back. The card and table renderings share one empty state so they cannot drift. |
+
+### 8.3 Interface system (NFR-14)
+
+The interface is built from a small set of shared pieces rather than repeated
+styling. This is what keeps eleven more modules looking like one application.
+
+| ID | Requirement |
+|---|---|
+| NFR-14.1 | **Colour is addressed by role, never by hue.** Tokens are declared once in `globals.css`: `chrome-900…600` (sidebar, top bar, primary buttons), `background` / `surface` / `surface-muted` / `border` / `foreground` / `muted` (content), `gold` / `gold-soft` / `gold-ink` (accent) and `positive` / `negative` (status). Screens must not carry raw colour values. Re-theming the application is editing those tokens and nothing else. |
+| NFR-14.2 | **An accent used as text needs its own darker step.** The identity gold measures 2.42:1 on a light card — below even the 3:1 large-text floor — so `gold-ink` exists for text and the bright gold is reserved for dark surfaces. Every pair in the palette is checked against WCAG AA, and small secondary text is held well above the minimum rather than at it. |
+| NFR-14.3 | **Controls come from a shared component set** in `components/ui/`: `Button` / `ButtonLink` (variants `primary` `secondary` `danger` `ghost`; sizes `sm` `md`; `iconOnly`), `Card` with header, body, field-grid and footer parts, and `Badge`. Adding a variant is one edit; a screen-level override is a signal that a variant is missing. |
+| NFR-14.4 | **Icons are inline SVG in one module**, never an icon package or a CDN (NFR-10). Every icon inherits `currentColor` and is sized by the caller. An icon-only control must carry `aria-label` — the glyph is `aria-hidden`, so without one the control has no accessible name. |
+| NFR-14.5 | **Destructive actions are confirmed in an application dialog**, never `window.confirm`. The dialog names the record, states where it goes, and its confirming button is styled as destructive. Escape, the backdrop and Cancel all decline. |
+| NFR-14.6 | **Every write reports its outcome** in a result dialog: success names what happened, failure carries the API's message. This supersedes the toast wording in FR-CUS-10 and NFR-01 (§2.7 item 6). |
+| NFR-14.7 | **Appearance is a three-way user choice** — Light, Dark or System — persisted per browser and resolved **on the server** so the correct palette is present on first paint. A client-side read that flashes the wrong appearance is not acceptable. The sidebar collapses to an icon rail under the same rule. |
+| NFR-14.8 | **Motion is guarded.** Dialog and icon animation is disabled under `prefers-reduced-motion: reduce`; the interface must remain fully usable with all animation off. |
+
+> Implementation detail for maintainers lives in `frontendapp/STYLING.md`: the
+> token map, which component owns each control, and the recipes for changing
+> one. It is the working companion to this section.
 
 ---
 
@@ -501,4 +559,4 @@ One-time ETL script, run against a frozen copy of `smartpaysolution`, idempotent
 
 ---
 
-*Prepared 08-17-2026, amended 08-18-2026. Supersedes SRS 1.0. Traceability: every v1 FR is carried, renumbered with a `-v2` suffix where behaviour changed; every §9 defect in SRS 1.0 maps to a resolution in §2.6 of this document.*
+*Prepared 08-17-2026, amended 08-18-2026 (v2.2). Supersedes SRS 1.0. Traceability: every v1 FR is carried, renumbered with a `-v2` suffix where behaviour changed; every §9 defect in SRS 1.0 maps to a resolution in §2.6 of this document.*

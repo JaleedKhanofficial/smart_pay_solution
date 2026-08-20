@@ -100,3 +100,78 @@ body {
     /* Geist comes from the root layout; Arial is only the fallback. */
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* SweetAlert-style dialog. The icon draws itself, which is what makes the
+   pattern feel responsive rather than abrupt. */
+@keyframes sps-backdrop-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes sps-dialog-in {
+    from {
+        opacity: 0;
+        transform: translateY(0.75rem) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes sps-dialog-icon-in {
+    0% {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.08);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* The tick and cross are stroked paths, so they can be drawn on. */
+@keyframes sps-dialog-stroke {
+    from {
+        stroke-dashoffset: 48;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.sps-backdrop {
+    animation: sps-backdrop-in 150ms ease-out;
+}
+
+.sps-dialog {
+    animation: sps-dialog-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sps-dialog-icon {
+    animation: sps-dialog-icon-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sps-dialog-icon svg path,
+.sps-dialog-icon svg circle {
+    stroke-dasharray: 48;
+    animation: sps-dialog-stroke 360ms 120ms ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sps-backdrop,
+    .sps-dialog,
+    .sps-dialog-icon,
+    .sps-dialog-icon svg path,
+    .sps-dialog-icon svg circle {
+        animation: none;
+        stroke-dasharray: none;
+    }
+}

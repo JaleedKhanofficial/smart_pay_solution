@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { deleteCustomer } from "./actions";
 import { CustomerFilters } from "./customer-filters";
-import { FlashToast } from "@/components/flash-toast";
+import { FlashAlert } from "@/components/flash-alert";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
-import { useToast } from "@/components/toast";
+import { useAlert } from "@/components/ui/alert-dialog";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -141,12 +141,14 @@ function SortableHeader({
                 }`}
             >
                 {label}
-                <span
-                    aria-hidden="true"
-                    className={active ? "text-gold-ink" : "text-muted/40"}
-                >
-                    {active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
-                </span>
+                <Icon
+                    name={
+                        active && sort.dir === "asc" ? "chevronUp" : "chevronDown"
+                    }
+                    className={`size-3.5 ${
+                        active ? "text-gold-ink" : "text-muted/40"
+                    }`}
+                />
             </Link>
         </th>
     );
@@ -162,18 +164,20 @@ export default function CustomersManager({
 }: Props) {
     const activeFilters = Object.values(filters).filter(Boolean).length;
     const filtered = activeFilters > 0;
-    const { push } = useToast();
+    const { confirm, alert } = useAlert();
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [, startTransition] = useTransition();
 
-    function handleDelete(customer: Customer) {
-        if (
-            !window.confirm(
-                `Delete ${customer.fullName}? This can be undone from the Recycle Bin.`
-            )
-        ) {
-            return;
-        }
+    async function handleDelete(customer: Customer) {
+        const confirmed = await confirm({
+            title: `Delete ${customer.fullName}?`,
+            text: "The record moves to the Recycle Bin and can be restored later.",
+            tone: "warning",
+            confirmLabel: "Yes, delete it",
+            destructive: true,
+        });
+
+        if (!confirmed) return;
 
         setDeletingId(customer.id);
 
@@ -181,7 +185,16 @@ export default function CustomersManager({
             const result = await deleteCustomer(customer.id);
 
             setDeletingId(null);
-            push(result.message ?? "Done.", result.ok ? "success" : "error");
+
+            void alert(
+                result.ok
+                    ? { title: result.message ?? "Deleted", tone: "success" }
+                    : {
+                          title: "Could not delete this customer",
+                          text: result.message ?? undefined,
+                          tone: "error",
+                      }
+            );
         });
     }
 
@@ -224,7 +237,7 @@ export default function CustomersManager({
 
     return (
         <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-            <FlashToast message={flash} cleanUrl={pageHref(page.page)} />
+            <FlashAlert message={flash} cleanUrl={pageHref(page.page)} />
 
             <PageHeader
                 eyebrow="Module 2"
@@ -238,6 +251,7 @@ export default function CustomersManager({
                 }
                 actions={
                     <ButtonLink href="/customers/new" stackOnMobile>
+                        <Icon name="plus" className="size-4" />
                         Add customer
                     </ButtonLink>
                 }
@@ -343,18 +357,26 @@ export default function CustomersManager({
                                         href={`/customers/${customer.id}/edit`}
                                         variant="secondary"
                                         size="sm"
+                                        iconOnly
+                                        aria-label={`Edit ${customer.fullName}`}
+                                        title="Edit"
                                     >
-                                        Edit
+                                        <Icon name="pencil" className="size-4" />
                                     </ButtonLink>
                                     <Button
                                         variant="danger"
                                         size="sm"
                                         onClick={() => handleDelete(customer)}
                                         disabled={deletingId === customer.id}
+                                        iconOnly
+                                        aria-label={`Delete ${customer.fullName}`}
+                                        title={
+                                            deletingId === customer.id
+                                                ? "Deleting…"
+                                                : "Delete"
+                                        }
                                     >
-                                        {deletingId === customer.id
-                                            ? "Deleting…"
-                                            : "Delete"}
+                                        <Icon name="trash" className="size-4" />
                                     </Button>
                                 </div>
                             </div>
@@ -450,7 +472,7 @@ export default function CustomersManager({
                                         {customer.occupation}
                                     </td>
                                     <td
-                                        className="px-4 py-3 whitespace-nowrap tabular-nums text-muted"
+                                        className="px-4 py-3 whitespace-nowrap tabular-nums"
                                         // title={formatDateTime(customer.createdAt)}
                                     >
                                         {formatDate(customer.createdAt)}
@@ -468,8 +490,14 @@ export default function CustomersManager({
                                                 href={`/customers/${customer.id}/edit`}
                                                 variant="secondary"
                                                 size="sm"
+                                                iconOnly
+                                                aria-label={`Edit ${customer.fullName}`}
+                                                title="Edit"
                                             >
-                                                Edit
+                                                <Icon
+                                                    name="pencil"
+                                                    className="size-4"
+                                                />
                                             </ButtonLink>
                                             <Button
                                                 variant="danger"
@@ -480,10 +508,18 @@ export default function CustomersManager({
                                                 disabled={
                                                     deletingId === customer.id
                                                 }
+                                                iconOnly
+                                                aria-label={`Delete ${customer.fullName}`}
+                                                title={
+                                                    deletingId === customer.id
+                                                        ? "Deleting…"
+                                                        : "Delete"
+                                                }
                                             >
-                                                {deletingId === customer.id
-                                                    ? "Deleting…"
-                                                    : "Delete"}
+                                                <Icon
+                                                    name="trash"
+                                                    className="size-4"
+                                                />
                                             </Button>
                                         </div>
                                     </td>
@@ -506,8 +542,11 @@ export default function CustomersManager({
                                     href={pageHref(page.page - 1)}
                                     variant="secondary"
                                     size="sm"
+                                    iconOnly
+                                    aria-label="Previous page"
+                                    title="Previous page"
                                 >
-                                    Previous
+                                    <Icon name="chevronLeft" className="size-4" />
                                 </ButtonLink>
                             ) : null}
                             <span className="text-xs text-muted">
@@ -518,8 +557,11 @@ export default function CustomersManager({
                                     href={pageHref(page.page + 1)}
                                     variant="secondary"
                                     size="sm"
+                                    iconOnly
+                                    aria-label="Next page"
+                                    title="Next page"
                                 >
-                                    Next
+                                    <Icon name="chevronRight" className="size-4" />
                                 </ButtonLink>
                             ) : null}
                         </div>

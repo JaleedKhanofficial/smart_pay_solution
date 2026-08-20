@@ -54,13 +54,19 @@ export function CustomerFilters({
             className={`mb-6 ${CARD_CLASS}`}
         >
             <div className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
-                <input
-                    type="search"
-                    name="search"
-                    defaultValue={values.search}
-                    placeholder="Search name, CNIC or mobile"
-                    className={`${controlClass} sm:flex-1`}
-                />
+                <div className="relative sm:flex-1">
+                    <Icon
+                        name="search"
+                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+                    />
+                    <input
+                        type="search"
+                        name="search"
+                        defaultValue={values.search}
+                        placeholder="Search name, CNIC or mobile"
+                        className={`${controlClass} pl-9`}
+                    />
+                </div>
 
                 <div className="flex gap-2">
                     <Button
@@ -182,8 +188,9 @@ export function CustomerFilters({
                         <div className="mt-3 flex justify-end">
                             <Link
                                 href="/customers"
-                                className="text-sm underline-offset-4 hover:underline"
+                                className="inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
                             >
+                                <Icon name="close" className="size-3.5" />
                                 Clear all filters
                             </Link>
                         </div>

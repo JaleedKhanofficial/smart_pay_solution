@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ApiError } from "@/api/api.repository";
 import { AppShell } from "@/components/app-shell";
-import { ToastProvider } from "@/components/toast";
+import { AlertDialogProvider } from "@/components/ui/alert-dialog";
 import { apiCall } from "@/lib/api";
 import { visibleSections } from "@/lib/navigation";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
@@ -41,7 +41,7 @@ export default async function AppLayout({
     const mode = isThemeMode(storedMode) ? storedMode : DEFAULT_THEME_MODE;
 
     return (
-        <ToastProvider>
+        <AlertDialogProvider>
             <AppShell
                 sections={visibleSections(user.role)}
                 user={user}
@@ -50,6 +50,6 @@ export default async function AppLayout({
             >
                 {children}
             </AppShell>
-        </ToastProvider>
+        </AlertDialogProvider>
     );
 }

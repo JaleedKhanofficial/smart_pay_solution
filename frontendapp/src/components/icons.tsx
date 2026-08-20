@@ -18,7 +18,14 @@ export type IconName =
     | "alert"
     | "chevronLeft"
     | "sun"
-    | "moon";
+    | "moon"
+    | "pencil"
+    | "plus"
+    | "search"
+    | "check"
+    | "chevronRight"
+    | "chevronUp"
+    | "chevronDown";
 
 /** Inline so the app has no runtime CDN or icon-package dependency (NFR-10). */
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -109,6 +116,23 @@ const PATHS: Record<IconName, React.ReactNode> = {
         </>
     ),
     chevronLeft: <path d="m15 18-6-6 6-6" />,
+    chevronRight: <path d="m9 18 6-6-6-6" />,
+    chevronUp: <path d="m6 15 6-6 6 6" />,
+    chevronDown: <path d="m6 9 6 6 6-6" />,
+    pencil: (
+        <>
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+        </>
+    ),
+    plus: <path d="M12 5v14M5 12h14" />,
+    search: (
+        <>
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+        </>
+    ),
+    check: <path d="m20 6-11 11-5-5" />,
     sun: (
         <>
             <circle cx="12" cy="12" r="4" />
