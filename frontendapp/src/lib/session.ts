@@ -5,8 +5,6 @@ import type { AuthResponse } from "@/types/customer";
 export const ACCESS_COOKIE = "sps_at";
 export const REFRESH_COOKIE = "sps_rt";
 
-const REFRESH_MAX_AGE = 7 * 24 * 60 * 60; // matches JWT_REFRESH_TTL
-
 const secure = process.env.NODE_ENV === "production";
 
 /**
@@ -29,8 +27,10 @@ export async function readTokens(): Promise<{
 export async function writeSession(auth: AuthResponse): Promise<void> {
     const store = await cookies();
 
-    // The access cookie expires with the token, so its absence is the signal
-    // to refresh.
+    // Keeps its max-age deliberately: the access cookie disappearing at the
+    // 15-minute mark is what tells proxy.ts to renew the session. Making this
+    // a browser-session cookie would leave it in place after the token itself
+    // had expired, and the user would be bounced to /login instead.
     store.set(ACCESS_COOKIE, auth.accessToken, {
         httpOnly: true,
         secure,
@@ -39,12 +39,14 @@ export async function writeSession(auth: AuthResponse): Promise<void> {
         maxAge: auth.expiresIn,
     });
 
+    // No max-age, so the browser discards it when it closes — shutting the
+    // browser ends the session. The server-side lifetime (JWT_REFRESH_TTL)
+    // caps it independently for a browser that is never closed.
     store.set(REFRESH_COOKIE, auth.refreshToken, {
         httpOnly: true,
         secure,
         sameSite: "lax",
         path: "/",
-        maxAge: REFRESH_MAX_AGE,
     });
 }
 

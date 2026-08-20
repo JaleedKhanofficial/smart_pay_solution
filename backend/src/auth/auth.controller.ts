@@ -105,10 +105,10 @@ export class AuthController {
   }
 
   private setRefreshCookie(res: Response, result: AuthResult): void {
-    res.cookie(REFRESH_COOKIE, result.refreshToken, {
-      ...this.cookieOptions(),
-      expires: result.refreshTokenExpiresAt,
-    });
+    // No `expires`, so this is a browser-session cookie: closing the browser
+    // ends the session. The token's own lifetime (JWT_REFRESH_TTL) still caps
+    // it server-side for a browser that is never closed.
+    res.cookie(REFRESH_COOKIE, result.refreshToken, this.cookieOptions());
   }
 
   private cookieOptions(): CookieOptions {
