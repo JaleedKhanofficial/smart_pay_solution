@@ -19,15 +19,15 @@ export class UsersService {
     return this.users.findOne({ where: { email: email.toLowerCase() } });
   }
 
-  findById(id: string): Promise<User | null> {
+  findById(id: number): Promise<User | null> {
     return this.users.findOne({ where: { id } });
   }
 
-  async markLoggedIn(id: string): Promise<void> {
-    await this.users.update({ id }, { lastLoginAt: new Date() });
+  async markLoggedIn(id: number): Promise<void> {
+    await this.users.update({ id }, { last_login_at: new Date() });
   }
 
-  async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
-    await this.users.update({ id }, { passwordHash });
+  async updatePasswordHash(id: number, password_hash: string): Promise<void> {
+    await this.users.update({ id }, { password_hash });
   }
 }

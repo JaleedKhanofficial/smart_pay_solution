@@ -52,33 +52,33 @@ export function CustomerForm({ customer }: Props) {
                 <CardFields wide>
                 <TextField
                     label="Full name"
-                    name="fullName"
+                    name="full_name"
                     required
                     maxLength={150}
-                    defaultValue={initial("fullName", customer?.fullName)}
+                    defaultValue={initial("full_name", customer?.full_name)}
                     placeholder="Enter Name"
                 />
                 <TextField
                     label="Father / husband name"
-                    name="fatherHusbandName"
+                    name="father_husband_name"
                     required
                     maxLength={150}
-                    defaultValue={initial("fatherHusbandName", customer?.fatherHusbandName)}
+                    defaultValue={initial("father_husband_name", customer?.father_husband_name)}
                     placeholder="Enter Father / Husband Name"
                 />
                 <MaskedField
                     label="CNIC"
-                    name="cnicNumber"
+                    name="cnic_number"
                     mask="cnic"
                     required
-                    defaultValue={initial("cnicNumber", customer?.cnicNumber)}
+                    defaultValue={initial("cnic_number", customer?.cnic_number)}
                 />
                 <MaskedField
                     label="Mobile #"
-                    name="mobileNumber"
+                    name="mobile_number"
                     mask="mobile"
                     required
-                    defaultValue={initial("mobileNumber", customer?.mobileNumber)}
+                    defaultValue={initial("mobile_number", customer?.mobile_number)}
                 />
                 <TextField
                     label="Occupation"
@@ -89,11 +89,11 @@ export function CustomerForm({ customer }: Props) {
                 />
                 <TextField
                     label="Monthly income (Rs.)"
-                    name="monthlyIncome"
+                    name="monthly_income"
                     type="number"
                     min={0}
                     step="0.01"
-                    defaultValue={initial("monthlyIncome", customer?.monthlyIncome)}
+                    defaultValue={initial("monthly_income", customer?.monthly_income)}
                     placeholder="30,000"
                 />
                 <div className="sm:col-span-2">
@@ -109,8 +109,8 @@ export function CustomerForm({ customer }: Props) {
                 </div>
                 <ImageField
                     label="CNIC image"
-                    name="customerCnic"
-                    existingFileId={customer?.cnicFileId}
+                    name="customer_cnic"
+                    existingFileId={customer?.cnic_file_id}
                 />
                 </CardFields>
             </Card>
@@ -131,55 +131,55 @@ export function CustomerForm({ customer }: Props) {
                         <CardFields wide>
                         <TextField
                             label="Full name"
-                            name={`g${position}FullName`}
+                            name={`g${position}_full_name`}
                             required={position === 1}
                             maxLength={150}
-                            defaultValue={initial(`g${position}FullName`, guarantor?.fullName)}
+                            defaultValue={initial(`g${position}_full_name`, guarantor?.full_name)}
                             placeholder="Guarantor Name"
                         />
                         <TextField
                             label="Father name"
-                            name={`g${position}FatherName`}
+                            name={`g${position}_father_name`}
                             required={position === 1}
                             maxLength={150}
-                            defaultValue={initial(`g${position}FatherName`, guarantor?.fatherName)}
+                            defaultValue={initial(`g${position}_father_name`, guarantor?.father_name)}
                             placeholder="Father Name"
                         />
                         <TextField
                             label="Relationship"
-                            name={`g${position}Relationship`}
+                            name={`g${position}_relationship`}
                             required={position === 1}
                             maxLength={60}
-                            defaultValue={initial(`g${position}Relationship`, guarantor?.relationship)}
+                            defaultValue={initial(`g${position}_relationship`, guarantor?.relationship)}
                             placeholder="Enter Relationship"
                         />
                         <MaskedField
                             label="CNIC"
-                            name={`g${position}CnicNumber`}
+                            name={`g${position}_cnic_number`}
                             mask="cnic"
                             required={position === 1}
-                            defaultValue={initial(`g${position}CnicNumber`, guarantor?.cnicNumber)}
+                            defaultValue={initial(`g${position}_cnic_number`, guarantor?.cnic_number)}
                         />
                         <MaskedField
                             label="Mobile #"
-                            name={`g${position}MobileNumber`}
+                            name={`g${position}_mobile_number`}
                             mask="mobile"
                             required={position === 1}
-                            defaultValue={initial(`g${position}MobileNumber`, guarantor?.mobileNumber)}
+                            defaultValue={initial(`g${position}_mobile_number`, guarantor?.mobile_number)}
                         />
                         <ImageField
                             label="CNIC image"
-                            name={`guarantor${position}Cnic`}
-                            existingFileId={guarantor?.cnicFileId}
+                            name={`guarantor${position}_cnic`}
+                            existingFileId={guarantor?.cnic_file_id}
                         />
                         <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
                             <TextAreaField
                                 label="Address"
-                                name={`g${position}Address`}
+                                name={`g${position}_address`}
                                 required={position === 1}
                                 rows={2}
                                 maxLength={500}
-                                defaultValue={initial(`g${position}Address`, guarantor?.address)}
+                                defaultValue={initial(`g${position}_address`, guarantor?.address)}
                                 placeholder="House 12, Street 5"
                             />
                         </div>

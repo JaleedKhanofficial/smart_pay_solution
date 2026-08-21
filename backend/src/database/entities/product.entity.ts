@@ -19,14 +19,14 @@ import { ProductCategory } from './product-category.entity';
 @Entity('products')
 @Index('products_name_idx', ['name'])
 export class Product {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ type: 'varchar', length: 150 })
   name: string;
 
-  @Column({ name: 'category_id', type: 'uuid' })
-  categoryId: string;
+  @Column({ type: 'integer' })
+  category_id: number;
 
   @Column({
     type: 'enum',
@@ -36,14 +36,14 @@ export class Product {
   })
   status: ProductStatus;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
 
   @ManyToOne(() => ProductCategory, (category) => category.products, {
     onDelete: 'RESTRICT',

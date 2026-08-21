@@ -101,14 +101,14 @@ export class AuthController {
     const cookies = req.cookies as
       Record<string, string | undefined> | undefined;
 
-    return cookies?.[REFRESH_COOKIE] ?? dto.refreshToken;
+    return cookies?.[REFRESH_COOKIE] ?? dto.refresh_token;
   }
 
   private setRefreshCookie(res: Response, result: AuthResult): void {
     // No `expires`, so this is a browser-session cookie: closing the browser
     // ends the session. The token's own lifetime (JWT_REFRESH_TTL) still caps
     // it server-side for a browser that is never closed.
-    res.cookie(REFRESH_COOKIE, result.refreshToken, this.cookieOptions());
+    res.cookie(REFRESH_COOKIE, result.refresh_token, this.cookieOptions());
   }
 
   private cookieOptions(): CookieOptions {
@@ -123,11 +123,11 @@ export class AuthController {
 
   private toBody(result: AuthResult) {
     return {
-      accessToken: result.accessToken,
-      expiresIn: result.expiresIn,
+      access_token: result.access_token,
+      expires_in: result.expires_in,
       // Also returned in the body so the Next.js server can hold it in its own
       // httpOnly cookie; the browser never calls this API directly.
-      refreshToken: result.refreshToken,
+      refresh_token: result.refresh_token,
       user: result.user,
     };
   }

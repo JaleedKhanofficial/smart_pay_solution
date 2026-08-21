@@ -48,25 +48,25 @@ export class CreateCustomerDto {
   @Transform(trim)
   @IsString()
   @Length(2, 150)
-  fullName: string;
+  full_name: string;
 
   @ApiProperty({ example: 'ABC KHAN', maxLength: 150 })
   @Transform(trim)
   @IsString()
   @Length(2, 150)
-  fatherHusbandName: string;
+  father_husband_name: string;
 
   @ApiProperty({ example: '12345-1234567-1' })
   @Transform(normaliseCnic)
   @IsString()
-  @Matches(CNIC_PATTERN, { message: `cnicNumber ${CNIC_MESSAGE}` })
-  cnicNumber: string;
+  @Matches(CNIC_PATTERN, { message: `cnic_number ${CNIC_MESSAGE}` })
+  cnic_number: string;
 
   @ApiProperty({ example: '0300-1234567' })
   @Transform(normaliseMobile)
   @IsString()
-  @Matches(MOBILE_PATTERN, { message: `mobileNumber ${MOBILE_MESSAGE}` })
-  mobileNumber: string;
+  @Matches(MOBILE_PATTERN, { message: `mobile_number ${MOBILE_MESSAGE}` })
+  mobile_number: string;
 
   @ApiProperty({ example: 'House 12, Street 5' })
   @Transform(trim)
@@ -85,7 +85,7 @@ export class CreateCustomerDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(9_999_999_999)
-  monthlyIncome: number;
+  monthly_income: number;
 
   @ApiProperty({
     type: [GuarantorDto],

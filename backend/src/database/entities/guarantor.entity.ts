@@ -19,7 +19,7 @@ import { File } from './file.entity';
  * the same slot; CustomersService checks first so the client gets a 400.
  */
 @Entity('guarantors')
-@Index('guarantors_customer_id_position_key', ['customerId', 'position'], {
+@Index('guarantors_customer_id_position_key', ['customer_id', 'position'], {
   unique: true,
 })
 export class Guarantor {
@@ -27,39 +27,39 @@ export class Guarantor {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'customer_id', type: 'integer' })
-  customerId: number;
+  @Column({ type: 'integer' })
+  customer_id: number;
 
   /** 1 or 2. */
   @Column({ type: 'integer' })
   position: number;
 
-  @Column({ name: 'full_name', type: 'varchar', length: 150 })
-  fullName: string;
+  @Column({ type: 'varchar', length: 150 })
+  full_name: string;
 
-  @Column({ name: 'father_name', type: 'varchar', length: 150 })
-  fatherName: string;
+  @Column({ type: 'varchar', length: 150 })
+  father_name: string;
 
   @Column({ type: 'varchar', length: 60 })
   relationship: string;
 
-  @Column({ name: 'cnic_number', type: 'varchar', length: 15 })
-  cnicNumber: string;
+  @Column({ type: 'varchar', length: 15 })
+  cnic_number: string;
 
-  @Column({ name: 'mobile_number', type: 'varchar', length: 20 })
-  mobileNumber: string;
+  @Column({ type: 'varchar', length: 20 })
+  mobile_number: string;
 
   @Column({ type: 'text' })
   address: string;
 
-  @Column({ name: 'cnic_file_id', type: 'text', nullable: true })
-  cnicFileId: string | null;
+  @Column({ type: 'text', nullable: true })
+  cnic_file_id: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 
   @ManyToOne(() => Customer, (customer) => customer.guarantors, {
     onDelete: 'RESTRICT',

@@ -14,30 +14,30 @@ import { User } from './user.entity';
 /** SRS §5.11 — capital injected into the business. Module 8. */
 @Entity('capital_entries')
 export class CapitalEntry {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: string;
 
   /** e.g. "2026-08"; the period the entry belongs to. */
-  @Column({ name: 'period_label', type: 'varchar', length: 20 })
-  periodLabel: string;
+  @Column({ type: 'varchar', length: 20 })
+  period_label: string;
 
   @Column({ type: 'text', nullable: true })
   note: string | null;
 
-  @Column({ name: 'entered_by', type: 'uuid' })
-  enteredById: string;
+  @Column({ type: 'integer' })
+  entered_by: number;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
 
   @ManyToOne(() => User, (user) => user.capitalEntries, {
     onDelete: 'RESTRICT',

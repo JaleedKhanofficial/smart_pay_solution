@@ -12,32 +12,32 @@ import { User } from './user.entity';
 
 /** SRS §5.2 — one row per issued refresh token (FR-AUT-02). */
 @Entity('refresh_tokens')
-@Index('refresh_tokens_user_id_idx', ['userId'])
-@Index('refresh_tokens_family_id_idx', ['familyId'])
+@Index('refresh_tokens_user_id_idx', ['user_id'])
+@Index('refresh_tokens_family_id_idx', ['family_id'])
 export class RefreshToken {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'user_id', type: 'uuid' })
-  userId: string;
+  @Column({ type: 'integer' })
+  user_id: number;
 
   /** HMAC-SHA256 of the raw token, so the table alone cannot replay a session. */
   @Index('refresh_tokens_token_hash_key', { unique: true })
-  @Column({ name: 'token_hash', type: 'text' })
-  tokenHash: string;
+  @Column({ type: 'text' })
+  token_hash: string;
 
   /** Rotation chain. Reusing a spent token revokes the whole family. */
-  @Column({ name: 'family_id', type: 'uuid' })
-  familyId: string;
+  @Column({ type: 'uuid' })
+  family_id: string;
 
-  @Column({ name: 'expires_at', type: 'timestamptz' })
-  expiresAt: Date;
+  @Column({ type: 'timestamptz' })
+  expires_at: Date;
 
-  @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
-  revokedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true })
+  revoked_at: Date | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
   @ManyToOne(() => User, (user) => user.refreshTokens, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'user_id' })

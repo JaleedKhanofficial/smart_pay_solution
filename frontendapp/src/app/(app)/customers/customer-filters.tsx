@@ -121,8 +121,8 @@ export function CustomerFilters({
 
                         <Field label="CNIC image">
                             <select
-                                name="cnicImage"
-                                defaultValue={values.cnicImage}
+                                name="cnic_image"
+                                defaultValue={values.cnic_image}
                                 className={controlClass}
                             >
                                 <option value="">All</option>
@@ -139,8 +139,8 @@ export function CustomerFilters({
                         <Field label="Added from">
                             <input
                                 type="date"
-                                name="addedFrom"
-                                defaultValue={values.addedFrom}
+                                name="added_from"
+                                defaultValue={values.added_from}
                                 className={controlClass}
                             />
                         </Field>
@@ -148,8 +148,8 @@ export function CustomerFilters({
                         <Field label="Added to">
                             <input
                                 type="date"
-                                name="addedTo"
-                                defaultValue={values.addedTo}
+                                name="added_to"
+                                defaultValue={values.added_to}
                                 className={controlClass}
                             />
                         </Field>
@@ -163,10 +163,10 @@ export function CustomerFilters({
                                 defaultValue={sort.field}
                                 className={controlClass}
                             >
-                                <option value="createdAt">Date added</option>
-                                <option value="fullName">Name</option>
-                                <option value="cnicNumber">CNIC</option>
-                                <option value="mobileNumber">Mobile</option>
+                                <option value="created_at">Date added</option>
+                                <option value="full_name">Name</option>
+                                <option value="cnic_number">CNIC</option>
+                                <option value="mobile_number">Mobile</option>
                                 <option value="occupation">Occupation</option>
                             </select>
                         </Field>

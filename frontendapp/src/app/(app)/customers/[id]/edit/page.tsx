@@ -37,8 +37,8 @@ export default async function EditCustomerPage({
         <PageContainer>
             <PageHeader
                 eyebrow="Module 2"
-                title={customer.fullName}
-                description={`CNIC ${customer.cnicNumber} · added ${formatDate(customer.createdAt)}`}
+                title={customer.full_name}
+                description={`CNIC ${customer.cnic_number} · added ${formatDate(customer.created_at)}`}
             />
 
             <CustomerForm customer={customer} />

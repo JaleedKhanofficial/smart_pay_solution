@@ -9,6 +9,6 @@ export class Setting {
   @Column({ type: 'jsonb' })
   value: Record<string, unknown>;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 }

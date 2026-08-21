@@ -25,13 +25,13 @@ export class FilesController {
     }
 
     try {
-      await access(record.storagePath);
+      await access(record.storage_path);
     } catch {
       throw new NotFoundException('File is no longer on disk');
     }
 
     res.setHeader('Content-Type', record.mime);
-    res.setHeader('Content-Length', record.sizeBytes);
+    res.setHeader('Content-Length', record.size_bytes);
     // Stored names carry spaces and non-ASCII, so the RFC 5987 form is the one
     // that survives; the quoted fallback is stripped down for old clients.
     const asciiName = record.id.replace(/[^\x20-\x7E]/g, '_');
@@ -45,6 +45,6 @@ export class FilesController {
     res.setHeader('Cache-Control', 'private, max-age=300');
     res.setHeader('X-Content-Type-Options', 'nosniff');
 
-    createReadStream(record.storagePath).pipe(res);
+    createReadStream(record.storage_path).pipe(res);
   }
 }

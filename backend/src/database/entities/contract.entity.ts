@@ -24,61 +24,59 @@ import { Product } from './product.entity';
  * truth for money.
  */
 @Entity('contracts')
-@Index('contracts_customer_id_idx', ['customerId'])
-@Index('contracts_product_id_idx', ['productId'])
+@Index('contracts_customer_id_idx', ['customer_id'])
+@Index('contracts_product_id_idx', ['product_id'])
 @Index('contracts_status_idx', ['status'])
 export class Contract {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'customer_id', type: 'integer' })
-  customerId: number;
+  @Column({ type: 'integer' })
+  customer_id: number;
 
-  @Column({ name: 'product_id', type: 'uuid' })
-  productId: string;
+  @Column({ type: 'integer' })
+  product_id: number;
 
-  @Column({ name: 'sale_price', type: 'decimal', precision: 12, scale: 2 })
-  salePrice: string;
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  sale_price: string;
 
-  @Column({ name: 'markup_pct', type: 'decimal', precision: 5, scale: 2 })
-  markupPct: string;
+  @Column({ type: 'decimal', precision: 5, scale: 2 })
+  markup_pct: string;
 
-  @Column({ name: 'markup_amount', type: 'decimal', precision: 12, scale: 2 })
-  markupAmount: string;
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  markup_amount: string;
 
-  @Column({ name: 'net_amount', type: 'decimal', precision: 12, scale: 2 })
-  netAmount: string;
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  net_amount: string;
 
-  @Column({ name: 'down_payment', type: 'decimal', precision: 12, scale: 2 })
-  downPayment: string;
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  down_payment: string;
 
-  @Column({ name: 'financed_amount', type: 'decimal', precision: 12, scale: 2 })
-  financedAmount: string;
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  financed_amount: string;
 
   @Column({
-    name: 'monthly_installment',
     type: 'decimal',
     precision: 12,
     scale: 2,
   })
-  monthlyInstallment: string;
+  monthly_installment: string;
 
-  @Column({ name: 'plan_months', type: 'integer' })
-  planMonths: number;
+  @Column({ type: 'integer' })
+  plan_months: number;
 
   @Column({
-    name: 'product_condition',
     type: 'enum',
     enum: ProductCondition,
     enumName: 'ProductCondition',
   })
-  productCondition: ProductCondition;
+  product_condition: ProductCondition;
 
-  @Column({ name: 'start_date', type: 'date' })
-  startDate: string;
+  @Column({ type: 'date' })
+  start_date: string;
 
-  @Column({ name: 'end_date', type: 'date' })
-  endDate: string;
+  @Column({ type: 'date' })
+  end_date: string;
 
   @Column({
     type: 'enum',
@@ -88,23 +86,23 @@ export class Contract {
   })
   status: ContractStatus;
 
-  @Column({ name: 'write_off', type: 'boolean', default: false })
-  writeOff: boolean;
+  @Column({ type: 'boolean', default: false })
+  write_off: boolean;
 
-  @Column({ name: 'terms_locked_at', type: 'timestamptz', nullable: true })
-  termsLockedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true })
+  terms_locked_at: Date | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
 
   @ManyToOne(() => Customer, (customer) => customer.contracts, {
     onDelete: 'RESTRICT',

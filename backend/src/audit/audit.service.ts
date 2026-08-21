@@ -5,9 +5,9 @@ import { AuditLog } from '../database/entities';
 
 /** Anything a module wants to keep a record of; `before`/`after` are snapshots. */
 export type AuditEntry = {
-  actorId?: string | null;
+  actor_id?: number | null;
   entity: string;
-  entityId?: string | null;
+  entity_id?: string | null;
   action: string;
   before?: Record<string, unknown> | null;
   after?: Record<string, unknown> | null;
@@ -33,9 +33,9 @@ export class AuditService {
       // deep partial, which cannot express an arbitrary JSON object.
       await this.auditLogs.save(
         this.auditLogs.create({
-          actorId: entry.actorId ?? null,
+          actor_id: entry.actor_id ?? null,
           entity: entry.entity,
-          entityId: entry.entityId ?? null,
+          entity_id: entry.entity_id ?? null,
           action: entry.action,
           before: entry.before ?? null,
           after: entry.after ?? null,

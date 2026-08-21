@@ -20,9 +20,9 @@ export const metadata: Metadata = {
 const EMPTY_PAGE: Paginated<Customer> = {
     data: [],
     page: 1,
-    pageSize: 25,
+    page_size: 25,
     total: 0,
-    totalPages: 1,
+    total_pages: 1,
 };
 
 type SearchParams = Partial<Record<keyof CustomerFilterValues, string>> & {

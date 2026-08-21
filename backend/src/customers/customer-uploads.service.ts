@@ -12,9 +12,9 @@ import type { UpdateCustomerDto } from './dto/update-customer.dto';
 
 /** The three optional CNIC images a customer save may carry (FR-CUS-04-v2). */
 export type CustomerUploads = {
-  customerCnic?: Express.Multer.File;
-  guarantor1Cnic?: Express.Multer.File;
-  guarantor2Cnic?: Express.Multer.File;
+  customer_cnic?: Express.Multer.File;
+  guarantor1_cnic?: Express.Multer.File;
+  guarantor2_cnic?: Express.Multer.File;
 };
 
 /**
@@ -33,15 +33,15 @@ export type ResolvedFiles = {
 };
 
 const UPLOAD_FIELDS = [
-  'customerCnic',
-  'guarantor1Cnic',
-  'guarantor2Cnic',
+  'customer_cnic',
+  'guarantor1_cnic',
+  'guarantor2_cnic',
 ] as const;
 
 const GUARANTOR_POSITIONS = [1, 2];
 
 function uploadFieldFor(position: number): keyof CustomerUploads {
-  return position === 1 ? 'guarantor1Cnic' : 'guarantor2Cnic';
+  return position === 1 ? 'guarantor1_cnic' : 'guarantor2_cnic';
 }
 
 function folderFor(position: number): UploadFolder {
@@ -78,17 +78,17 @@ export class CustomerUploadsService {
     dto: CreateCustomerDto,
     uploads: CustomerUploads,
     ledger: UploadLedger,
-    actorId: string,
+    actor_id: number,
   ): Promise<ResolvedFiles> {
     const customerFileId = await this.store(
       manager,
       ledger,
-      actorId,
-      uploads.customerCnic,
-      'customerCnic',
+      actor_id,
+      uploads.customer_cnic,
+      'customer_cnic',
       UPLOAD_FOLDERS.customer,
-      dto.fullName,
-      dto.cnicNumber,
+      dto.full_name,
+      dto.cnic_number,
     );
 
     const guarantorFileIds = new Map<number, string | null>();
@@ -101,12 +101,12 @@ export class CustomerUploadsService {
         await this.store(
           manager,
           ledger,
-          actorId,
+          actor_id,
           uploads[field],
           field,
           folderFor(guarantor.position),
-          guarantor.fullName,
-          guarantor.cnicNumber,
+          guarantor.full_name,
+          guarantor.cnic_number,
         ),
       );
     }
@@ -124,23 +124,23 @@ export class CustomerUploadsService {
     dto: UpdateCustomerDto,
     uploads: CustomerUploads,
     ledger: UploadLedger,
-    actorId: string,
+    actor_id: number,
   ): Promise<ResolvedFiles> {
-    let customerFileId = before.cnicFileId;
+    let customerFileId = before.cnic_file_id;
 
-    if (uploads.customerCnic) {
-      if (before.cnicFileId) ledger.replaced.push(before.cnicFileId);
+    if (uploads.customer_cnic) {
+      if (before.cnic_file_id) ledger.replaced.push(before.cnic_file_id);
 
       customerFileId = await this.store(
         manager,
         ledger,
-        actorId,
-        uploads.customerCnic,
-        'customerCnic',
+        actor_id,
+        uploads.customer_cnic,
+        'customer_cnic',
         UPLOAD_FOLDERS.customer,
         // Falls back to the stored values when the edit only swaps the image.
-        dto.fullName ?? before.fullName,
-        dto.cnicNumber ?? before.cnicNumber,
+        dto.full_name ?? before.full_name,
+        dto.cnic_number ?? before.cnic_number,
       );
     }
 
@@ -160,24 +160,24 @@ export class CustomerUploadsService {
       if (!existing && !submitted) continue;
 
       if (!upload) {
-        guarantorFileIds.set(position, existing?.cnicFileId ?? null);
+        guarantorFileIds.set(position, existing?.cnic_file_id ?? null);
 
         continue;
       }
 
-      if (existing?.cnicFileId) ledger.replaced.push(existing.cnicFileId);
+      if (existing?.cnic_file_id) ledger.replaced.push(existing.cnic_file_id);
 
       guarantorFileIds.set(
         position,
         await this.store(
           manager,
           ledger,
-          actorId,
+          actor_id,
           upload,
           field,
           folderFor(position),
-          submitted?.fullName ?? existing?.fullName ?? '',
-          submitted?.cnicNumber ?? existing?.cnicNumber ?? '',
+          submitted?.full_name ?? existing?.full_name ?? '',
+          submitted?.cnic_number ?? existing?.cnic_number ?? '',
         ),
       );
     }
@@ -198,20 +198,20 @@ export class CustomerUploadsService {
   private async store(
     manager: EntityManager,
     ledger: UploadLedger,
-    actorId: string,
+    actor_id: number,
     upload: Express.Multer.File | undefined,
     field: string,
     folder: UploadFolder,
     personName: string,
-    cnicNumber: string,
+    cnic_number: string,
   ): Promise<string | null> {
     if (!upload) return null;
 
     const stored = await this.files.store(
       manager,
-      { field, folder, personName, cnicNumber },
+      { field, folder, personName, cnic_number },
       upload,
-      actorId,
+      actor_id,
     );
 
     ledger.written.push(stored);

@@ -15,22 +15,22 @@ import { User } from './user.entity';
  * adds the admin-facing viewer.
  */
 @Entity('audit_logs')
-@Index('audit_logs_entity_entity_id_idx', ['entity', 'entityId'])
-@Index('audit_logs_actor_id_idx', ['actorId'])
-@Index('audit_logs_created_at_idx', ['createdAt'])
+@Index('audit_logs_entity_entity_id_idx', ['entity', 'entity_id'])
+@Index('audit_logs_actor_id_idx', ['actor_id'])
+@Index('audit_logs_created_at_idx', ['created_at'])
 export class AuditLog {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   /** Null for events with no signed-in actor, such as a failed login. */
-  @Column({ name: 'actor_id', type: 'uuid', nullable: true })
-  actorId: string | null;
+  @Column({ type: 'integer', nullable: true })
+  actor_id: number | null;
 
   @Column({ type: 'varchar', length: 60 })
   entity: string;
 
-  @Column({ name: 'entity_id', type: 'varchar', length: 64, nullable: true })
-  entityId: string | null;
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  entity_id: string | null;
 
   @Column({ type: 'varchar', length: 40 })
   action: string;
@@ -44,8 +44,8 @@ export class AuditLog {
   @Column({ type: 'varchar', length: 64, nullable: true })
   ip: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
   @ManyToOne(() => User, (user) => user.auditLogs, {
     nullable: true,

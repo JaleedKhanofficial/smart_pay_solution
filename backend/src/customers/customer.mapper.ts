@@ -3,17 +3,17 @@ import type { Customer, Guarantor } from '../database/entities';
 /** SRS §5.4. Mirrors the `Guarantor` type in frontendapp/src/types/customer.ts. */
 export type GuarantorResponse = {
   id: number;
-  customerId: number;
+  customer_id: number;
   position: number;
-  fullName: string;
-  fatherName: string;
+  full_name: string;
+  father_name: string;
   relationship: string;
-  cnicNumber: string;
-  mobileNumber: string;
+  cnic_number: string;
+  mobile_number: string;
   address: string;
-  cnicFileId: string | null;
-  createdAt: string;
-  updatedAt: string;
+  cnic_file_id: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -24,48 +24,48 @@ export type GuarantorResponse = {
  */
 export type CustomerResponse = {
   id: number;
-  fullName: string;
-  fatherHusbandName: string;
-  cnicNumber: string;
-  mobileNumber: string;
+  full_name: string;
+  father_husband_name: string;
+  cnic_number: string;
+  mobile_number: string;
   address: string;
   occupation: string;
-  monthlyIncome: string;
-  cnicFileId: string | null;
+  monthly_income: string;
+  cnic_file_id: string | null;
   guarantors: GuarantorResponse[];
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
 };
 
 function toGuarantorResponse(guarantor: Guarantor): GuarantorResponse {
   return {
     id: guarantor.id,
-    customerId: guarantor.customerId,
+    customer_id: guarantor.customer_id,
     position: guarantor.position,
-    fullName: guarantor.fullName,
-    fatherName: guarantor.fatherName,
+    full_name: guarantor.full_name,
+    father_name: guarantor.father_name,
     relationship: guarantor.relationship,
-    cnicNumber: guarantor.cnicNumber,
-    mobileNumber: guarantor.mobileNumber,
+    cnic_number: guarantor.cnic_number,
+    mobile_number: guarantor.mobile_number,
     address: guarantor.address,
-    cnicFileId: guarantor.cnicFileId,
-    createdAt: guarantor.createdAt.toISOString(),
-    updatedAt: guarantor.updatedAt.toISOString(),
+    cnic_file_id: guarantor.cnic_file_id,
+    created_at: guarantor.created_at.toISOString(),
+    updated_at: guarantor.updated_at.toISOString(),
   };
 }
 
 export function toCustomerResponse(customer: Customer): CustomerResponse {
   return {
     id: customer.id,
-    fullName: customer.fullName,
-    fatherHusbandName: customer.fatherHusbandName,
-    cnicNumber: customer.cnicNumber,
-    mobileNumber: customer.mobileNumber,
+    full_name: customer.full_name,
+    father_husband_name: customer.father_husband_name,
+    cnic_number: customer.cnic_number,
+    mobile_number: customer.mobile_number,
     address: customer.address,
     occupation: customer.occupation,
-    monthlyIncome: customer.monthlyIncome,
-    cnicFileId: customer.cnicFileId,
+    monthly_income: customer.monthly_income,
+    cnic_file_id: customer.cnic_file_id,
     // Sorted here rather than in the query: paginating a joined one-to-many
     // makes TypeORM select ids through a subquery first, and that subquery can
     // only order by columns on the root table.
@@ -73,9 +73,9 @@ export function toCustomerResponse(customer: Customer): CustomerResponse {
       .slice()
       .sort((a, b) => a.position - b.position)
       .map(toGuarantorResponse),
-    createdAt: customer.createdAt.toISOString(),
-    updatedAt: customer.updatedAt.toISOString(),
-    deletedAt: customer.deletedAt?.toISOString() ?? null,
+    created_at: customer.created_at.toISOString(),
+    updated_at: customer.updated_at.toISOString(),
+    deleted_at: customer.deleted_at?.toISOString() ?? null,
   };
 }
 

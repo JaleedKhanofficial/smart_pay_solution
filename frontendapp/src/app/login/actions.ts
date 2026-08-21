@@ -61,7 +61,7 @@ export async function logoutAction(): Promise<void> {
 
     try {
         if (refresh) {
-            await apiRepository.post("/auth/logout", { refreshToken: refresh });
+            await apiRepository.post("/auth/logout", { refresh_token: refresh });
         }
     } catch {
         // A failed revoke must not trap the user in a session they left.

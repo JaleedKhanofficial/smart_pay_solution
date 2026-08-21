@@ -20,11 +20,11 @@ import { LoginAttemptsService } from './login-attempts.service';
 import { PasswordService } from './password.service';
 
 export type AuthResult = {
-  accessToken: string;
+  access_token: string;
   /** Access-token lifetime in seconds, for the client's refresh timer. */
-  expiresIn: number;
-  refreshToken: string;
-  refreshTokenExpiresAt: Date;
+  expires_in: number;
+  refresh_token: string;
+  refresh_token_expires_at: Date;
   user: AuthenticatedUser;
 };
 
@@ -100,16 +100,16 @@ export class AuthService {
 
     const user = await this.users.findByEmail(dto.email);
     const passwordMatches = user
-      ? await this.passwords.verify(user.passwordHash, dto.password)
+      ? await this.passwords.verify(user.password_hash, dto.password)
       : false;
 
     if (!user || !passwordMatches) {
       this.attempts.recordFailure(dto.email);
 
       await this.audit.record({
-        actorId: user?.id ?? null,
+        actor_id: user?.id ?? null,
         entity: 'auth',
-        entityId: user?.id ?? null,
+        entity_id: user ? String(user.id) : null,
         action: 'login_failed',
         after: { email: dto.email },
         ip,
@@ -121,9 +121,9 @@ export class AuthService {
 
     if (user.status !== UserStatus.active) {
       await this.audit.record({
-        actorId: user.id,
+        actor_id: user.id,
         entity: 'auth',
-        entityId: user.id,
+        entity_id: String(user.id),
         action: 'login_disabled_account',
         ip,
       });
@@ -137,9 +137,9 @@ export class AuthService {
     const result = await this.issueTokens(user, randomUUID());
 
     await this.audit.record({
-      actorId: user.id,
+      actor_id: user.id,
       entity: 'auth',
-      entityId: user.id,
+      entity_id: String(user.id),
       action: 'login',
       ip,
     });
@@ -157,7 +157,7 @@ export class AuthService {
     }
 
     const stored = await this.refreshTokens.findOne({
-      where: { tokenHash: this.hashToken(rawToken) },
+      where: { token_hash: this.hashToken(rawToken) },
       relations: { user: true },
     });
 
@@ -165,19 +165,19 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is not valid');
     }
 
-    if (stored.revokedAt) {
+    if (stored.revoked_at) {
       // The token was already rotated: treat this as theft and kill the family.
       await this.refreshTokens.update(
-        { familyId: stored.familyId, revokedAt: IsNull() },
-        { revokedAt: new Date() },
+        { family_id: stored.family_id, revoked_at: IsNull() },
+        { revoked_at: new Date() },
       );
 
       await this.audit.record({
-        actorId: stored.userId,
+        actor_id: stored.user_id,
         entity: 'auth',
-        entityId: stored.userId,
+        entity_id: String(stored.user_id),
         action: 'refresh_reuse_detected',
-        after: { familyId: stored.familyId },
+        after: { family_id: stored.family_id },
         ip,
       });
 
@@ -186,7 +186,7 @@ export class AuthService {
       );
     }
 
-    if (stored.expiresAt <= new Date()) {
+    if (stored.expires_at <= new Date()) {
       throw new UnauthorizedException('Refresh token has expired');
     }
 
@@ -202,16 +202,16 @@ export class AuthService {
       await manager.update(
         RefreshToken,
         { id: stored.id },
-        { revokedAt: new Date() },
+        { revoked_at: new Date() },
       );
 
-      return this.issueTokens(user, stored.familyId, manager);
+      return this.issueTokens(user, stored.family_id, manager);
     });
 
     await this.audit.record({
-      actorId: stored.userId,
+      actor_id: stored.user_id,
       entity: 'auth',
-      entityId: stored.userId,
+      entity_id: String(stored.user_id),
       action: 'refresh',
       ip,
     });
@@ -224,20 +224,20 @@ export class AuthService {
     if (!rawToken) return;
 
     const stored = await this.refreshTokens.findOne({
-      where: { tokenHash: this.hashToken(rawToken) },
+      where: { token_hash: this.hashToken(rawToken) },
     });
 
-    if (!stored || stored.revokedAt) return;
+    if (!stored || stored.revoked_at) return;
 
     await this.refreshTokens.update(
       { id: stored.id },
-      { revokedAt: new Date() },
+      { revoked_at: new Date() },
     );
 
     await this.audit.record({
-      actorId: stored.userId,
+      actor_id: stored.user_id,
       entity: 'auth',
-      entityId: stored.userId,
+      entity_id: String(stored.user_id),
       action: 'logout',
       ip,
     });
@@ -245,19 +245,19 @@ export class AuthService {
 
   /** FR-AUT-07 */
   async changePassword(
-    userId: string,
+    user_id: number,
     dto: ChangePasswordDto,
     ip?: string,
   ): Promise<void> {
-    const user = await this.users.findById(userId);
+    const user = await this.users.findById(user_id);
 
     if (!user) {
       throw new UnauthorizedException('Session is no longer valid');
     }
 
     const matches = await this.passwords.verify(
-      user.passwordHash,
-      dto.currentPassword,
+      user.password_hash,
+      dto.current_password,
     );
 
     if (!matches) {
@@ -266,7 +266,7 @@ export class AuthService {
 
     await this.users.updatePasswordHash(
       user.id,
-      await this.passwords.hash(dto.newPassword),
+      await this.passwords.hash(dto.new_password),
     );
 
     // Every existing session is invalidated: a password change should log out
@@ -274,25 +274,25 @@ export class AuthService {
     await this.revokeAllForUser(user.id);
 
     await this.audit.record({
-      actorId: user.id,
+      actor_id: user.id,
       entity: 'user',
-      entityId: user.id,
+      entity_id: String(user.id),
       action: 'password_changed',
       ip,
     });
   }
 
   /** Used by password changes now, and by user disable in Module 9 (FR-AUT-08). */
-  async revokeAllForUser(userId: string): Promise<void> {
+  async revokeAllForUser(user_id: number): Promise<void> {
     await this.refreshTokens.update(
-      { userId, revokedAt: IsNull() },
-      { revokedAt: new Date() },
+      { user_id, revoked_at: IsNull() },
+      { revoked_at: new Date() },
     );
   }
 
   private async issueTokens(
     user: User,
-    familyId: string,
+    family_id: string,
     manager?: EntityManager,
   ): Promise<AuthResult> {
     const payload: AccessTokenPayload = {
@@ -301,32 +301,33 @@ export class AuthService {
       role: user.role,
     };
 
-    const expiresIn = Math.floor(parseDurationMs(this.accessTtl) / 1000);
+    const expires_in = Math.floor(parseDurationMs(this.accessTtl) / 1000);
 
-    const accessToken = await this.jwt.signAsync(payload, {
+    const access_token = await this.jwt.signAsync(payload, {
       secret: this.accessSecret,
-      expiresIn,
+      // `expiresIn` is @nestjs/jwt's own option name, not one of ours.
+      expiresIn: expires_in,
     });
 
-    const refreshToken = randomBytes(48).toString('base64url');
-    const expiresAt = new Date(Date.now() + this.refreshTtlMs);
+    const refresh_token = randomBytes(48).toString('base64url');
+    const expires_at = new Date(Date.now() + this.refreshTtlMs);
 
     const repository = manager
       ? manager.getRepository(RefreshToken)
       : this.refreshTokens;
 
     await repository.insert({
-      userId: user.id,
-      tokenHash: this.hashToken(refreshToken),
-      familyId,
-      expiresAt,
+      user_id: user.id,
+      token_hash: this.hashToken(refresh_token),
+      family_id,
+      expires_at,
     });
 
     return {
-      accessToken,
-      expiresIn,
-      refreshToken,
-      refreshTokenExpiresAt: expiresAt,
+      access_token,
+      expires_in,
+      refresh_token,
+      refresh_token_expires_at: expires_at,
       user: {
         id: user.id,
         name: user.name,

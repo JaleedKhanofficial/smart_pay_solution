@@ -346,6 +346,21 @@ export class Baseline1755500000000 implements MigrationInterface {
   name = 'Baseline1755500000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // Every statement below names its tables unqualified, and TypeORM does NOT
+    // set search_path from the `schema` option — it only qualifies its own
+    // entity queries. Without this, `customers` resolves through the role's
+    // default search_path (`"$user", public`) and the migration reads or
+    // creates the wrong tables entirely. SET LOCAL is scoped to the migration's
+    // transaction, so it cannot leak into the pool.
+    const schema = queryRunner.connection.driver.schema ?? 'public';
+
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(schema)) {
+      throw new Error(`Refusing to use "${schema}" as a schema name.`);
+    }
+
+    await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+    await queryRunner.query(`SET LOCAL search_path TO "${schema}"`);
+
     // CREATE TYPE has no IF NOT EXISTS, so the duplicate is caught instead.
     for (const { name, values } of ENUM_TYPES) {
       const literals = values.map((value) => `'${value}'`).join(', ');

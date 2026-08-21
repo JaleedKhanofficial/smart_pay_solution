@@ -1,7 +1,8 @@
 export type Role = "admin" | "operator";
 
 export type SessionUser = {
-    id: string;
+    /** Sequential, like every other key in the database. */
+    id: number;
     name: string;
     email: string;
     role: Role;
@@ -9,24 +10,24 @@ export type SessionUser = {
 
 /** Body returned by POST /auth/login and /auth/refresh. */
 export type AuthResponse = {
-    accessToken: string;
-    expiresIn: number;
-    refreshToken: string;
+    access_token: string;
+    expires_in: number;
+    refresh_token: string;
     user: SessionUser;
 };
 
 /** SRS §5.4 — exactly two per customer (FR-CUS-03-v2). */
 export type Guarantor = {
     id: number;
-    customerId: number;
+    customer_id: number;
     position: number;
-    fullName: string;
-    fatherName: string;
+    full_name: string;
+    father_name: string;
     relationship: string;
-    cnicNumber: string;
-    mobileNumber: string;
+    cnic_number: string;
+    mobile_number: string;
     address: string;
-    cnicFileId: string | null;
+    cnic_file_id: string | null;
 };
 
 /**
@@ -37,35 +38,35 @@ export type Guarantor = {
  */
 export type Customer = {
     id: number;
-    fullName: string;
-    fatherHusbandName: string;
-    cnicNumber: string;
-    mobileNumber: string;
+    full_name: string;
+    father_husband_name: string;
+    cnic_number: string;
+    mobile_number: string;
     address: string;
     occupation: string;
-    monthlyIncome: string;
-    cnicFileId: string | null;
+    monthly_income: string;
+    cnic_file_id: string | null;
     guarantors: Guarantor[];
-    createdAt: string;
-    updatedAt: string;
-    deletedAt: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
 };
 
 export type Paginated<T> = {
     data: T[];
     page: number;
-    pageSize: number;
+    page_size: number;
     total: number;
-    totalPages: number;
+    total_pages: number;
 };
 
 /** Columns the register can be ordered by; mirrors the API whitelist. */
 export const SORT_FIELDS = [
-    "fullName",
-    "cnicNumber",
-    "mobileNumber",
+    "full_name",
+    "cnic_number",
+    "mobile_number",
     "occupation",
-    "createdAt",
+    "created_at",
 ] as const;
 
 export type SortField = (typeof SORT_FIELDS)[number];
@@ -76,25 +77,25 @@ export type CustomerSort = {
     dir: SortDirection;
 };
 
-export const DEFAULT_SORT: CustomerSort = { field: "createdAt", dir: "desc" };
+export const DEFAULT_SORT: CustomerSort = { field: "created_at", dir: "desc" };
 
 /** Every filter the customer register accepts, as it appears in the URL. */
 export type CustomerFilterValues = {
     search: string;
     occupation: string;
     guarantors: string;
-    cnicImage: string;
-    addedFrom: string;
-    addedTo: string;
+    cnic_image: string;
+    added_from: string;
+    added_to: string;
 };
 
 export const EMPTY_FILTERS: CustomerFilterValues = {
     search: "",
     occupation: "",
     guarantors: "",
-    cnicImage: "",
-    addedFrom: "",
-    addedTo: "",
+    cnic_image: "",
+    added_from: "",
+    added_to: "",
 };
 
 export type FormState = {

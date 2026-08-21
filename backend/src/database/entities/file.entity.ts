@@ -28,24 +28,24 @@ export class File {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @Column({ name: 'original_name', type: 'text' })
-  originalName: string;
+  @Column({ type: 'text' })
+  original_name: string;
 
   @Column({ type: 'varchar', length: 120 })
   mime: string;
 
-  @Column({ name: 'size_bytes', type: 'integer' })
-  sizeBytes: number;
+  @Column({ type: 'integer' })
+  size_bytes: number;
 
   @Index('files_storage_path_key', { unique: true })
-  @Column({ name: 'storage_path', type: 'text' })
-  storagePath: string;
+  @Column({ type: 'text' })
+  storage_path: string;
 
-  @Column({ name: 'uploaded_by', type: 'uuid' })
-  uploadedById: string;
+  @Column({ type: 'integer' })
+  uploaded_by: number;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
   @ManyToOne(() => User, (user) => user.uploadedFiles, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'uploaded_by' })

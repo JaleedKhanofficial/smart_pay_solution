@@ -31,18 +31,18 @@ export async function writeSession(auth: AuthResponse): Promise<void> {
     // 15-minute mark is what tells proxy.ts to renew the session. Making this
     // a browser-session cookie would leave it in place after the token itself
     // had expired, and the user would be bounced to /login instead.
-    store.set(ACCESS_COOKIE, auth.accessToken, {
+    store.set(ACCESS_COOKIE, auth.access_token, {
         httpOnly: true,
         secure,
         sameSite: "lax",
         path: "/",
-        maxAge: auth.expiresIn,
+        maxAge: auth.expires_in,
     });
 
     // No max-age, so the browser discards it when it closes — shutting the
     // browser ends the session. The server-side lifetime (JWT_REFRESH_TTL)
     // caps it independently for a browser that is never closed.
-    store.set(REFRESH_COOKIE, auth.refreshToken, {
+    store.set(REFRESH_COOKIE, auth.refresh_token, {
         httpOnly: true,
         secure,
         sameSite: "lax",
@@ -66,7 +66,7 @@ export async function refreshSession(): Promise<boolean> {
 
     try {
         const auth = await apiRepository.post<AuthResponse>("/auth/refresh", {
-            refreshToken: refresh,
+            refresh_token: refresh,
         });
 
         await writeSession(auth);

@@ -19,11 +19,11 @@ export type ImageFilter = (typeof IMAGE_FILTERS)[number];
 
 /** Whitelisted so a query string can never reach an arbitrary column. */
 export const SORT_FIELDS = [
-  'fullName',
-  'cnicNumber',
-  'mobileNumber',
+  'full_name',
+  'cnic_number',
+  'mobile_number',
   'occupation',
-  'createdAt',
+  'created_at',
 ] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
 
@@ -37,7 +37,7 @@ const trimmed = ({ value }: { value: unknown }): unknown =>
 const blankToUndefined = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
 
-/** FR-CUS-01 / §7: page, pageSize (default 25, max 100), search and filters. */
+/** FR-CUS-01 / §7: page, page_size (default 25, max 100), search and filters. */
 export class ListCustomersDto {
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
@@ -52,7 +52,7 @@ export class ListCustomersDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  pageSize: number = 25;
+  page_size: number = 25;
 
   @ApiPropertyOptional({ description: 'Matches name, CNIC or mobile' })
   @Transform(blankToUndefined)
@@ -83,7 +83,7 @@ export class ListCustomersDto {
   @Transform(blankToUndefined)
   @IsOptional()
   @IsIn(IMAGE_FILTERS)
-  cnicImage?: ImageFilter;
+  cnic_image?: ImageFilter;
 
   @ApiPropertyOptional({
     example: '2026-08-01',
@@ -92,7 +92,7 @@ export class ListCustomersDto {
   @Transform(blankToUndefined)
   @IsOptional()
   @IsISO8601()
-  addedFrom?: string;
+  added_from?: string;
 
   @ApiPropertyOptional({
     example: '2026-08-31',
@@ -101,13 +101,13 @@ export class ListCustomersDto {
   @Transform(blankToUndefined)
   @IsOptional()
   @IsISO8601()
-  addedTo?: string;
+  added_to?: string;
 
-  @ApiPropertyOptional({ enum: SORT_FIELDS, default: 'createdAt' })
+  @ApiPropertyOptional({ enum: SORT_FIELDS, default: 'created_at' })
   @Transform(blankToUndefined)
   @IsOptional()
   @IsIn(SORT_FIELDS)
-  sort: SortField = 'createdAt';
+  sort: SortField = 'created_at';
 
   @ApiPropertyOptional({ enum: SORT_DIRECTIONS, default: 'desc' })
   @Transform(blankToUndefined)

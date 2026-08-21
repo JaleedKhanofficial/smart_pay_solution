@@ -26,8 +26,8 @@ import { SummaryScenario } from './summary-scenario.entity';
  */
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ type: 'varchar', length: 120 })
   name: string;
@@ -35,8 +35,8 @@ export class User {
   @Column({ type: 'varchar', length: 190 })
   email: string;
 
-  @Column({ name: 'password_hash', type: 'text' })
-  passwordHash: string;
+  @Column({ type: 'text' })
+  password_hash: string;
 
   @Column({
     type: 'enum',
@@ -54,17 +54,17 @@ export class User {
   })
   status: UserStatus;
 
-  @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
-  lastLoginAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true })
+  last_login_at: Date | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
 
   @OneToMany(() => RefreshToken, (token) => token.user)
   refreshTokens: Relation<RefreshToken>[];

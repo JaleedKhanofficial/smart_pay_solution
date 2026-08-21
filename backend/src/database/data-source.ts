@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { DataSource, type DataSourceOptions } from 'typeorm';
 import { ENTITIES } from './entities';
 import { Baseline1755500000000 } from './migrations/1755500000000-Baseline';
+import { IntegerIds1755600000000 } from './migrations/1755600000000-IntegerIds';
 
 /**
  * The one place the connection is described. Both the Nest application
@@ -24,7 +25,7 @@ export function buildDataSourceOptions(url: string): DataSourceOptions {
     url: parsed.toString(),
     schema,
     entities: ENTITIES,
-    migrations: [Baseline1755500000000],
+    migrations: [Baseline1755500000000, IntegerIds1755600000000],
     migrationsTableName: 'migrations',
     // Never true. The database is described by the entities and changed only by
     // a reviewed migration; letting TypeORM alter a live schema on boot is how

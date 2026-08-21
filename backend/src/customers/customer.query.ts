@@ -23,7 +23,7 @@ const GUARANTOR_COUNTS: Record<string, number> = {
  * OR across the three identifying fields.
  *
  * Soft-deleted customers are excluded by TypeORM itself — `deleted_at` is a
- * @DeleteDateColumn — so there is no `deletedAt IS NULL` to remember here.
+ * @DeleteDateColumn — so there is no `deleted_at IS NULL` to remember here.
  */
 export function applyCustomerFilters(
   qb: SelectQueryBuilder<Customer>,
@@ -31,9 +31,9 @@ export function applyCustomerFilters(
 ): void {
   if (query.search) {
     qb.andWhere(
-      `(${CUSTOMER_ALIAS}.fullName ILIKE :search
-        OR ${CUSTOMER_ALIAS}.cnicNumber LIKE :search
-        OR ${CUSTOMER_ALIAS}.mobileNumber LIKE :search)`,
+      `(${CUSTOMER_ALIAS}.full_name ILIKE :search
+        OR ${CUSTOMER_ALIAS}.cnic_number LIKE :search
+        OR ${CUSTOMER_ALIAS}.mobile_number LIKE :search)`,
       { search: `%${query.search}%` },
     );
   }
@@ -44,11 +44,11 @@ export function applyCustomerFilters(
     });
   }
 
-  if (query.cnicImage) {
+  if (query.cnic_image) {
     qb.andWhere(
-      query.cnicImage === 'with'
-        ? `${CUSTOMER_ALIAS}.cnicFileId IS NOT NULL`
-        : `${CUSTOMER_ALIAS}.cnicFileId IS NULL`,
+      query.cnic_image === 'with'
+        ? `${CUSTOMER_ALIAS}.cnic_file_id IS NOT NULL`
+        : `${CUSTOMER_ALIAS}.cnic_file_id IS NULL`,
     );
   }
 
@@ -61,7 +61,7 @@ export function applyCustomerFilters(
       .subQuery()
       .select('COUNT(*)')
       .from(Guarantor, 'g')
-      .where(`g.customerId = ${CUSTOMER_ALIAS}.id`)
+      .where(`g.customer_id = ${CUSTOMER_ALIAS}.id`)
       .getQuery();
 
     qb.andWhere(`(${countSubQuery}) = :guarantorCount`, {
@@ -69,18 +69,18 @@ export function applyCustomerFilters(
     });
   }
 
-  if (query.addedFrom) {
-    qb.andWhere(`${CUSTOMER_ALIAS}.createdAt >= :addedFrom`, {
-      addedFrom: startOfDay(query.addedFrom),
+  if (query.added_from) {
+    qb.andWhere(`${CUSTOMER_ALIAS}.created_at >= :added_from`, {
+      added_from: startOfDay(query.added_from),
     });
   }
 
-  if (query.addedTo) {
+  if (query.added_to) {
     // Inclusive of the whole day the user picked.
-    const end = startOfDay(query.addedTo);
+    const end = startOfDay(query.added_to);
     end.setDate(end.getDate() + 1);
 
-    qb.andWhere(`${CUSTOMER_ALIAS}.createdAt < :addedTo`, { addedTo: end });
+    qb.andWhere(`${CUSTOMER_ALIAS}.created_at < :added_to`, { added_to: end });
   }
 }
 

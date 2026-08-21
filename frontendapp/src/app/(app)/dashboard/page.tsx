@@ -18,7 +18,7 @@ const TBD = "—";
 export default async function DashboardPage() {
     // The only tile with a real source today: FR-DSH-07.
     const customerCount = await apiCall<Paginated<Customer>>(
-        "/customers?page=1&pageSize=1"
+        "/customers?page=1&page_size=1"
     )
         .then((page) => page.total)
         .catch(() => null);

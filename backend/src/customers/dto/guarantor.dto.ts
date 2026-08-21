@@ -23,14 +23,14 @@ export class GuarantorDto {
   @Transform(trim)
   @IsString()
   @Length(2, 150)
-  fullName: string;
+  full_name: string;
 
   /** v1 collected this and never wrote it; v2 persists it. */
   @ApiProperty({ example: 'Ahmed Khan' })
   @Transform(trim)
   @IsString()
   @Length(2, 150)
-  fatherName: string;
+  father_name: string;
 
   @ApiProperty({ example: 'Brother' })
   @Transform(trim)
@@ -41,14 +41,14 @@ export class GuarantorDto {
   @ApiProperty({ example: '12345-1234567-1' })
   @Transform(normaliseCnic)
   @IsString()
-  @Matches(CNIC_PATTERN, { message: `cnicNumber ${CNIC_MESSAGE}` })
-  cnicNumber: string;
+  @Matches(CNIC_PATTERN, { message: `cnic_number ${CNIC_MESSAGE}` })
+  cnic_number: string;
 
   @ApiProperty({ example: '0300-1234567' })
   @Transform(normaliseMobile)
   @IsString()
-  @Matches(MOBILE_PATTERN, { message: `mobileNumber ${MOBILE_MESSAGE}` })
-  mobileNumber: string;
+  @Matches(MOBILE_PATTERN, { message: `mobile_number ${MOBILE_MESSAGE}` })
+  mobile_number: string;
 
   @ApiProperty({ example: 'Shop 7, Anarkali, Lahore' })
   @Transform(trim)

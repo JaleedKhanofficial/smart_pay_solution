@@ -19,20 +19,20 @@ import { User } from './user.entity';
  * is soft-deleted with a reason rather than erased. Module 6.
  */
 @Entity('payments')
-@Index('payments_contract_id_idx', ['contractId'])
-@Index('payments_payment_date_idx', ['paymentDate'])
+@Index('payments_contract_id_idx', ['contract_id'])
+@Index('payments_payment_date_idx', ['payment_date'])
 export class Payment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'contract_id', type: 'uuid' })
-  contractId: string;
+  @Column({ type: 'integer' })
+  contract_id: number;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: string;
 
-  @Column({ name: 'payment_date', type: 'date' })
-  paymentDate: string;
+  @Column({ type: 'date' })
+  payment_date: string;
 
   @Column({ type: 'enum', enum: PaymentMethod, enumName: 'PaymentMethod' })
   method: PaymentMethod;
@@ -40,20 +40,20 @@ export class Payment {
   @Column({ type: 'text', nullable: true })
   note: string | null;
 
-  @Column({ name: 'recorded_by', type: 'uuid' })
-  recordedById: string;
+  @Column({ type: 'integer' })
+  recorded_by: number;
 
-  @Column({ name: 'void_reason', type: 'text', nullable: true })
-  voidReason: string | null;
+  @Column({ type: 'text', nullable: true })
+  void_reason: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
 
   @ManyToOne(() => Contract, (contract) => contract.payments, {
     onDelete: 'RESTRICT',

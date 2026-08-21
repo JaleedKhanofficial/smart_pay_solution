@@ -9,33 +9,33 @@ import type { Customer, FormState } from "@/types/customer";
 const CUSTOMERS_PATH = "/customers";
 
 const SCALAR_FIELDS = [
-    "fullName",
-    "fatherHusbandName",
-    "cnicNumber",
-    "mobileNumber",
+    "full_name",
+    "father_husband_name",
+    "cnic_number",
+    "mobile_number",
     "address",
     "occupation",
-    "monthlyIncome",
+    "monthly_income",
 ] as const;
 
 const UPLOAD_FIELDS = [
-    "customerCnic",
-    "guarantor1Cnic",
-    "guarantor2Cnic",
+    "customer_cnic",
+    "guarantor1_cnic",
+    "guarantor2_cnic",
 ] as const;
 
 function guarantorFrom(formData: FormData, position: 1 | 2) {
-    const text = (suffix: string) =>
-        String(formData.get(`g${position}${suffix}`) ?? "").trim();
+    const text = (field: string) =>
+        String(formData.get(`g${position}_${field}`) ?? "").trim();
 
     return {
         position,
-        fullName: text("FullName"),
-        fatherName: text("FatherName"),
-        relationship: text("Relationship"),
-        cnicNumber: text("CnicNumber"),
-        mobileNumber: text("MobileNumber"),
-        address: text("Address"),
+        full_name: text("full_name"),
+        father_name: text("father_name"),
+        relationship: text("relationship"),
+        cnic_number: text("cnic_number"),
+        mobile_number: text("mobile_number"),
+        address: text("address"),
     };
 }
 
@@ -58,7 +58,7 @@ function toApiForm(formData: FormData): FormData {
         .map((position) => ({
             position,
             details: guarantorFrom(formData, position),
-            image: formData.get(`guarantor${position}Cnic`),
+            image: formData.get(`guarantor${position}_cnic`),
         }))
         .filter(
             ({ details, image }) =>
@@ -81,13 +81,13 @@ function toApiForm(formData: FormData): FormData {
     return form;
 }
 
-const GUARANTOR_SUFFIXES = [
-    "FullName",
-    "FatherName",
-    "Relationship",
-    "CnicNumber",
-    "MobileNumber",
-    "Address",
+const GUARANTOR_FIELDS = [
+    "full_name",
+    "father_name",
+    "relationship",
+    "cnic_number",
+    "mobile_number",
+    "address",
 ] as const;
 
 /** Everything the user typed, so a rejected submission can be re-seeded. */
@@ -99,8 +99,8 @@ function submittedValues(formData: FormData): Record<string, string> {
     }
 
     for (const position of [1, 2]) {
-        for (const suffix of GUARANTOR_SUFFIXES) {
-            const name = `g${position}${suffix}`;
+        for (const field of GUARANTOR_FIELDS) {
+            const name = `g${position}_${field}`;
             values[name] = String(formData.get(name) ?? "");
         }
     }

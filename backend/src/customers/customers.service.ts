@@ -57,7 +57,7 @@ export class CustomersService {
     actor: AuthenticatedUser,
     ip?: string,
   ): Promise<CustomerResponse> {
-    await this.assertCnicIsFree(body.cnicNumber);
+    await this.assertCnicIsFree(body.cnic_number);
     this.assertGuarantorPositions(body.guarantors);
     this.uploads.validateAll(uploads);
 
@@ -74,14 +74,14 @@ export class CustomersService {
         );
 
         const customer = manager.create(Customer, {
-          fullName: body.fullName,
-          fatherHusbandName: body.fatherHusbandName,
-          cnicNumber: body.cnicNumber,
-          mobileNumber: body.mobileNumber,
+          full_name: body.full_name,
+          father_husband_name: body.father_husband_name,
+          cnic_number: body.cnic_number,
+          mobile_number: body.mobile_number,
           address: body.address,
           occupation: body.occupation,
-          monthlyIncome: body.monthlyIncome.toFixed(2),
-          cnicFileId: files.customerFileId,
+          monthly_income: body.monthly_income.toFixed(2),
+          cnic_file_id: files.customerFileId,
         });
 
         const saved = await manager.save(customer);
@@ -89,7 +89,7 @@ export class CustomersService {
         await manager.insert(
           Guarantor,
           body.guarantors.map((guarantor) => ({
-            customerId: saved.id,
+            customer_id: saved.id,
             ...this.guarantorFields(guarantor, files),
           })),
         );
@@ -100,9 +100,9 @@ export class CustomersService {
       const created = await this.findOne(id);
 
       await this.audit.record({
-        actorId: actor.id,
+        actor_id: actor.id,
         entity: 'customer',
-        entityId: String(id),
+        entity_id: String(id),
         action: 'create',
         after: toAuditSnapshot(created),
         ip,
@@ -126,15 +126,15 @@ export class CustomersService {
     applyCustomerSort(qb, query);
 
     const [rows, total] = await qb
-      .skip((query.page - 1) * query.pageSize)
-      .take(query.pageSize)
+      .skip((query.page - 1) * query.page_size)
+      .take(query.page_size)
       .getManyAndCount();
 
     return paginate(
       rows.map(toCustomerResponse),
       total,
       query.page,
-      query.pageSize,
+      query.page_size,
     );
   }
 
@@ -164,8 +164,8 @@ export class CustomersService {
   ): Promise<CustomerResponse> {
     const before = await this.loadOrFail(id);
 
-    if (dto.cnicNumber && dto.cnicNumber !== before.cnicNumber) {
-      await this.assertCnicIsFree(dto.cnicNumber, id);
+    if (dto.cnic_number && dto.cnic_number !== before.cnic_number) {
+      await this.assertCnicIsFree(dto.cnic_number, id);
     }
 
     if (dto.guarantors) this.assertGuarantorPositions(dto.guarantors);
@@ -191,14 +191,14 @@ export class CustomersService {
           Customer,
           { id },
           {
-            fullName: dto.fullName,
-            fatherHusbandName: dto.fatherHusbandName,
-            cnicNumber: dto.cnicNumber,
-            mobileNumber: dto.mobileNumber,
+            full_name: dto.full_name,
+            father_husband_name: dto.father_husband_name,
+            cnic_number: dto.cnic_number,
+            mobile_number: dto.mobile_number,
             address: dto.address,
             occupation: dto.occupation,
-            monthlyIncome: dto.monthlyIncome?.toFixed(2),
-            cnicFileId: files.customerFileId,
+            monthly_income: dto.monthly_income?.toFixed(2),
+            cnic_file_id: files.customerFileId,
           },
         );
       });
@@ -208,9 +208,9 @@ export class CustomersService {
       const after = await this.findOne(id);
 
       await this.audit.record({
-        actorId: actor.id,
+        actor_id: actor.id,
         entity: 'customer',
-        entityId: String(id),
+        entity_id: String(id),
         action: 'update',
         before: toAuditSnapshot(toCustomerResponse(before)),
         after: toAuditSnapshot(after),
@@ -237,8 +237,8 @@ export class CustomersService {
     const before = await this.loadOrFail(id);
 
     const blocking = await this.contracts.find({
-      where: { customerId: id },
-      select: { id: true, status: true, startDate: true },
+      where: { customer_id: id },
+      select: { id: true, status: true, start_date: true },
     });
 
     if (blocking.length) {
@@ -247,16 +247,16 @@ export class CustomersService {
         error: 'Conflict',
         message:
           'This customer still has contracts. Delete or reassign them first.',
-        blockingContracts: blocking,
+        blocking_contracts: blocking,
       });
     }
 
     await this.customers.softDelete({ id });
 
     await this.audit.record({
-      actorId: actor.id,
+      actor_id: actor.id,
       entity: 'customer',
-      entityId: String(id),
+      entity_id: String(id),
       action: 'soft_delete',
       before: toAuditSnapshot(toCustomerResponse(before)),
       ip,
@@ -282,7 +282,7 @@ export class CustomersService {
    */
   private async saveGuarantors(
     manager: EntityManager,
-    customerId: number,
+    customer_id: number,
     before: Customer,
     dto: UpdateCustomerDto,
     files: ResolvedFiles,
@@ -297,7 +297,7 @@ export class CustomersService {
         if (existing) {
           await manager.update(Guarantor, { id: existing.id }, fields);
         } else {
-          await manager.insert(Guarantor, { customerId, ...fields });
+          await manager.insert(Guarantor, { customer_id, ...fields });
         }
       }
 
@@ -308,12 +308,12 @@ export class CustomersService {
     for (const existing of before.guarantors) {
       const fileId = files.guarantorFileIds.get(existing.position);
 
-      if (fileId === undefined || fileId === existing.cnicFileId) continue;
+      if (fileId === undefined || fileId === existing.cnic_file_id) continue;
 
       await manager.update(
         Guarantor,
         { id: existing.id },
-        { cnicFileId: fileId },
+        { cnic_file_id: fileId },
       );
     }
   }
@@ -321,13 +321,13 @@ export class CustomersService {
   private guarantorFields(guarantor: GuarantorDto, files: ResolvedFiles) {
     return {
       position: guarantor.position,
-      fullName: guarantor.fullName,
-      fatherName: guarantor.fatherName,
+      full_name: guarantor.full_name,
+      father_name: guarantor.father_name,
       relationship: guarantor.relationship,
-      cnicNumber: guarantor.cnicNumber,
-      mobileNumber: guarantor.mobileNumber,
+      cnic_number: guarantor.cnic_number,
+      mobile_number: guarantor.mobile_number,
       address: guarantor.address,
-      cnicFileId: files.guarantorFileIds.get(guarantor.position) ?? null,
+      cnic_file_id: files.guarantorFileIds.get(guarantor.position) ?? null,
     };
   }
 
@@ -344,7 +344,7 @@ export class CustomersService {
         statusCode: 400,
         error: 'Bad Request',
         message: 'each guarantor must have a different position',
-        fieldErrors: {
+        field_errors: {
           guarantors: 'Guarantor 1 and guarantor 2 cannot share a position',
         },
       });
@@ -355,7 +355,7 @@ export class CustomersService {
         statusCode: 400,
         error: 'Bad Request',
         message: 'guarantor 1 is required',
-        fieldErrors: { guarantors: 'Guarantor 1 is required' },
+        field_errors: { guarantors: 'Guarantor 1 is required' },
       });
     }
   }
@@ -365,11 +365,11 @@ export class CustomersService {
    * unique index `uq_customers_cnic_live` remains the real guard.
    */
   private async assertCnicIsFree(
-    cnicNumber: string,
+    cnic_number: string,
     exceptId?: number,
   ): Promise<void> {
     const clash = await this.customers.existsBy({
-      cnicNumber,
+      cnic_number,
       ...(exceptId ? { id: Not(exceptId) } : {}),
     });
 
@@ -377,8 +377,8 @@ export class CustomersService {
       throw new ConflictException({
         statusCode: 409,
         error: 'Conflict',
-        message: `A customer with CNIC "${cnicNumber}" already exists`,
-        fieldErrors: { cnicNumber: 'This CNIC is already registered' },
+        message: `A customer with CNIC "${cnic_number}" already exists`,
+        field_errors: { cnic_number: 'This CNIC is already registered' },
       });
     }
   }

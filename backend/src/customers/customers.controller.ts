@@ -34,9 +34,9 @@ import { ListCustomersDto } from './dto/list-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 const UPLOAD_FIELDS = [
-  { name: 'customerCnic', maxCount: 1 },
-  { name: 'guarantor1Cnic', maxCount: 1 },
-  { name: 'guarantor2Cnic', maxCount: 1 },
+  { name: 'customer_cnic', maxCount: 1 },
+  { name: 'guarantor1_cnic', maxCount: 1 },
+  { name: 'guarantor2_cnic', maxCount: 1 },
 ];
 
 const UPLOAD_OPTIONS = {
@@ -47,9 +47,9 @@ type UploadedFieldMap = Record<string, Express.Multer.File[] | undefined>;
 
 function toUploads(files: UploadedFieldMap | undefined): CustomerUploads {
   return {
-    customerCnic: files?.customerCnic?.[0],
-    guarantor1Cnic: files?.guarantor1Cnic?.[0],
-    guarantor2Cnic: files?.guarantor2Cnic?.[0],
+    customer_cnic: files?.customer_cnic?.[0],
+    guarantor1_cnic: files?.guarantor1_cnic?.[0],
+    guarantor2_cnic: files?.guarantor2_cnic?.[0],
   };
 }
 

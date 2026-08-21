@@ -27,23 +27,23 @@ import { Guarantor } from './guarantor.entity';
  * the client gets a field-level 409 rather than a driver error.
  */
 @Entity('customers')
-@Index('customers_full_name_idx', ['fullName'])
-@Index('customers_cnic_number_idx', ['cnicNumber'])
+@Index('customers_full_name_idx', ['full_name'])
+@Index('customers_cnic_number_idx', ['cnic_number'])
 export class Customer {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'full_name', type: 'varchar', length: 150 })
-  fullName: string;
+  @Column({ type: 'varchar', length: 150 })
+  full_name: string;
 
-  @Column({ name: 'father_husband_name', type: 'varchar', length: 150 })
-  fatherHusbandName: string;
+  @Column({ type: 'varchar', length: 150 })
+  father_husband_name: string;
 
-  @Column({ name: 'cnic_number', type: 'varchar', length: 15 })
-  cnicNumber: string;
+  @Column({ type: 'varchar', length: 15 })
+  cnic_number: string;
 
-  @Column({ name: 'mobile_number', type: 'varchar', length: 20 })
-  mobileNumber: string;
+  @Column({ type: 'varchar', length: 20 })
+  mobile_number: string;
 
   @Column({ type: 'text' })
   address: string;
@@ -53,25 +53,24 @@ export class Customer {
 
   /** `pg` returns DECIMAL as a string, which keeps the value exact end to end. */
   @Column({
-    name: 'monthly_income',
     type: 'decimal',
     precision: 12,
     scale: 2,
   })
-  monthlyIncome: string;
+  monthly_income: string;
 
-  @Column({ name: 'cnic_file_id', type: 'text', nullable: true })
-  cnicFileId: string | null;
+  @Column({ type: 'text', nullable: true })
+  cnic_file_id: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
 
   /** Soft delete (FR-CUS-09-v2). TypeORM excludes these rows on its own. */
-  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
 
   @ManyToOne(() => File, (file) => file.customers, {
     nullable: true,

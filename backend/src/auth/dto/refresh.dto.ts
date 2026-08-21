@@ -10,5 +10,5 @@ export class RefreshDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  refreshToken?: string;
+  refresh_token?: string;
 }

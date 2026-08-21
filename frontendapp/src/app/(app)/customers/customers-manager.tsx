@@ -97,8 +97,8 @@ function GuarantorThumbs({ customer }: { customer: Customer }) {
             {customer.guarantors.map((guarantor) => (
                 <Thumbnail
                     key={guarantor.id}
-                    fileId={guarantor.cnicFileId}
-                    alt={`CNIC of ${guarantor.fullName}`}
+                    fileId={guarantor.cnic_file_id}
+                    alt={`CNIC of ${guarantor.full_name}`}
                 />
             ))}
         </>
@@ -171,7 +171,7 @@ export default function CustomersManager({
 
     async function handleDelete(customer: Customer) {
         const confirmed = await confirm({
-            title: `Delete ${customer.fullName}?`,
+            title: `Delete ${customer.full_name}?`,
             text: "The record moves to the Recycle Bin and can be restored later.",
             tone: "warning",
             confirmLabel: "Yes, delete it",
@@ -213,7 +213,7 @@ export default function CustomersManager({
         const field = overrides.sort ?? sort.field;
         const dir = overrides.dir ?? sort.dir;
 
-        if (field !== "createdAt" || dir !== "desc") {
+        if (field !== "created_at" || dir !== "desc") {
             params.set("sort", field);
             params.set("dir", dir);
         }
@@ -233,8 +233,8 @@ export default function CustomersManager({
     const sortHref = (field: SortField, dir: SortDirection) =>
         hrefWith({ sort: field, dir, page: 1 });
 
-    const from = (page.page - 1) * page.pageSize + 1;
-    const to = Math.min(page.page * page.pageSize, page.total);
+    const from = (page.page - 1) * page.page_size + 1;
+    const to = Math.min(page.page * page.page_size, page.total);
 
     return (
         <PageContainer>
@@ -283,18 +283,18 @@ export default function CustomersManager({
                         <Card key={customer.id} className="p-4">
                             <div className="flex items-start gap-3">
                                 <Thumbnail
-                                    fileId={customer.cnicFileId}
-                                    alt={`CNIC of ${customer.fullName}`}
+                                    fileId={customer.cnic_file_id}
+                                    alt={`CNIC of ${customer.full_name}`}
                                 />
                                 <div className="min-w-0 flex-1">
                                     <Link
                                         href={`/customers/${customer.id}/edit`}
                                         className="block truncate font-medium text-foreground underline-offset-2 hover:underline"
                                     >
-                                        {customer.fullName}
+                                        {customer.full_name}
                                     </Link>
                                     <p className="truncate text-xs text-muted">
-                                        s/o {customer.fatherHusbandName}
+                                        s/o {customer.father_husband_name}
                                     </p>
                                 </div>
                                 <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
@@ -308,19 +308,19 @@ export default function CustomersManager({
                                         CNIC
                                     </dt>
                                     <dd className="font-mono text-xs text-foreground">
-                                        {customer.cnicNumber}
+                                        {customer.cnic_number}
                                     </dd>
                                 </div>
                                 <div className="min-w-0">
                                     <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
-                                        Mobile
+                                        Mobile No
                                     </dt>
                                     <dd className="text-sm">
                                         <a
-                                            href={`tel:${customer.mobileNumber.replace(/\D/g, "")}`}
+                                            href={`tel:${customer.mobile_number.replace(/\D/g, "")}`}
                                             className="text-foreground underline-offset-2 hover:underline"
                                         >
-                                            {customer.mobileNumber}
+                                            {customer.mobile_number}
                                         </a>
                                     </dd>
                                 </div>
@@ -338,9 +338,9 @@ export default function CustomersManager({
                                     </dt>
                                     <dd
                                         className="text-sm tabular-nums text-foreground"
-                                        title={formatDateTime(customer.createdAt)}
+                                        title={formatDateTime(customer.created_at)}
                                     >
-                                        {formatDate(customer.createdAt)}
+                                        {formatDate(customer.created_at)}
                                     </dd>
                                 </div>
                             </dl>
@@ -359,7 +359,7 @@ export default function CustomersManager({
                                         variant="secondary"
                                         size="sm"
                                         iconOnly
-                                        aria-label={`Edit ${customer.fullName}`}
+                                        aria-label={`Edit ${customer.full_name}`}
                                         title="Edit"
                                     >
                                         <Icon name="pencil" className="size-4" />
@@ -370,7 +370,7 @@ export default function CustomersManager({
                                         onClick={() => handleDelete(customer)}
                                         disabled={deletingId === customer.id}
                                         iconOnly
-                                        aria-label={`Delete ${customer.fullName}`}
+                                        aria-label={`Delete ${customer.full_name}`}
                                         title={
                                             deletingId === customer.id
                                                 ? "Deleting…"
@@ -395,19 +395,19 @@ export default function CustomersManager({
                                 CNIC image
                             </th>
                             <SortableHeader
-                                field="fullName"
+                                field="full_name"
                                 label="Name"
                                 sort={sort}
                                 hrefFor={sortHref}
                             />
                             <SortableHeader
-                                field="cnicNumber"
+                                field="cnic_number"
                                 label="CNIC"
                                 sort={sort}
                                 hrefFor={sortHref}
                             />
                             <SortableHeader
-                                field="mobileNumber"
+                                field="mobile_number"
                                 label="Mobile"
                                 sort={sort}
                                 hrefFor={sortHref}
@@ -419,7 +419,7 @@ export default function CustomersManager({
                                 hrefFor={sortHref}
                             />
                             <SortableHeader
-                                field="createdAt"
+                                field="created_at"
                                 label="Created At"
                                 sort={sort}
                                 hrefFor={sortHref}
@@ -448,8 +448,8 @@ export default function CustomersManager({
                                     </td>
                                     <td className="hidden px-4 py-3 xl:table-cell">
                                         <Thumbnail
-                                            fileId={customer.cnicFileId}
-                                            alt={`CNIC of ${customer.fullName}`}
+                                            fileId={customer.cnic_file_id}
+                                            alt={`CNIC of ${customer.full_name}`}
                                         />
                                     </td>
                                     <td className="px-4 py-3">
@@ -457,26 +457,26 @@ export default function CustomersManager({
                                             href={`/customers/${customer.id}/edit`}
                                             className="font-medium underline-offset-2 hover:underline"
                                         >
-                                            {customer.fullName}
+                                            {customer.full_name}
                                         </Link>
                                         <div className="text-xs text-muted">
-                                            s/o {customer.fatherHusbandName}
+                                            s/o {customer.father_husband_name}
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 font-mono text-xs">
-                                        {customer.cnicNumber}
+                                        {customer.cnic_number}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap">
-                                        {customer.mobileNumber}
+                                        {customer.mobile_number}
                                     </td>
                                     <td className="px-4 py-3">
                                         {customer.occupation}
                                     </td>
                                     <td
                                         className="px-4 py-3 whitespace-nowrap tabular-nums"
-                                        // title={formatDateTime(customer.createdAt)}
+                                        // title={formatDateTime(customer.created_at)}
                                     >
-                                        {formatDate(customer.createdAt)}
+                                        {formatDate(customer.created_at)}
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-1">
@@ -492,7 +492,7 @@ export default function CustomersManager({
                                                 variant="secondary"
                                                 size="sm"
                                                 iconOnly
-                                                aria-label={`Edit ${customer.fullName}`}
+                                                aria-label={`Edit ${customer.full_name}`}
                                                 title="Edit"
                                             >
                                                 <Icon
@@ -510,7 +510,7 @@ export default function CustomersManager({
                                                     deletingId === customer.id
                                                 }
                                                 iconOnly
-                                                aria-label={`Delete ${customer.fullName}`}
+                                                aria-label={`Delete ${customer.full_name}`}
                                                 title={
                                                     deletingId === customer.id
                                                         ? "Deleting…"
@@ -536,7 +536,7 @@ export default function CustomersManager({
                     <span className="text-xs text-muted">
                         Showing {from}–{to} of {page.total}
                     </span>
-                    {page.totalPages > 1 ? (
+                    {page.total_pages > 1 ? (
                         <div className="flex items-center gap-2">
                             {page.page > 1 ? (
                                 <ButtonLink
@@ -551,9 +551,9 @@ export default function CustomersManager({
                                 </ButtonLink>
                             ) : null}
                             <span className="text-xs text-muted">
-                                Page {page.page} of {page.totalPages}
+                                Page {page.page} of {page.total_pages}
                             </span>
-                            {page.page < page.totalPages ? (
+                            {page.page < page.total_pages ? (
                                 <ButtonLink
                                     href={pageHref(page.page + 1)}
                                     variant="secondary"

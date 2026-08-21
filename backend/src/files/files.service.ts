@@ -26,7 +26,7 @@ export type UploadTarget = {
   folder: UploadFolder;
   /** Person the scan belongs to; becomes the first part of the filename. */
   personName: string;
-  cnicNumber: string;
+  cnic_number: string;
 };
 
 type Signature = {
@@ -90,7 +90,7 @@ function stampToday(date: Date): string {
 
 export type StoredUpload = {
   fileId: string;
-  storagePath: string;
+  storage_path: string;
 };
 
 @Injectable()
@@ -122,7 +122,7 @@ export class FilesService {
         statusCode: 400,
         error: 'Bad Request',
         message: `${field}: image must be ${MAX_UPLOAD_MB} MB or smaller`,
-        fieldErrors: {
+        field_errors: {
           [field]: `Image must be ${MAX_UPLOAD_MB} MB or smaller`,
         },
       });
@@ -137,7 +137,7 @@ export class FilesService {
         statusCode: 400,
         error: 'Bad Request',
         message: `${field}: only JPG, PNG and WebP images are accepted`,
-        fieldErrors: {
+        field_errors: {
           [field]: 'Only JPG, PNG and WebP images are accepted',
         },
       });
@@ -155,14 +155,14 @@ export class FilesService {
     manager: EntityManager,
     target: UploadTarget,
     file: Express.Multer.File,
-    uploadedById: string,
+    uploaded_by: number,
   ): Promise<StoredUpload> {
     const signature = this.assertValidImage(target.field, file);
 
     const directory = join(this.uploadDir, target.folder);
     await mkdir(directory, { recursive: true });
 
-    const { fileName, storagePath } = await this.writeUnique(
+    const { fileName, storage_path } = await this.writeUnique(
       manager,
       directory,
       this.baseName(target),
@@ -174,18 +174,18 @@ export class FilesService {
       await manager.insert(File, {
         // The filename is the key, so cnic_file_id reads as the filename.
         id: fileName,
-        originalName: file.originalname.slice(0, 255),
+        original_name: file.originalname.slice(0, 255),
         mime: signature.mime,
-        sizeBytes: file.size,
-        storagePath,
-        uploadedById,
+        size_bytes: file.size,
+        storage_path,
+        uploaded_by,
       });
 
-      return { fileId: fileName, storagePath };
+      return { fileId: fileName, storage_path };
     } catch (error) {
       // The bytes are on disk but the row failed, and this path was never
       // handed back to the caller, so its discard list will not cover it.
-      await unlink(storagePath).catch(() => undefined);
+      await unlink(storage_path).catch(() => undefined);
 
       throw error;
     }
@@ -199,7 +199,7 @@ export class FilesService {
   async discard(uploads: StoredUpload[]): Promise<void> {
     await Promise.all(
       uploads.map((upload) =>
-        unlink(upload.storagePath).catch(() => undefined),
+        unlink(upload.storage_path).catch(() => undefined),
       ),
     );
   }
@@ -216,7 +216,7 @@ export class FilesService {
         if (!record) continue;
 
         await this.files.delete({ id: fileId });
-        await unlink(record.storagePath).catch(() => undefined);
+        await unlink(record.storage_path).catch(() => undefined);
       } catch (error) {
         this.logger.warn(
           `Could not remove replaced file ${fileId}: ${
@@ -229,7 +229,7 @@ export class FilesService {
 
   private baseName(target: UploadTarget): string {
     const name = sanitiseSegment(target.personName) || 'unnamed';
-    const cnic = sanitiseSegment(target.cnicNumber) || 'no-cnic';
+    const cnic = sanitiseSegment(target.cnic_number) || 'no-cnic';
 
     return `${name} - ${cnic} - ${stampToday(new Date())}`;
   }
@@ -246,7 +246,7 @@ export class FilesService {
     base: string,
     extension: string,
     contents: Buffer,
-  ): Promise<{ fileName: string; storagePath: string }> {
+  ): Promise<{ fileName: string; storage_path: string }> {
     for (let attempt = 1; attempt <= 50; attempt += 1) {
       const fileName =
         attempt === 1
@@ -259,12 +259,12 @@ export class FilesService {
 
       if (taken) continue;
 
-      const storagePath = join(directory, fileName);
+      const storage_path = join(directory, fileName);
 
       try {
-        await writeFile(storagePath, contents, { flag: 'wx' });
+        await writeFile(storage_path, contents, { flag: 'wx' });
 
-        return { fileName, storagePath };
+        return { fileName, storage_path };
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
 

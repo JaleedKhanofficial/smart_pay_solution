@@ -42,7 +42,7 @@ async function seed(): Promise<void> {
       users.create({
         name,
         email,
-        passwordHash: await hash(password, { algorithm: ARGON2ID }),
+        password_hash: await hash(password, { algorithm: ARGON2ID }),
         role: Role.admin,
         status: UserStatus.active,
       }),

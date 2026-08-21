@@ -12,28 +12,28 @@ import { Contract } from './contract.entity';
 
 /** SRS §5.8 — the plan, generated per BR-04-v2 / BR-05. Module 4. */
 @Entity('installments')
-@Index('installments_contract_id_seq_key', ['contractId', 'seq'], {
+@Index('installments_contract_id_seq_key', ['contract_id', 'seq'], {
   unique: true,
 })
-@Index('installments_due_date_idx', ['dueDate'])
+@Index('installments_due_date_idx', ['due_date'])
 export class Installment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'contract_id', type: 'uuid' })
-  contractId: string;
+  @Column({ type: 'integer' })
+  contract_id: number;
 
   @Column({ type: 'integer' })
   seq: number;
 
-  @Column({ name: 'due_date', type: 'date' })
-  dueDate: string;
+  @Column({ type: 'date' })
+  due_date: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: string;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
   @ManyToOne(() => Contract, (contract) => contract.installments, {
     onDelete: 'RESTRICT',
