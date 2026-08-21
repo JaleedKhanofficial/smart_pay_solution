@@ -1,35 +1,33 @@
 import { Injectable } from '@nestjs/common';
-import type { User } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../database/entities';
 
+/**
+ * Module 9 (FR-USR-01..03) adds the admin-facing CRUD; this is the slice Auth
+ * needs. `deleted_at` is a @DeleteDateColumn, so TypeORM excludes soft-deleted
+ * rows on its own — a deleted account can never authenticate.
+ */
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
+  ) {}
 
-  /** Live users only: soft-deleted rows can never authenticate. */
   findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
-      where: { email: email.toLowerCase(), deletedAt: null },
-    });
+    return this.users.findOne({ where: { email: email.toLowerCase() } });
   }
 
   findById(id: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
-      where: { id, deletedAt: null },
-    });
+    return this.users.findOne({ where: { id } });
   }
 
-  markLoggedIn(id: string): Promise<User> {
-    return this.prisma.user.update({
-      where: { id },
-      data: { lastLoginAt: new Date() },
-    });
+  async markLoggedIn(id: string): Promise<void> {
+    await this.users.update({ id }, { lastLoginAt: new Date() });
   }
 
-  updatePasswordHash(id: string, passwordHash: string): Promise<User> {
-    return this.prisma.user.update({
-      where: { id },
-      data: { passwordHash },
-    });
+  async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
+    await this.users.update({ id }, { passwordHash });
   }
 }

@@ -30,8 +30,10 @@ export type Guarantor = {
 };
 
 /**
- * SRS §5.3. Money arrives as a string: Prisma Decimal keeps exactness.
- * `id` is a sequential integer rather than a UUID — see prisma/schema.prisma.
+ * SRS §5.3. Money arrives as a string: PostgreSQL `decimal` is read as one, and
+ * keeping it that way means no figure is ever rounded through a float.
+ * `id` is a sequential integer rather than a UUID — see
+ * backend/src/database/entities/customer.entity.ts.
  */
 export type Customer = {
     id: number;

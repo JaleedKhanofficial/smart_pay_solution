@@ -24,13 +24,11 @@ import {
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { Paginated } from '../common/pagination';
 import { MAX_UPLOAD_BYTES } from '../files/files.service';
-import {
-  CustomersService,
-  type CustomerUploads,
-  type CustomerWithGuarantors,
-  type Paginated,
-} from './customers.service';
+import type { CustomerUploads } from './customer-uploads.service';
+import type { CustomerResponse } from './customer.mapper';
+import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -68,19 +66,19 @@ export class CustomersController {
   })
   @UseInterceptors(FileFieldsInterceptor(UPLOAD_FIELDS, UPLOAD_OPTIONS))
   create(
-    @Body() dto: CreateCustomerDto,
+    @Body() body: CreateCustomerDto,
     @UploadedFiles() files: UploadedFieldMap,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
-  ): Promise<CustomerWithGuarantors> {
-    return this.customers.create(dto, toUploads(files), user, req.ip);
+  ): Promise<CustomerResponse> {
+    return this.customers.create(body, toUploads(files), user, req.ip);
   }
 
   @Get()
   @ApiOperation({ summary: 'List customers (FR-CUS-01)' })
   findAll(
     @Query() query: ListCustomersDto,
-  ): Promise<Paginated<CustomerWithGuarantors>> {
+  ): Promise<Paginated<CustomerResponse>> {
     return this.customers.findAll(query);
   }
 
@@ -93,9 +91,7 @@ export class CustomersController {
   }
 
   @Get(':id')
-  findOne(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<CustomerWithGuarantors> {
+  findOne(@Param('id', ParseIntPipe) id: number): Promise<CustomerResponse> {
     return this.customers.findOne(id);
   }
 
@@ -109,7 +105,7 @@ export class CustomersController {
     @UploadedFiles() files: UploadedFieldMap,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
-  ): Promise<CustomerWithGuarantors> {
+  ): Promise<CustomerResponse> {
     return this.customers.update(id, dto, toUploads(files), user, req.ip);
   }
 

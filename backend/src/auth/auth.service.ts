@@ -6,10 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { UserStatus, type User } from '@prisma/client';
+import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { UserStatus } from '../common/enums';
+import { RefreshToken, User } from '../database/entities';
 import { UsersService } from '../users/users.service';
 import type { AccessTokenPayload, AuthenticatedUser } from './auth.types';
 import type { ChangePasswordDto } from './dto/change-password.dto';
@@ -56,7 +58,9 @@ export class AuthService {
   constructor(
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
-    private readonly prisma: PrismaService,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokens: Repository<RefreshToken>,
+    private readonly dataSource: DataSource,
     private readonly users: UsersService,
     private readonly passwords: PasswordService,
     private readonly attempts: LoginAttemptsService,
@@ -152,9 +156,9 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is missing');
     }
 
-    const stored = await this.prisma.refreshToken.findUnique({
+    const stored = await this.refreshTokens.findOne({
       where: { tokenHash: this.hashToken(rawToken) },
-      include: { user: true },
+      relations: { user: true },
     });
 
     if (!stored) {
@@ -163,10 +167,10 @@ export class AuthService {
 
     if (stored.revokedAt) {
       // The token was already rotated: treat this as theft and kill the family.
-      await this.prisma.refreshToken.updateMany({
-        where: { familyId: stored.familyId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
+      await this.refreshTokens.update(
+        { familyId: stored.familyId, revokedAt: IsNull() },
+        { revokedAt: new Date() },
+      );
 
       await this.audit.record({
         actorId: stored.userId,
@@ -186,17 +190,22 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token has expired');
     }
 
-    if (stored.user.deletedAt || stored.user.status !== UserStatus.active) {
+    // `user` is a @DeleteDateColumn relation, so a soft-deleted account comes
+    // back as null rather than as a row with deleted_at set.
+    if (!stored.user || stored.user.status !== UserStatus.active) {
       throw new UnauthorizedException('This account is disabled');
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      await tx.refreshToken.update({
-        where: { id: stored.id },
-        data: { revokedAt: new Date() },
-      });
+    const user = stored.user;
 
-      return this.issueTokens(stored.user, stored.familyId, tx);
+    const result = await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        RefreshToken,
+        { id: stored.id },
+        { revokedAt: new Date() },
+      );
+
+      return this.issueTokens(user, stored.familyId, manager);
     });
 
     await this.audit.record({
@@ -214,16 +223,16 @@ export class AuthService {
   async logout(rawToken: string | undefined, ip?: string): Promise<void> {
     if (!rawToken) return;
 
-    const stored = await this.prisma.refreshToken.findUnique({
+    const stored = await this.refreshTokens.findOne({
       where: { tokenHash: this.hashToken(rawToken) },
     });
 
     if (!stored || stored.revokedAt) return;
 
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revokedAt: new Date() },
-    });
+    await this.refreshTokens.update(
+      { id: stored.id },
+      { revokedAt: new Date() },
+    );
 
     await this.audit.record({
       actorId: stored.userId,
@@ -275,16 +284,16 @@ export class AuthService {
 
   /** Used by password changes now, and by user disable in Module 9 (FR-AUT-08). */
   async revokeAllForUser(userId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    await this.refreshTokens.update(
+      { userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
   }
 
   private async issueTokens(
     user: User,
     familyId: string,
-    tx?: Pick<PrismaService, 'refreshToken'>,
+    manager?: EntityManager,
   ): Promise<AuthResult> {
     const payload: AccessTokenPayload = {
       sub: user.id,
@@ -302,13 +311,15 @@ export class AuthService {
     const refreshToken = randomBytes(48).toString('base64url');
     const expiresAt = new Date(Date.now() + this.refreshTtlMs);
 
-    await (tx ?? this.prisma).refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: this.hashToken(refreshToken),
-        familyId,
-        expiresAt,
-      },
+    const repository = manager
+      ? manager.getRepository(RefreshToken)
+      : this.refreshTokens;
+
+    await repository.insert({
+      userId: user.id,
+      tokenHash: this.hashToken(refreshToken),
+      familyId,
+      expiresAt,
     });
 
     return {

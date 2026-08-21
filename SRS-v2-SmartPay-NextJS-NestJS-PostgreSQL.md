@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.2 |
+| **Document version** | 2.3 |
 | **Date** | 08-17-2026, amended 08-18-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -66,7 +66,7 @@ Browser
   │  TanStack Query · react-hook-form + zod · Tailwind CSS + shadcn/ui
   ▼  HTTPS, JSON, Bearer JWT
 NestJS 11 API (TypeScript)
-  │  Controllers → Services → Prisma ORM
+  │  Controllers → Services → Repositories (TypeORM)
   │  Guards (JWT + roles) · DTO validation (class-validator)
   │  OpenAPI/Swagger at /api/docs
   ▼
@@ -78,7 +78,7 @@ PostgreSQL 16 (schema `sps`)          Local disk or S3-compatible
 |---|---|
 | Frontend | Next.js 15, App Router. Server Components for list/detail reads; Client Components for the contract calculator, ledger, and summary workbook. Responsive from 320 px per NFR-12. |
 | API | NestJS 11, REST, versioned under `/api/v1`. |
-| ORM / migrations | Prisma with `prisma migrate`. The Prisma schema is the single source of DDL truth; no hand-run SQL bootstrap (replaces v1 `/setup`, which had drifted from the live schema). |
+| ORM / migrations | **TypeORM**, with entity classes under `src/database/entities/` as the single source of schema truth and versioned migrations under `src/database/migrations/`. Services take repositories by constructor injection; `synchronize` is permanently off, so the schema changes only through a reviewed migration. No hand-run SQL bootstrap (replaces v1 `/setup`, which had drifted from the live schema). |
 | Database | PostgreSQL 16. `NUMERIC(12,2)` for all money. UTC timestamps (`timestamptz`); dates as `date`. |
 | Auth | JWT access token (15 min) + rotating refresh token (7 days, httpOnly cookie). Argon2id password hashing. |
 | Validation | zod on the frontend for UX; class-validator DTOs on the API as the enforced layer. The API never trusts client-computed money figures. |
@@ -135,11 +135,31 @@ the document and the code stop disagreeing.
 | 2 | §5.5 / FR-CUS-04-v2 — UUID filenames | uploads are stored as `<name> - <cnic> - <dd-mm-yyyy>.<ext>` in a folder per subject (`customer/`, `guarantor_1/`, `guarantor_2/`), and **the filename is the `files` key**, so `cnic_file_id` reads as the filename | a filename that means something is worth more than an opaque one; the security property is unaffected because filenames never appear in a URL — files are fetched by key through the authenticated endpoint (FR-CUS-05-v2) |
 | 3 | FR-CUS-04-v2 — 5 MB max | **10 MB** per image (the clause text is updated) | phone cameras exceed 5 MB routinely |
 | 4 | FR-CUS-03-v2 — exactly two guarantors | **guarantor 1 required, guarantor 2 optional**; positions must still be unique, enforced by `(customer_id, position)` | a second guarantor is not always available at registration |
-| 5 | §5 — `updated_at` trigger-maintained | maintained by the ORM (`@updatedAt`) | Prisma is the only writer, so a trigger adds no guarantee |
+| 5 | §5 — `updated_at` trigger-maintained | maintained by the ORM (`@UpdateDateColumn`), with `DEFAULT CURRENT_TIMESTAMP` on the column | the API is the only writer, so a trigger adds no guarantee. The default is not decoration: TypeORM writes `DEFAULT` for this column on INSERT and expects the database to supply the value |
 | 6 | FR-CUS-10 / NFR-01 — toast feedback | **result dialogs** replace toasts for create, update and delete (§8.3) | the owner preferred an explicit acknowledgement over a self-dismissing toast |
 | 7 | §2.2 — TanStack Query, react-hook-form + zod, shadcn/ui | Server Components and Server Actions, native form validation, a hand-built component set (§8.3) | **open decision, not settled** — every screen now depends on it, and retrofitting costs more the longer it waits |
 
 Item 7 is the one still worth revisiting. Items 1–6 are closed.
+
+---
+
+### 2.8 Persistence layer (TypeORM)
+
+The rules below apply to every module. Module 2 is the reference
+implementation; a new module should be readable by anyone who has read it.
+
+| ID | Requirement |
+|---|---|
+| §2.8.1 | **One entity per table**, under `src/database/entities/`, registered in the `ENTITIES` barrel. The entity is the schema's source of truth; column names, lengths and nullability match the database exactly. |
+| §2.8.2 | **`synchronize` is permanently false.** The schema changes only through a migration in `src/database/migrations/`, applied with `npm run migration:run`. A migration that touches live data states in a comment what it preserves. |
+| §2.8.3 | **One DataSource.** `buildDataSourceOptions()` in `src/database/data-source.ts` is shared by the running application and the CLI, so the app and the migration tooling cannot describe different databases. |
+| §2.8.4 | **Services take repositories by constructor injection** (`@InjectRepository`), and `DataSource` only where a transaction spans more than one table. A service must not build its own connection. |
+| §2.8.5 | **Soft delete is `@DeleteDateColumn`**, so the ORM excludes deleted rows itself. No query carries a hand-written `deleted_at IS NULL`, and no module can forget one. Recovering a row is `restore()`; `withDeleted()` is required to see one. |
+| §2.8.6 | **Money is `decimal(12,2)` and stays a string** from the database to the JSON response. It is never parsed into a float anywhere in the API. |
+| §2.8.7 | **`created_at` and `updated_at` carry `DEFAULT CURRENT_TIMESTAMP` in the database.** TypeORM writes `DEFAULT` for both on INSERT and expects the database to supply the value; a column without a default fails with a NOT NULL violation on every insert. |
+| §2.8.8 | **Entities are not returned directly.** Each module maps to an explicit response type, which fixes the JSON contract and doubles as the audit snapshot. Adding a column cannot silently widen the API. |
+| §2.8.9 | **Sortable columns are whitelisted in the DTO** and applied through the query builder against the entity alias, never interpolated from the query string (NFR-13.5). |
+| §2.8.10 | **Paginating a joined one-to-many makes TypeORM select ids through a subquery**, which can only order by columns on the root table. Child collections are ordered after the fetch, in the mapper. |
 
 ---
 
@@ -447,12 +467,12 @@ All list endpoints support `page`, `pageSize` (default 25, max 100), `sort`, and
 | NFR-01 | **Usability:** navy/gold identity retained; confirmation dialog before every destructive action; toast feedback after every write; keyboard-friendly forms including the payment flow. |
 | NFR-02 | **Localisation:** PKR only, `en-PK` grouping; CNIC/mobile Pakistani formats; dates shown `dd-mm-yyyy`, stored ISO/UTC. |
 | NFR-03 | **Printability:** invoice, ledger, and summary print as standalone documents via print stylesheets; server-side PDF in Phase 2. |
-| NFR-04 | **Security:** JWT + RBAC per §4.0; Argon2id; rate-limited auth; helmet headers; strict CORS to the web origin; DTO validation on every input; parameterised access via Prisma; uploads magic-byte-checked, UUID-named, auth-served; no secrets in the repo; `NODE_ENV=production` never leaks stack traces. |
+| NFR-04 | **Security:** JWT + RBAC per §4.0; Argon2id; rate-limited auth; helmet headers; strict CORS to the web origin; DTO validation on every input; parameterised access via the ORM; uploads magic-byte-checked, UUID-named, auth-served; no secrets in the repo; `NODE_ENV=production` never leaks stack traces. |
 | NFR-05 | **Data integrity:** FKs on every relationship; every multi-write business operation in one transaction; unique constraints (CNIC, email, snapshot_no) at DB level; derived balance guarantees ledger/money agreement by construction. |
 | NFR-06 | **Auditability:** append-only audit log per §4.11; soft deletes with actor and timestamp. |
 | NFR-07 | **Performance:** dashboard in one round trip; every list paginated; indexes on FK columns, `payments.payment_date`, `customers.full_name`, `customers.cnic_number`; summary responsive at ≥ 1,000 contracts; P95 API latency < 300 ms at that volume on a single modest host. |
 | NFR-08 | **Reliability & backup:** Dockerised single-host deployment; nightly `pg_dump` retained 30 days; documented restore procedure; app is stateless apart from the file store. |
-| NFR-09 | **Testability:** unit tests on the formula package (BR-01..BR-13) and payment/void/status transitions; e2e happy-path tests (login → customer → contract → payment → ledger). CI runs tests + `prisma migrate diff` drift check on every push. |
+| NFR-09 | **Testability:** unit tests on the formula package (BR-01..BR-13) and payment/void/status transitions; e2e happy-path tests (login → customer → contract → payment → ledger). CI runs tests + a `migration:show` drift check on every push. |
 | NFR-10 | **Browser support:** evergreen browsers; no CDN dependencies at runtime. |
 | NFR-11 | **Type safety:** end-to-end TypeScript; API types shared with the frontend (generated from the OpenAPI spec or a shared package). |
 | NFR-12 | **Responsive layout:** every screen is usable from 320 px upward, with no horizontal page scrolling at any width. Layout rules per §8.1. |

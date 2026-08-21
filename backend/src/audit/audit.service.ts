@@ -1,14 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { AuditLog } from '../database/entities';
 
+/** Anything a module wants to keep a record of; `before`/`after` are snapshots. */
 export type AuditEntry = {
   actorId?: string | null;
   entity: string;
   entityId?: string | null;
   action: string;
-  before?: Prisma.InputJsonValue | null;
-  after?: Prisma.InputJsonValue | null;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
   ip?: string | null;
 };
 
@@ -20,21 +22,26 @@ export type AuditEntry = {
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(AuditLog)
+    private readonly auditLogs: Repository<AuditLog>,
+  ) {}
 
   async record(entry: AuditEntry): Promise<void> {
     try {
-      await this.prisma.auditLog.create({
-        data: {
+      // create + save rather than insert: TypeORM's insert payload type is a
+      // deep partial, which cannot express an arbitrary JSON object.
+      await this.auditLogs.save(
+        this.auditLogs.create({
           actorId: entry.actorId ?? null,
           entity: entry.entity,
           entityId: entry.entityId ?? null,
           action: entry.action,
-          before: entry.before ?? Prisma.DbNull,
-          after: entry.after ?? Prisma.DbNull,
+          before: entry.before ?? null,
+          after: entry.after ?? null,
           ip: entry.ip ?? null,
-        },
-      });
+        }),
+      );
     } catch (error) {
       // Never let audit bookkeeping fail the business operation it describes.
       // Callers that must not lose the row should write it inside their own

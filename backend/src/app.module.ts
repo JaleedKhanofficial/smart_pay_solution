@@ -9,8 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { CustomersModule } from './customers/customers.module';
+import { DatabaseModule } from './database/database.module';
 import { FilesModule } from './files/files.module';
-import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -21,7 +21,7 @@ import { UsersModule } from './users/users.module';
     ThrottlerModule.forRoot({
       throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }],
     }),
-    PrismaModule,
+    DatabaseModule,
     AuditModule,
     AuthModule,
     UsersModule,

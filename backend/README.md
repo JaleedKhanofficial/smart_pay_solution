@@ -1,98 +1,105 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# SmartPay Solutions v2 — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS 11 + TypeORM + PostgreSQL. Implements the SRS at
+`../SRS-v2-SmartPay-NextJS-NestJS-PostgreSQL.md`; §2.8 there is the binding set
+of persistence rules, and this file is the practical companion to it.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Everything is served under `/api/v1`. Swagger is at `/api/docs`.
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Getting started
 
 ```bash
-$ npm install
+cp .env.example .env      # then fill in DATABASE_URL and the two JWT secrets
+npm install
+npm run migration:run     # builds the schema, or adopts an existing one
+npm run seed              # first admin; never overwrites an existing one
+npm run start:dev
 ```
 
-## Compile and run the project
+`start:dev` watches and recompiles. `start:prod` runs `dist/` and does **not**
+watch — if you started it before a rebuild you are running yesterday's code,
+which is worth remembering when a change appears to have no effect.
+
+## Layout
+
+```
+src/
+  common/           enums, pagination envelope, input normalisers
+  database/
+    data-source.ts    the connection, shared by the app and the CLI
+    database.module.ts
+    entities/         one file per table, plus the ENTITIES barrel
+    migrations/       versioned DDL
+    seed.ts
+  auth/             login, refresh rotation, lockout, guards, JWT strategy
+  users/            the slice auth needs; Module 9 adds admin CRUD
+  files/            CNIC image storage and the authenticated download route
+  audit/            append-only trail, written by every module
+  customers/        Module 2 — the reference implementation
+```
+
+### The customer module
+
+Copy its shape when you build Modules 3–11:
+
+| File | Holds |
+|---|---|
+| `customers.controller.ts` | Routes, multipart, pipes, Swagger. No logic. |
+| `customers.service.ts` | Business rules and transaction boundaries. |
+| `customer-uploads.service.ts` | The three CNIC images, and what replaces what. |
+| `customer.query.ts` | Filters and sorting, applied to a query builder. |
+| `customer.mapper.ts` | Entity → response JSON, and the audit snapshot. |
+| `dto/` | class-validator DTOs; also where input is normalised. |
+
+A service that has grown past roughly 200 lines usually has one of these four
+jobs buried in it.
+
+## Database
+
+The connection string lives in `DATABASE_URL`. Its `?schema=sps` parameter is
+lifted out into TypeORM's own `schema` option by `data-source.ts`, because the
+`pg` driver does not understand it.
+
+`synchronize` is permanently off. The schema changes through migrations only:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run migration:show      # what is applied and what is pending
+npm run migration:run       # apply pending migrations
+npm run migration:revert    # roll back the most recent one
+npm run migration:generate -- src/database/migrations/AddSomething
 ```
 
-## Run tests
+The baseline migration is idempotent: it builds the schema on an empty database
+and adopts one that already has it, so an existing install needs no dump and
+restore.
+
+### Two rules worth knowing before you write a query
+
+**`updated_at` needs a database default.** TypeORM writes `DEFAULT` for
+`@CreateDateColumn` and `@UpdateDateColumn` on INSERT and lets PostgreSQL supply
+the value. A column without `DEFAULT CURRENT_TIMESTAMP` therefore fails with a
+NOT NULL violation on every insert. The baseline migration sets it on all
+eleven tables that carry the column.
+
+**Soft-deleted rows are already excluded.** `deleted_at` is a
+`@DeleteDateColumn`, so TypeORM appends the condition itself. Never write
+`deletedAt IS NULL` by hand; use `withDeleted()` when you genuinely need the
+deleted rows, and `restore()` to bring one back.
+
+## Testing a change by hand
+
+Run a second instance on a spare port rather than disturbing the one on `:5000`:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+PORT=5001 node dist/main.js
 ```
 
-## Deployment
+## Conventions
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- Money is `decimal(12,2)` and stays a **string** end to end. Never parse it
+  into a float.
+- Dates are `timestamptz`; the API returns ISO strings and the UI formats them.
+- Uploads are validated by magic bytes, not by the declared Content-Type, and
+  are served only through `GET /api/v1/files/:id` behind the JWT guard.
+- Every write records an audit row. Audit failures are logged, never thrown —
+  bookkeeping must not fail the operation it describes.

@@ -1,4 +1,4 @@
-import type { Role } from '@prisma/client';
+import type { Role } from '../common/enums';
 
 /** Claims carried by the 15-minute access token (FR-AUT-01). */
 export type AccessTokenPayload = {

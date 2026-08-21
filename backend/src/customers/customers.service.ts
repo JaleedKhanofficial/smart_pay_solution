@@ -4,222 +4,165 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Not, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { paginate, type Paginated } from '../common/pagination';
+import { Contract, Customer, Guarantor } from '../database/entities';
 import {
-  FilesService,
-  UPLOAD_FOLDERS,
-  type StoredUpload,
-  type UploadFolder,
-  type UploadTarget,
-} from '../files/files.service';
-import { PrismaService } from '../prisma/prisma.service';
+  CustomerUploadsService,
+  type CustomerUploads,
+  type ResolvedFiles,
+} from './customer-uploads.service';
+import {
+  toAuditSnapshot,
+  toCustomerResponse,
+  type CustomerResponse,
+} from './customer.mapper';
+import {
+  applyCustomerFilters,
+  applyCustomerSort,
+  CUSTOMER_ALIAS,
+} from './customer.query';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import type { GuarantorDto } from './dto/guarantor.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
-const CUSTOMER_INCLUDE = {
-  guarantors: { orderBy: { position: 'asc' } },
-} as const;
-
-export type CustomerWithGuarantors = Prisma.CustomerGetPayload<{
-  include: typeof CUSTOMER_INCLUDE;
-}>;
-
-/** The three optional CNIC images a customer save may carry (FR-CUS-04-v2). */
-export type CustomerUploads = {
-  customerCnic?: Express.Multer.File;
-  guarantor1Cnic?: Express.Multer.File;
-  guarantor2Cnic?: Express.Multer.File;
-};
-
-export type Paginated<T> = {
-  data: T[];
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-};
-
-function uploadFieldFor(position: number): keyof CustomerUploads {
-  return position === 1 ? 'guarantor1Cnic' : 'guarantor2Cnic';
-}
-
-/** Local midnight for a `YYYY-MM-DD` filter value. */
-function startOfDay(iso: string): Date {
-  return new Date(`${iso.slice(0, 10)}T00:00:00`);
-}
-
-function folderFor(position: number): UploadFolder {
-  return position === 1 ? UPLOAD_FOLDERS.guarantor1 : UPLOAD_FOLDERS.guarantor2;
-}
-
+/**
+ * Module 2 (SRS §4.2). Business rules and transaction boundaries live here;
+ * the three CNIC images belong to CustomerUploadsService, filtering to
+ * customer.query.ts, and the response shape to customer.mapper.ts.
+ *
+ * Soft-deleted customers are invisible to every query below without a filter,
+ * because `deleted_at` is a @DeleteDateColumn on the entity.
+ */
 @Injectable()
 export class CustomersService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly files: FilesService,
+    @InjectRepository(Customer)
+    private readonly customers: Repository<Customer>,
+    @InjectRepository(Contract)
+    private readonly contracts: Repository<Contract>,
+    private readonly dataSource: DataSource,
+    private readonly uploads: CustomerUploadsService,
     private readonly audit: AuditService,
   ) {}
 
+  /** FR-CUS-02, FR-CUS-03-v2, FR-CUS-06 — record and images save atomically. */
   async create(
-    dto: CreateCustomerDto,
+    body: CreateCustomerDto,
     uploads: CustomerUploads,
     actor: AuthenticatedUser,
     ip?: string,
-  ): Promise<CustomerWithGuarantors> {
-    await this.assertCnicIsFree(dto.cnicNumber);
-    this.assertGuarantorPositions(dto.guarantors);
+  ): Promise<CustomerResponse> {
+    await this.assertCnicIsFree(body.cnicNumber);
+    this.assertGuarantorPositions(body.guarantors);
+    this.uploads.validateAll(uploads);
 
-    // Every image is checked before anything is written, so a bad third upload
-    // cannot leave the first two on disk (FR-CUS-06).
-    this.validateUploads(uploads);
-
-    const written: StoredUpload[] = [];
+    const ledger = this.uploads.newLedger();
 
     try {
-      const customer = await this.prisma.$transaction(async (tx) => {
-        const customerFile = await this.storeIfPresent(
-          tx,
-          written,
-          {
-            field: 'customerCnic',
-            folder: UPLOAD_FOLDERS.customer,
-            personName: dto.fullName,
-            cnicNumber: dto.cnicNumber,
-          },
-          uploads.customerCnic,
+      const id = await this.dataSource.transaction(async (manager) => {
+        const files = await this.uploads.forCreate(
+          manager,
+          body,
+          uploads,
+          ledger,
           actor.id,
         );
 
-        const guarantors: Prisma.GuarantorCreateWithoutCustomerInput[] = [];
-
-        for (const guarantor of dto.guarantors) {
-          const field = uploadFieldFor(guarantor.position);
-
-          const guarantorFile = await this.storeIfPresent(
-            tx,
-            written,
-            {
-              field,
-              folder: folderFor(guarantor.position),
-              personName: guarantor.fullName,
-              cnicNumber: guarantor.cnicNumber,
-            },
-            uploads[field],
-            actor.id,
-          );
-
-          guarantors.push({
-            position: guarantor.position,
-            fullName: guarantor.fullName,
-            fatherName: guarantor.fatherName,
-            relationship: guarantor.relationship,
-            cnicNumber: guarantor.cnicNumber,
-            mobileNumber: guarantor.mobileNumber,
-            address: guarantor.address,
-            ...(guarantorFile
-              ? { cnicFile: { connect: { id: guarantorFile } } }
-              : {}),
-          });
-        }
-
-        return tx.customer.create({
-          data: {
-            fullName: dto.fullName,
-            fatherHusbandName: dto.fatherHusbandName,
-            cnicNumber: dto.cnicNumber,
-            mobileNumber: dto.mobileNumber,
-            address: dto.address,
-            occupation: dto.occupation,
-            monthlyIncome: new Prisma.Decimal(dto.monthlyIncome),
-            cnicFileId: customerFile,
-            guarantors: { create: guarantors },
-          },
-          include: CUSTOMER_INCLUDE,
+        const customer = manager.create(Customer, {
+          fullName: body.fullName,
+          fatherHusbandName: body.fatherHusbandName,
+          cnicNumber: body.cnicNumber,
+          mobileNumber: body.mobileNumber,
+          address: body.address,
+          occupation: body.occupation,
+          monthlyIncome: body.monthlyIncome.toFixed(2),
+          cnicFileId: files.customerFileId,
         });
+
+        const saved = await manager.save(customer);
+
+        await manager.insert(
+          Guarantor,
+          body.guarantors.map((guarantor) => ({
+            customerId: saved.id,
+            ...this.guarantorFields(guarantor, files),
+          })),
+        );
+
+        return saved.id;
       });
+
+      const created = await this.findOne(id);
 
       await this.audit.record({
         actorId: actor.id,
         entity: 'customer',
-        entityId: String(customer.id),
+        entityId: String(id),
         action: 'create',
-        after: this.forAudit(customer),
+        after: toAuditSnapshot(created),
         ip,
       });
 
-      return customer;
+      return created;
     } catch (error) {
-      await this.files.discard(written);
+      await this.uploads.discard(ledger);
 
       throw error;
     }
   }
 
+  /** FR-CUS-01: paginated, searchable, filterable and sortable. */
+  async findAll(query: ListCustomersDto): Promise<Paginated<CustomerResponse>> {
+    const qb = this.customers
+      .createQueryBuilder(CUSTOMER_ALIAS)
+      .leftJoinAndSelect(`${CUSTOMER_ALIAS}.guarantors`, 'guarantor');
+
+    applyCustomerFilters(qb, query);
+    applyCustomerSort(qb, query);
+
+    const [rows, total] = await qb
+      .skip((query.page - 1) * query.pageSize)
+      .take(query.pageSize)
+      .getManyAndCount();
+
+    return paginate(
+      rows.map(toCustomerResponse),
+      total,
+      query.page,
+      query.pageSize,
+    );
+  }
+
   /** Distinct occupations across live customers, for the filter dropdown. */
   async occupations(): Promise<string[]> {
-    const rows = await this.prisma.customer.findMany({
-      where: { deletedAt: null },
-      distinct: ['occupation'],
-      select: { occupation: true },
-      orderBy: { occupation: 'asc' },
-    });
+    const rows = await this.customers
+      .createQueryBuilder(CUSTOMER_ALIAS)
+      .select(`${CUSTOMER_ALIAS}.occupation`, 'occupation')
+      .distinct(true)
+      .orderBy('occupation', 'ASC')
+      .getRawMany<{ occupation: string }>();
 
     return rows.map((row) => row.occupation);
   }
 
-  /** FR-CUS-01: newest first, paginated, searchable and filterable. */
-  async findAll(
-    query: ListCustomersDto,
-  ): Promise<Paginated<CustomerWithGuarantors>> {
-    const where = this.buildWhere(query);
-
-    const [total, data] = await this.prisma.$transaction([
-      this.prisma.customer.count({ where }),
-      this.prisma.customer.findMany({
-        where,
-        include: CUSTOMER_INCLUDE,
-        // Field and direction are whitelisted by the DTO, so this cannot
-        // become an arbitrary column reference.
-        orderBy: [{ [query.sort]: query.dir }, { id: 'desc' }],
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-      }),
-    ]);
-
-    return {
-      data,
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
-    };
+  async findOne(id: number): Promise<CustomerResponse> {
+    return toCustomerResponse(await this.loadOrFail(id));
   }
 
-  async findOne(id: number): Promise<CustomerWithGuarantors> {
-    const customer = await this.prisma.customer.findFirst({
-      where: { id, deletedAt: null },
-      include: CUSTOMER_INCLUDE,
-    });
-
-    if (!customer) {
-      throw new NotFoundException(`Customer with id "${id}" was not found`);
-    }
-
-    return customer;
-  }
-
+  /** FR-CUS-07 */
   async update(
     id: number,
     dto: UpdateCustomerDto,
     uploads: CustomerUploads,
     actor: AuthenticatedUser,
     ip?: string,
-  ): Promise<CustomerWithGuarantors> {
-    const before = await this.findOne(id);
+  ): Promise<CustomerResponse> {
+    const before = await this.loadOrFail(id);
 
     if (dto.cnicNumber && dto.cnicNumber !== before.cnicNumber) {
       await this.assertCnicIsFree(dto.cnicNumber, id);
@@ -227,156 +170,56 @@ export class CustomersService {
 
     if (dto.guarantors) this.assertGuarantorPositions(dto.guarantors);
 
-    this.validateUploads(uploads);
+    this.uploads.validateAll(uploads);
 
-    const written: StoredUpload[] = [];
-    // FR-CUS-07: an omitted image keeps the existing file; a replacement marks
-    // the old one for deletion once the transaction commits.
-    const replaced: string[] = [];
+    const ledger = this.uploads.newLedger();
 
     try {
-      const customer = await this.prisma.$transaction(async (tx) => {
-        let cnicFileId = before.cnicFileId;
+      await this.dataSource.transaction(async (manager) => {
+        const files = await this.uploads.forUpdate(
+          manager,
+          before,
+          dto,
+          uploads,
+          ledger,
+          actor.id,
+        );
 
-        if (uploads.customerCnic) {
-          if (before.cnicFileId) replaced.push(before.cnicFileId);
+        await this.saveGuarantors(manager, id, before, dto, files);
 
-          cnicFileId = await this.storeIfPresent(
-            tx,
-            written,
-            {
-              field: 'customerCnic',
-              folder: UPLOAD_FOLDERS.customer,
-              // Falls back to the stored values when the edit only swaps the image.
-              personName: dto.fullName ?? before.fullName,
-              cnicNumber: dto.cnicNumber ?? before.cnicNumber,
-            },
-            uploads.customerCnic,
-            actor.id,
-          );
-        }
-
-        if (dto.guarantors) {
-          for (const guarantor of dto.guarantors) {
-            const field = uploadFieldFor(guarantor.position);
-            const existing = before.guarantors.find(
-              (row) => row.position === guarantor.position,
-            );
-
-            let guarantorFileId = existing?.cnicFileId ?? null;
-
-            if (uploads[field]) {
-              if (existing?.cnicFileId) replaced.push(existing.cnicFileId);
-
-              guarantorFileId = await this.storeIfPresent(
-                tx,
-                written,
-                {
-                  field,
-                  folder: folderFor(guarantor.position),
-                  personName: guarantor.fullName,
-                  cnicNumber: guarantor.cnicNumber,
-                },
-                uploads[field],
-                actor.id,
-              );
-            }
-
-            const fields = {
-              fullName: guarantor.fullName,
-              fatherName: guarantor.fatherName,
-              relationship: guarantor.relationship,
-              cnicNumber: guarantor.cnicNumber,
-              mobileNumber: guarantor.mobileNumber,
-              address: guarantor.address,
-              cnicFileId: guarantorFileId,
-            };
-
-            await tx.guarantor.upsert({
-              where: {
-                customerId_position: {
-                  customerId: id,
-                  position: guarantor.position,
-                },
-              },
-              create: {
-                customerId: id,
-                position: guarantor.position,
-                ...fields,
-              },
-              update: fields,
-            });
-          }
-        } else if (uploads.guarantor1Cnic || uploads.guarantor2Cnic) {
-          // Images can be replaced without resubmitting the guarantor details.
-          for (const position of [1, 2]) {
-            const field = uploadFieldFor(position);
-            const upload = uploads[field];
-
-            if (!upload) continue;
-
-            const existing = before.guarantors.find(
-              (row) => row.position === position,
-            );
-
-            if (!existing) continue;
-
-            if (existing.cnicFileId) replaced.push(existing.cnicFileId);
-
-            const fileId = await this.storeIfPresent(
-              tx,
-              written,
-              {
-                field,
-                folder: folderFor(position),
-                personName: existing.fullName,
-                cnicNumber: existing.cnicNumber,
-              },
-              upload,
-              actor.id,
-            );
-
-            await tx.guarantor.update({
-              where: { id: existing.id },
-              data: { cnicFileId: fileId },
-            });
-          }
-        }
-
-        return tx.customer.update({
-          where: { id },
-          data: {
+        await manager.update(
+          Customer,
+          { id },
+          {
             fullName: dto.fullName,
             fatherHusbandName: dto.fatherHusbandName,
             cnicNumber: dto.cnicNumber,
             mobileNumber: dto.mobileNumber,
             address: dto.address,
             occupation: dto.occupation,
-            monthlyIncome:
-              dto.monthlyIncome === undefined
-                ? undefined
-                : new Prisma.Decimal(dto.monthlyIncome),
-            cnicFileId,
+            monthlyIncome: dto.monthlyIncome?.toFixed(2),
+            cnicFileId: files.customerFileId,
           },
-          include: CUSTOMER_INCLUDE,
-        });
+        );
       });
 
-      await this.files.removeAfterCommit(replaced);
+      await this.uploads.removeReplaced(ledger);
+
+      const after = await this.findOne(id);
 
       await this.audit.record({
         actorId: actor.id,
         entity: 'customer',
         entityId: String(id),
         action: 'update',
-        before: this.forAudit(before),
-        after: this.forAudit(customer),
+        before: toAuditSnapshot(toCustomerResponse(before)),
+        after: toAuditSnapshot(after),
         ip,
       });
 
-      return customer;
+      return after;
     } catch (error) {
-      await this.files.discard(written);
+      await this.uploads.discard(ledger);
 
       throw error;
     }
@@ -391,10 +234,10 @@ export class CustomersService {
     actor: AuthenticatedUser,
     ip?: string,
   ): Promise<void> {
-    const before = await this.findOne(id);
+    const before = await this.loadOrFail(id);
 
-    const blocking = await this.prisma.contract.findMany({
-      where: { customerId: id, deletedAt: null },
+    const blocking = await this.contracts.find({
+      where: { customerId: id },
       select: { id: true, status: true, startDate: true },
     });
 
@@ -408,25 +251,90 @@ export class CustomersService {
       });
     }
 
-    await this.prisma.customer.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    await this.customers.softDelete({ id });
 
     await this.audit.record({
       actorId: actor.id,
       entity: 'customer',
       entityId: String(id),
       action: 'soft_delete',
-      before: this.forAudit(before),
+      before: toAuditSnapshot(toCustomerResponse(before)),
       ip,
     });
   }
 
+  private async loadOrFail(id: number): Promise<Customer> {
+    const customer = await this.customers.findOne({
+      where: { id },
+      relations: { guarantors: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException(`Customer with id "${id}" was not found`);
+    }
+
+    return customer;
+  }
+
+  /**
+   * Writes the submitted guarantors, and carries a replaced image across for a
+   * position whose details were not resubmitted.
+   */
+  private async saveGuarantors(
+    manager: EntityManager,
+    customerId: number,
+    before: Customer,
+    dto: UpdateCustomerDto,
+    files: ResolvedFiles,
+  ): Promise<void> {
+    if (dto.guarantors) {
+      for (const guarantor of dto.guarantors) {
+        const fields = this.guarantorFields(guarantor, files);
+        const existing = before.guarantors.find(
+          (row) => row.position === guarantor.position,
+        );
+
+        if (existing) {
+          await manager.update(Guarantor, { id: existing.id }, fields);
+        } else {
+          await manager.insert(Guarantor, { customerId, ...fields });
+        }
+      }
+
+      return;
+    }
+
+    // Images can be replaced without resubmitting the guarantor details.
+    for (const existing of before.guarantors) {
+      const fileId = files.guarantorFileIds.get(existing.position);
+
+      if (fileId === undefined || fileId === existing.cnicFileId) continue;
+
+      await manager.update(
+        Guarantor,
+        { id: existing.id },
+        { cnicFileId: fileId },
+      );
+    }
+  }
+
+  private guarantorFields(guarantor: GuarantorDto, files: ResolvedFiles) {
+    return {
+      position: guarantor.position,
+      fullName: guarantor.fullName,
+      fatherName: guarantor.fatherName,
+      relationship: guarantor.relationship,
+      cnicNumber: guarantor.cnicNumber,
+      mobileNumber: guarantor.mobileNumber,
+      address: guarantor.address,
+      cnicFileId: files.guarantorFileIds.get(guarantor.position) ?? null,
+    };
+  }
+
   /**
    * Guarantor 1 is required, guarantor 2 is optional — a deliberate relaxation
-   * of FR-CUS-03-v2, which asks for exactly two. A repeated position would
-   * otherwise reach the unique index and surface as a 500.
+   * of FR-CUS-03-v2 (SRS §2.7 deviation 4). A repeated position would otherwise
+   * reach the unique index and surface as a 500.
    */
   private assertGuarantorPositions(guarantors: GuarantorDto[]): void {
     const positions = guarantors.map((row) => row.position);
@@ -453,110 +361,16 @@ export class CustomersService {
   }
 
   /**
-   * Filters are AND-ed with each other; the free-text search stays an OR across
-   * the three identifying fields (FR-CUS-01).
-   */
-  private buildWhere(query: ListCustomersDto): Prisma.CustomerWhereInput {
-    const and: Prisma.CustomerWhereInput[] = [];
-
-    if (query.search) {
-      and.push({
-        OR: [
-          { fullName: { contains: query.search, mode: 'insensitive' } },
-          { cnicNumber: { contains: query.search } },
-          { mobileNumber: { contains: query.search } },
-        ],
-      });
-    }
-
-    if (query.occupation) {
-      and.push({
-        occupation: { equals: query.occupation, mode: 'insensitive' },
-      });
-    }
-
-    if (query.cnicImage) {
-      and.push(
-        query.cnicImage === 'with'
-          ? { cnicFileId: { not: null } }
-          : { cnicFileId: null },
-      );
-    }
-
-    // Positions are unique per customer, so presence at each position expresses
-    // "two", "one" and "none" without needing a count query.
-    if (query.guarantors === 'none') {
-      and.push({ guarantors: { none: {} } });
-    } else if (query.guarantors === 'two') {
-      and.push({ guarantors: { some: { position: 1 } } });
-      and.push({ guarantors: { some: { position: 2 } } });
-    } else if (query.guarantors === 'one') {
-      and.push({
-        OR: [
-          { guarantors: { some: { position: 1 }, none: { position: 2 } } },
-          { guarantors: { some: { position: 2 }, none: { position: 1 } } },
-        ],
-      });
-    }
-
-    if (query.addedFrom) {
-      and.push({ createdAt: { gte: startOfDay(query.addedFrom) } });
-    }
-
-    if (query.addedTo) {
-      // Inclusive of the whole day the user picked.
-      const end = startOfDay(query.addedTo);
-      end.setDate(end.getDate() + 1);
-
-      and.push({ createdAt: { lt: end } });
-    }
-
-    return and.length ? { deletedAt: null, AND: and } : { deletedAt: null };
-  }
-
-  private validateUploads(uploads: CustomerUploads): void {
-    for (const field of [
-      'customerCnic',
-      'guarantor1Cnic',
-      'guarantor2Cnic',
-    ] as const) {
-      const upload = uploads[field];
-
-      if (upload) this.files.assertValidImage(field, upload);
-    }
-  }
-
-  private async storeIfPresent(
-    tx: Prisma.TransactionClient,
-    written: StoredUpload[],
-    target: UploadTarget,
-    upload: Express.Multer.File | undefined,
-    uploadedById: string,
-  ): Promise<string | null> {
-    if (!upload) return null;
-
-    const stored = await this.files.store(tx, target, upload, uploadedById);
-
-    written.push(stored);
-
-    return stored.fileId;
-  }
-
-  /**
-   * Checked in the service so the client gets a field-level 409 (FR-CUS-08);
-   * the partial unique index `uq_customers_cnic_live` remains the real guard.
+   * Checked here so the client gets a field-level 409 (FR-CUS-08); the partial
+   * unique index `uq_customers_cnic_live` remains the real guard.
    */
   private async assertCnicIsFree(
     cnicNumber: string,
     exceptId?: number,
   ): Promise<void> {
-    const clash = await this.prisma.customer.findFirst({
-      where: {
-        cnicNumber,
-        deletedAt: null,
-        ...(exceptId ? { id: { not: exceptId } } : {}),
-      },
-      select: { id: true },
+    const clash = await this.customers.existsBy({
+      cnicNumber,
+      ...(exceptId ? { id: Not(exceptId) } : {}),
     });
 
     if (clash) {
@@ -567,21 +381,5 @@ export class CustomersService {
         fieldErrors: { cnicNumber: 'This CNIC is already registered' },
       });
     }
-  }
-
-  /** Decimal and Date do not survive JSONB cleanly, so normalise first. */
-  private forAudit(customer: CustomerWithGuarantors): Prisma.InputJsonValue {
-    return {
-      ...customer,
-      monthlyIncome: customer.monthlyIncome.toString(),
-      createdAt: customer.createdAt.toISOString(),
-      updatedAt: customer.updatedAt.toISOString(),
-      deletedAt: customer.deletedAt?.toISOString() ?? null,
-      guarantors: customer.guarantors.map((guarantor) => ({
-        ...guarantor,
-        createdAt: guarantor.createdAt.toISOString(),
-        updatedAt: guarantor.updatedAt.toISOString(),
-      })),
-    };
   }
 }

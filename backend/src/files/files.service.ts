@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { File as FileRecord, Prisma } from '@prisma/client';
+import { InjectRepository } from '@nestjs/typeorm';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
-import { PrismaService } from '../prisma/prisma.service';
+import { EntityManager, Repository } from 'typeorm';
+import { File } from '../database/entities';
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
@@ -99,7 +100,8 @@ export class FilesService {
 
   constructor(
     config: ConfigService,
-    private readonly prisma: PrismaService,
+    @InjectRepository(File)
+    private readonly files: Repository<File>,
   ) {
     const configured = config.get<string>('UPLOAD_DIR', './storage/uploads');
 
@@ -150,7 +152,7 @@ export class FilesService {
    * later failure rolls it back; `discard()` removes the orphaned bytes.
    */
   async store(
-    tx: Prisma.TransactionClient,
+    manager: EntityManager,
     target: UploadTarget,
     file: Express.Multer.File,
     uploadedById: string,
@@ -161,7 +163,7 @@ export class FilesService {
     await mkdir(directory, { recursive: true });
 
     const { fileName, storagePath } = await this.writeUnique(
-      tx,
+      manager,
       directory,
       this.baseName(target),
       signature.extension,
@@ -169,19 +171,17 @@ export class FilesService {
     );
 
     try {
-      const record = await tx.file.create({
-        data: {
-          // The filename is the key, so cnic_file_id reads as the filename.
-          id: fileName,
-          originalName: file.originalname.slice(0, 255),
-          mime: signature.mime,
-          sizeBytes: file.size,
-          storagePath,
-          uploadedById,
-        },
+      await manager.insert(File, {
+        // The filename is the key, so cnic_file_id reads as the filename.
+        id: fileName,
+        originalName: file.originalname.slice(0, 255),
+        mime: signature.mime,
+        sizeBytes: file.size,
+        storagePath,
+        uploadedById,
       });
 
-      return { fileId: record.id, storagePath };
+      return { fileId: fileName, storagePath };
     } catch (error) {
       // The bytes are on disk but the row failed, and this path was never
       // handed back to the caller, so its discard list will not cover it.
@@ -191,8 +191,8 @@ export class FilesService {
     }
   }
 
-  findById(id: string): Promise<FileRecord | null> {
-    return this.prisma.file.findUnique({ where: { id } });
+  findById(id: string): Promise<File | null> {
+    return this.files.findOne({ where: { id } });
   }
 
   /** Removes bytes written by a transaction that then failed. */
@@ -211,8 +211,11 @@ export class FilesService {
   async removeAfterCommit(fileIds: string[]): Promise<void> {
     for (const fileId of fileIds) {
       try {
-        const record = await this.prisma.file.delete({ where: { id: fileId } });
+        const record = await this.files.findOne({ where: { id: fileId } });
 
+        if (!record) continue;
+
+        await this.files.delete({ id: fileId });
         await unlink(record.storagePath).catch(() => undefined);
       } catch (error) {
         this.logger.warn(
@@ -238,7 +241,7 @@ export class FilesService {
    * directory are checked. The `wx` flag makes the write itself atomic.
    */
   private async writeUnique(
-    tx: Prisma.TransactionClient,
+    manager: EntityManager,
     directory: string,
     base: string,
     extension: string,
@@ -250,9 +253,8 @@ export class FilesService {
           ? `${base}.${extension}`
           : `${base} (${attempt}).${extension}`;
 
-      const taken = await tx.file.findUnique({
-        where: { id: fileName },
-        select: { id: true },
+      const taken = await manager.getRepository(File).existsBy({
+        id: fileName,
       });
 
       if (taken) continue;
