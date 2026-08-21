@@ -121,6 +121,8 @@ mostly 12px, and a bare pass is not enough there.
 | `PENDING`, filter count, status chips | `Badge` | `accent` `neutral` `positive` `negative` `solid` |
 | Text inputs, selects, textareas | `form-fields.tsx` | `fieldClass` |
 | The page's outer width and padding | `PageContainer` | `wide` `narrow` `prose` |
+| A popup holding a form | `Modal` | `sm` `md` `lg` |
+| A popup asking a question | `AlertDialog` via `useAlert()` | `confirm` `alert` |
 | Form field grids in a wide page | `CardFields` | `wide` (adds a 4th column at `xl`) |
 
 ---
@@ -204,6 +206,25 @@ import { CARD_CLASS } from "@/components/ui/card";
 ---
 
 ## 6. Rules that are not preferences
+
+**Two popups, and they are not interchangeable.** `AlertDialog` (through
+`useAlert()`) asks a question and closes — confirmations and results. `Modal`
+holds a form: it is wider, only its body scrolls, it traps Tab, and it does
+**not** close on a backdrop click, because a stray click must not discard what
+someone typed. Pass `dismissOnBackdrop` only when the panel holds nothing worth
+losing.
+
+A form rendered inside a `Modal` must not redirect on success — that tears the
+modal's own page out from under it. Give it a non-redirecting action that
+returns `FormState`, then close the panel and report through `useAlert()`.
+`saveProductInline` in `products/actions.ts` is the shape to copy: it calls
+`revalidatePath` so the register behind refreshes, and returns instead of
+redirecting.
+
+**A register can drop its add/edit pages entirely.** Products does: both live in
+the popup, so a filtered, sorted view is never lost to an edit. Customers keeps
+its pages because that form carries three file uploads and two guarantor blocks,
+which is a page's worth of work rather than a panel's.
 
 **The accent as text must use `--brand-ink`.** Plain `--brand` on a light card
 measures 1.91:1, far below even the 3:1 large-text floor. The bright sky blue

@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.4 |
+| **Document version** | 2.5 |
 | **Date** | 08-17-2026, amended 08-18-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -125,8 +125,8 @@ Any Docker-capable Linux host. Evergreen browsers. Internet access is not requir
 
 ### 2.7 As-built deviations
 
-Module 2 is built. These decisions differ from the text above; each was taken
-deliberately and each binds the modules still to come. They are recorded here so
+Modules 2 and 3 are built. These decisions differ from the text above; each was
+taken deliberately and each binds the modules still to come. They are recorded here so
 the document and the code stop disagreeing.
 
 | # | Clause | As built | Reason |
@@ -138,8 +138,11 @@ the document and the code stop disagreeing.
 | 5 | §5 — `updated_at` trigger-maintained | maintained by the ORM (`@UpdateDateColumn`), with `DEFAULT CURRENT_TIMESTAMP` on the column | the API is the only writer, so a trigger adds no guarantee. The default is not decoration: TypeORM writes `DEFAULT` for this column on INSERT and expects the database to supply the value |
 | 6 | FR-CUS-10 / NFR-01 — toast feedback | **result dialogs** replace toasts for create, update and delete (§8.3) | the owner preferred an explicit acknowledgement over a self-dismissing toast |
 | 7 | §2.2 — TanStack Query, react-hook-form + zod, shadcn/ui | Server Components and Server Actions, native form validation, a hand-built component set (§8.3) | **open decision, not settled** — every screen now depends on it, and retrofitting costs more the longer it waits |
+| 8 | FR-PRD-07 — categories managed "under Settings" | categories are managed at **`/products/categories`**, shipped with Module 3 | FR-PRD-07 is a Module 3 requirement, and a catalogue whose every product is `misc` is not usable. Module 12 can surface the same screen under Settings without rework |
+| 9 | FR-PRD-07 — category lifecycle | categories can be added, renamed, and **deleted only while empty**; products soft-delete as specified | once a product is filed under a category the name is part of the Summary Report's deal dimension (FR-PRD-06), so that delete is refused rather than cascaded. "Empty" counts soft-deleted products too — a recycled product still holds the foreign key |
+| 10 | §8.2 — registers are list screens | the product catalogue is added to and edited **entirely in a popup** (`Modal`); it has no add/edit pages at all, so filters, sort and page survive every edit | a catalogue is edited in short bursts, and losing a filtered view on each one is the friction the owner asked to remove. Customer registration keeps its pages: three uploads and two guarantor blocks are a page's worth of work, not a panel's |
 
-Item 7 is the one still worth revisiting. Items 1–6 are closed.
+Item 7 is the one still worth revisiting. Items 1–6 and 8–10 are closed.
 
 ---
 
@@ -169,8 +172,8 @@ implementation; a new module should be readable by anyone who has read it.
 |---|---|---|---|---|
 | 0 | Authentication & session | `/login` | `/api/v1/auth` | New |
 | 1 | Dashboard & KPIs | `/dashboard` | `/api/v1/dashboard` | Carried over, fixed |
-| 2 | Customer Management | `/customers` | `/api/v1/customers` | Carried over, guarantors normalised |
-| 3 | Product Catalogue | `/products` | `/api/v1/products` | Carried over |
+| 2 | Customer Management | `/customers` | `/api/v1/customers` | **Built**, guarantors normalised |
+| 3 | Product Catalogue | `/products` | `/api/v1/products`, `/api/v1/product-categories` | **Built** |
 | 4 | Contracts | `/contracts` | `/api/v1/contracts` | Carried over, server-authoritative |
 | 5 | Invoice / Agreement | `/contracts/{id}/invoice` | `/api/v1/contracts/{id}/invoice` | Carried over |
 | 6 | Payment Collection | `/payments` | `/api/v1/payments` | Carried over, transactional |
@@ -232,7 +235,7 @@ Single API call `GET /api/v1/dashboard` returning one aggregate payload (replace
 
 | ID | Requirement |
 |---|---|
-| FR-PRD-01..04 | List (name ascending), create, edit, soft-delete products with name, category (default `misc`), status `Active`/`Inactive`. Soft delete blocked while non-deleted contracts reference the product (409). |
+| FR-PRD-01..04 | List (name ascending), create, edit, soft-delete products with name, category (default `misc`), status `Active`/`Inactive`. Soft delete blocked while non-deleted contracts reference the product (409). Product names are unique among live rows, checked in the service so the client gets a field-level 409 — two identically named products are indistinguishable on a contract picker. |
 | FR-PRD-05 | Only `Active` products are selectable when creating a contract; the edit form shows the contract's product even if since deactivated. |
 | FR-PRD-06 | Category remains the "Deal" dimension of the Summary Report. |
 | FR-PRD-07 | Categories are managed as a simple lookup (add/rename) under Settings, so the Summary's deal dimension stays consistent. *(New.)* |
@@ -442,6 +445,7 @@ Base `/api/v1`, JSON, Bearer JWT. Errors follow one envelope: `{statusCode, erro
 | GET `/dashboard` | Aggregate KPI payload | any |
 | GET/POST `/customers`, GET/PATCH/DELETE `/customers/{id}` | Customers + nested guarantors | any |
 | GET/POST `/products`, GET/PATCH/DELETE `/products/{id}` | Products | any |
+| GET/POST `/product-categories`, PATCH/DELETE `/product-categories/{id}` | Category lookup (FR-PRD-07); delete refused with 409 while any product references it | any |
 | GET/POST `/contracts`, GET/PATCH/DELETE `/contracts/{id}` | Contracts (server recompute on write) | any |
 | GET `/contracts/{id}/invoice` | Invoice payload (+ `?format=pdf` in Phase 2) | any |
 | GET `/contracts/{id}/ledger` | Derived recovery ledger | any |

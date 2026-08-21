@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState, type InputHTMLAttributes } from "react";
+import {
+    useEffect,
+    useState,
+    type InputHTMLAttributes,
+    type SelectHTMLAttributes,
+} from "react";
 import { Icon } from "./icons";
 
 export const fieldClass =
@@ -38,6 +43,49 @@ export function TextField({ label, name, ...props }: TextFieldProps) {
                 {label}
             </label>
             <input id={name} name={name} className={fieldClass} {...props} />
+        </div>
+    );
+}
+
+type SelectOption = { value: string; label: string };
+
+/**
+ * A native select styled as a field. Native rather than a custom listbox on
+ * purpose: it is keyboard-accessible for free and, on a phone, opens the OS
+ * picker rather than a cramped in-page menu.
+ */
+export function SelectField({
+    label,
+    name,
+    options,
+    defaultValue,
+    hint,
+    ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & {
+    label: string;
+    name: string;
+    options: SelectOption[];
+    hint?: string;
+}) {
+    return (
+        <div>
+            <label className={labelClass} htmlFor={name}>
+                {label}
+            </label>
+            <select
+                id={name}
+                name={name}
+                defaultValue={defaultValue}
+                className={fieldClass}
+                {...props}
+            >
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+            {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
         </div>
     );
 }

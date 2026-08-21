@@ -59,13 +59,9 @@ export const NAVIGATION: NavSection[] = [
                 label: "Products",
                 href: "/products",
                 icon: "box",
-                built: false,
+                built: true,
                 summary: "Product catalogue and categories.",
-                capabilities: [
-                    "FR-PRD-01..04 — list, create, edit, soft-delete",
-                    "FR-PRD-05 — only Active products selectable on a contract",
-                    "FR-PRD-07 — categories as a managed lookup",
-                ],
+                capabilities: [],
             },
             {
                 module: 4,

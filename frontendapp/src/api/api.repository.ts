@@ -2,6 +2,22 @@ export type RequestOptions = Omit<RequestInit, "headers"> & {
     headers?: Record<string, string>;
 };
 
+/**
+ * Nest answers an unknown route with `Cannot DELETE /api/v1/…`, which is
+ * accurate and useless to whoever is reading the dialog. In practice it means
+ * one thing: the API process is older than the code it is meant to be running,
+ * because `start:prod` loads `dist/main` once and never reloads.
+ */
+const UNKNOWN_ROUTE = /^Cannot (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) \//;
+
+function explain(status: number, message: string): string {
+    if (status === 404 && UNKNOWN_ROUTE.test(message)) {
+        return "This action is missing from the running API — it is serving an older build. Restart it (npm run start:dev in backend/) and try again.";
+    }
+
+    return message;
+}
+
 export class ApiError extends Error {
     readonly status: number;
     readonly data: unknown;
@@ -88,15 +104,15 @@ class ApiRepository {
         if (!response.ok) {
             const message = (data as { message?: unknown })?.message;
 
-            throw new ApiError(
-                response.status,
-                Array.isArray(message)
-                    ? message.join(", ")
-                    : typeof message === "string" && message
-                      ? message
-                      : response.statusText,
-                data
-            );
+            const text = Array.isArray(message)
+                ? message.join(", ")
+                : typeof message === "string" && message
+                  ? message
+                  : response.statusText;
+
+            // `data` keeps the raw payload, so the original wording is still
+            // there for anyone debugging.
+            throw new ApiError(response.status, explain(response.status, text), data);
         }
 
         return data as T;
