@@ -6,6 +6,7 @@ import { deleteCustomer } from "./actions";
 import { CustomerFilters } from "./customer-filters";
 import { FlashAlert } from "@/components/flash-alert";
 import { Icon } from "@/components/icons";
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { useAlert } from "@/components/ui/alert-dialog";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -236,7 +237,7 @@ export default function CustomersManager({
     const to = Math.min(page.page * page.pageSize, page.total);
 
     return (
-        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageContainer>
             <FlashAlert message={flash} cleanUrl={pageHref(page.page)} />
 
             <PageHeader
@@ -568,6 +569,6 @@ export default function CustomersManager({
                     ) : null}
                 </nav>
             ) : null}
-        </div>
+        </PageContainer>
     );
 }

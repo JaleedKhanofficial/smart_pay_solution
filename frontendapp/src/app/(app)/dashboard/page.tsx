@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { StatTile } from "@/components/stat-tile";
 import { Card } from "@/components/ui/card";
@@ -23,7 +24,7 @@ export default async function DashboardPage() {
         .catch(() => null);
 
     return (
-        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageContainer>
             <PageHeader
                 eyebrow="Module 1"
                 title="Dashboard"
@@ -161,6 +162,6 @@ export default async function DashboardPage() {
                     </Card>
                 </section>
             </div>
-        </div>
+        </PageContainer>
     );
 }

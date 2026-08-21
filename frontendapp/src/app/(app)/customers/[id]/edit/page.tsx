@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CustomerForm } from "../../customer-form";
 import { ApiError } from "@/api/api.repository";
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { apiCall } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -33,7 +34,7 @@ export default async function EditCustomerPage({
     if (!customer) notFound();
 
     return (
-        <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageContainer>
             <PageHeader
                 eyebrow="Module 2"
                 title={customer.fullName}
@@ -41,6 +42,6 @@ export default async function EditCustomerPage({
             />
 
             <CustomerForm customer={customer} />
-        </div>
+        </PageContainer>
     );
 }

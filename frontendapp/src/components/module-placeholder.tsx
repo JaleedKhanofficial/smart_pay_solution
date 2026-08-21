@@ -1,4 +1,5 @@
 import { Icon } from "./icons";
+import { PageContainer } from "./page-container";
 import { PageHeader } from "./page-header";
 import { Card } from "./ui/card";
 import type { NavItem } from "@/lib/navigation";
@@ -10,7 +11,7 @@ import type { NavItem } from "@/lib/navigation";
  */
 export function ModulePlaceholder({ item }: { item: NavItem }) {
     return (
-        <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageContainer width="narrow">
             <PageHeader
                 eyebrow={`Module ${item.module}`}
                 title={item.label}
@@ -50,6 +51,6 @@ export function ModulePlaceholder({ item }: { item: NavItem }) {
                     </ul>
                 </div>
             </Card>
-        </div>
+        </PageContainer>
     );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CustomerForm } from "../customer-form";
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = {
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function NewCustomerPage() {
     return (
-        <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageContainer>
             <PageHeader
                 eyebrow="Module 2"
                 title="Add customer"
@@ -16,6 +17,6 @@ export default function NewCustomerPage() {
             />
 
             <CustomerForm customer={null} />
-        </div>
+        </PageContainer>
     );
 }

@@ -120,10 +120,45 @@ mostly 12px, and a bare pass is not enough there.
 | Form action rows | `CardFooter` | — |
 | `PENDING`, filter count, status chips | `Badge` | `accent` `neutral` `positive` `negative` `solid` |
 | Text inputs, selects, textareas | `form-fields.tsx` | `fieldClass` |
+| The page's outer width and padding | `PageContainer` | `wide` `narrow` `prose` |
+| Form field grids in a wide page | `CardFields` | `wide` (adds a 4th column at `xl`) |
 
 ---
 
 ## 5. Recipes
+
+**Change how much of the screen a page uses.** `components/page-container.tsx`
+owns it, so no screen carries its own width:
+
+```tsx
+const WIDTHS = {
+    wide: "max-w-[1800px]",   // registers and dashboards — the table fills the screen
+    narrow: "max-w-5xl",      // forms
+    prose: "max-w-2xl",       // short messages
+};
+```
+
+`wide` is capped rather than unbounded only so a table row stays scannable on an
+ultrawide monitor; on a normal screen it fills edge to edge. The register, the
+dashboard and both customer forms use it. `narrow` remains for anything that
+should not sprawl.
+
+A form in a `wide` container must also pass `wide` to `CardFields`, which adds a
+fourth column at `xl`. Without it the same three columns simply stretch, and a
+short field like a CNIC ends up over 500px across — harder to read, not easier.
+A field meant to fill the row needs the fourth step too, or it leaves a dangling
+cell:
+
+```tsx
+<CardFields wide>
+    ...
+    <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+```
+
+If a wide page leaves the filter panel looking stretched, the panel's own grid is
+the thing to change, not the container: `customer-filters.tsx` opens with
+`grid gap-3 sm:grid-cols-2 lg:grid-cols-4`, and adding `xl:grid-cols-7` puts all
+seven controls on one row.
 
 **Change the sidebar colour.** One line; the top bar follows because both read the
 same token.

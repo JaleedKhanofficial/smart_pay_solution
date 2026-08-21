@@ -49,7 +49,7 @@ export function CustomerForm({ customer }: Props) {
                     title="Customer"
                     description="CNIC and mobile are reformatted as you type and validated again on the server."
                 />
-                <CardFields>
+                <CardFields wide>
                 <TextField
                     label="Full name"
                     name="fullName"
@@ -128,7 +128,7 @@ export function CustomerForm({ customer }: Props) {
                                     : "Optional — leave blank if there is no second guarantor."
                             }
                         />
-                        <CardFields>
+                        <CardFields wide>
                         <TextField
                             label="Full name"
                             name={`g${position}FullName`}
@@ -172,7 +172,7 @@ export function CustomerForm({ customer }: Props) {
                             name={`guarantor${position}Cnic`}
                             existingFileId={guarantor?.cnicFileId}
                         />
-                        <div className="sm:col-span-2 lg:col-span-3">
+                        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
                             <TextAreaField
                                 label="Address"
                                 name={`g${position}Address`}

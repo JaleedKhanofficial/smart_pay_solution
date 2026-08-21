@@ -68,17 +68,28 @@ export function CardBody({
     );
 }
 
-/** Body laid out as the standard field grid: 1 / 2 / 3 columns. */
+/**
+ * Body laid out as the standard field grid: 1 / 2 / 3 columns.
+ *
+ * `wide` adds a fourth column on large screens, for a form inside a
+ * `PageContainer width="wide"`. Without it a full-width form stretches each
+ * input past 500px, which makes a short field like a CNIC harder to read, not
+ * easier. A form in a `narrow` container should leave it off.
+ */
 export function CardFields({
     className = "",
+    wide = false,
     children,
 }: {
     className?: string;
+    wide?: boolean;
     children: ReactNode;
 }) {
     return (
         <CardBody
-            className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${className}`.trim()}
+            className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${
+                wide ? "xl:grid-cols-4" : ""
+            } ${className}`.trim()}
         >
             {children}
         </CardBody>
