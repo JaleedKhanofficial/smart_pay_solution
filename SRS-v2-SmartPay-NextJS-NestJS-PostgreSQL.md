@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.3 |
+| **Document version** | 2.4 |
 | **Date** | 08-17-2026, amended 08-18-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -256,7 +256,7 @@ Single API call `GET /api/v1/dashboard` returning one aggregate payload (replace
 
 | ID | Requirement |
 |---|---|
-| FR-INV-01..05 | Carried over from v1 unchanged in content: full customer + both guarantors + product, SPS navy/gold letterhead ("Easy Monthly Installments"), headline monthly installment and duration, the 16-clause Terms and Conditions, three signature blocks. 404 page for a missing contract. |
+| FR-INV-01..05 | Carried over from v1 unchanged in content: full customer + both guarantors + product, SPS letterhead ("Easy Monthly Installments") — **open:** the screen palette moved to navy/sky per NFR-01, and whether print follows or keeps v1's gold is decided when this module is built, headline monthly installment and duration, the 16-clause Terms and Conditions, three signature blocks. 404 page for a missing contract. |
 | FR-INV-06 | Print via `window.print()` with a print stylesheet, plus **Download PDF** rendered server-side so the document is identical on every machine. *(PDF endpoint may land in Phase 2; print ships in Phase 1.)* |
 | FR-INV-07 | The invoice additionally prints the generated installment schedule table (due date + amount per month). *(New.)* |
 
@@ -464,7 +464,7 @@ All list endpoints support `page`, `pageSize` (default 25, max 100), `sort`, and
 
 | ID | Requirement |
 |---|---|
-| NFR-01 | **Usability:** navy/gold identity retained; confirmation dialog before every destructive action; toast feedback after every write; keyboard-friendly forms including the payment flow. |
+| NFR-01 | **Usability:** the SmartPay identity is carried by the logo palette — navy `#13365E` chrome with sky `#63C7F1` accents (v1's gold is retired from the interface; see FR-INV-01 for print); confirmation dialog before every destructive action; toast feedback after every write; keyboard-friendly forms including the payment flow. |
 | NFR-02 | **Localisation:** PKR only, `en-PK` grouping; CNIC/mobile Pakistani formats; dates shown `dd-mm-yyyy`, stored ISO/UTC. |
 | NFR-03 | **Printability:** invoice, ledger, and summary print as standalone documents via print stylesheets; server-side PDF in Phase 2. |
 | NFR-04 | **Security:** JWT + RBAC per §4.0; Argon2id; rate-limited auth; helmet headers; strict CORS to the web origin; DTO validation on every input; parameterised access via the ORM; uploads magic-byte-checked, UUID-named, auth-served; no secrets in the repo; `NODE_ENV=production` never leaks stack traces. |
@@ -526,8 +526,8 @@ styling. This is what keeps eleven more modules looking like one application.
 
 | ID | Requirement |
 |---|---|
-| NFR-14.1 | **Colour is addressed by role, never by hue.** Tokens are declared once in `globals.css`: `chrome-900…600` (sidebar, top bar, primary buttons), `background` / `surface` / `surface-muted` / `border` / `foreground` / `muted` (content), `gold` / `gold-soft` / `gold-ink` (accent) and `positive` / `negative` (status). Screens must not carry raw colour values. Re-theming the application is editing those tokens and nothing else. |
-| NFR-14.2 | **An accent used as text needs its own darker step.** The identity gold measures 2.42:1 on a light card — below even the 3:1 large-text floor — so `gold-ink` exists for text and the bright gold is reserved for dark surfaces. Every pair in the palette is checked against WCAG AA, and small secondary text is held well above the minimum rather than at it. |
+| NFR-14.1 | **Colour is addressed by role, never by hue.** Tokens are declared once in `globals.css`: `chrome-900…600` (sidebar, top bar, primary buttons), `background` / `surface` / `surface-muted` / `border` / `foreground` / `muted` (content), `brand` / `brand-soft` / `brand-ink` (accent) and `positive` / `negative` (status). Screens must not carry raw colour values. Re-theming the application is editing those tokens and nothing else. |
+| NFR-14.2 | **An accent used as text needs its own darker step.** The identity sky blue measures 1.91:1 on a light card — far below even the 3:1 large-text floor — so `brand-ink` exists for text and the bright sky is reserved for dark surfaces. Every pair in the palette is checked against WCAG AA, and small secondary text is held well above the minimum rather than at it. The logo's slate `#4872B8` is deliberately not a token: it fails at 2.55:1 on navy. |
 | NFR-14.3 | **Controls come from a shared component set** in `components/ui/`: `Button` / `ButtonLink` (variants `primary` `secondary` `danger` `ghost`; sizes `sm` `md`; `iconOnly`), `Card` with header, body, field-grid and footer parts, and `Badge`. Adding a variant is one edit; a screen-level override is a signal that a variant is missing. |
 | NFR-14.4 | **Icons are inline SVG in one module**, never an icon package or a CDN (NFR-10). Every icon inherits `currentColor` and is sized by the caller. An icon-only control must carry `aria-label` — the glyph is `aria-hidden`, so without one the control has no accessible name. |
 | NFR-14.5 | **Destructive actions are confirmed in an application dialog**, never `window.confirm`. The dialog names the record, states where it goes, and its confirming button is styled as destructive. Escape, the backdrop and Cancel all decline. |

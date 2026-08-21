@@ -20,7 +20,7 @@ export function ModulePlaceholder({ item }: { item: NavItem }) {
 
             <Card>
                 <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold/12 text-gold-ink">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/12 text-brand-ink">
                         <Icon name={item.icon} className="size-4.5" />
                     </span>
                     <div>
@@ -44,7 +44,7 @@ export function ModulePlaceholder({ item }: { item: NavItem }) {
                                 key={capability}
                                 className="flex gap-3 text-sm text-foreground"
                             >
-                                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-gold" />
+                                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand" />
                                 <span>{capability}</span>
                             </li>
                         ))}

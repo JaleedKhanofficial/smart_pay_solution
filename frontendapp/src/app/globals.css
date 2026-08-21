@@ -1,37 +1,40 @@
 @import "tailwindcss";
 
 /*
- * SmartPay identity: dark chrome with gold accents (NFR-01).
+ * SmartPay identity: navy chrome with sky-blue accents (NFR-01), taken from the
+ * logo — navy #13365E is the field, sky #63C7F1 is the P and the swoosh.
  *
- * `chrome-*` is the near-black scale used for the application shell — sidebar,
- * top bar, primary buttons. The content area stays light so tables and forms
- * are comfortable to read for long stretches.
+ * `chrome-*` is the navy scale used for the application shell — sidebar, top
+ * bar, primary buttons. The content area stays light so tables and forms are
+ * comfortable to read for long stretches; a navy field behind a register staff
+ * work in all day is tiring.
  *
  * Contrast, all AA or better:
- *   gold on chrome-900        7.73   sidebar icons and marks
- *   gold-soft on chrome-900  11.25   role label
- *   white on chrome-800      17.72   buttons, top-bar text
- *   gold-ink on the page      5.41   gold used as TEXT on light
+ *   brand on chrome-900       6.39   sidebar icons and marks
+ *   brand-soft on chrome-900  8.68   role label
+ *   white on chrome-800       9.78   buttons, top-bar text
+ *   brand-ink on the page     6.63   the accent used as TEXT on light
  *
- * gold-ink exists because plain gold on white measures 2.42:1 — below even the
- * 3:1 large-text floor. Bright gold is for dark surfaces only.
+ * brand-ink exists because sky blue on white measures 1.91:1 — far below even
+ * the 3:1 large-text floor. Bright sky is for dark surfaces only. (The logo's
+ * slate #4872B8 is not a UI token: it fails at 2.55:1 on navy.)
  */
 :root {
-    --background: #f5f6f8;
+    --background: #f4f6fa;
     --surface: #ffffff;
     --surface-muted: #fafbfc;
     --foreground: #000000;
     --muted: #475467;
     --border: #e3e6ea;
 
-    --chrome-900: #121214;
-    --chrome-800: #18181b;
-    --chrome-700: #27272a;
-    --chrome-600: #3f3f46;
+    --chrome-900: #13365e;
+    --chrome-800: #1a4574;
+    --chrome-700: #215489;
+    --chrome-600: #2b689f;
 
-    --gold: #c9a227;
-    --gold-soft: #e3c765;
-    --gold-ink: #7d6114;
+    --brand: #63c7f1;
+    --brand-soft: #a8e2f9;
+    --brand-ink: #0b5e80;
 
     --positive: #067647;
     --negative: #b42318;
@@ -46,26 +49,26 @@
  */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-    --background: #0b0b0d;
-    --surface: #141417;
-    --surface-muted: #1a1a1e;
-    --foreground: #e7e7ea;
-    --muted: #9a9aa2;
-    --border: #26262b;
-    --gold-ink: var(--gold-soft);
+    --background: #080d14;
+    --surface: #101823;
+    --surface-muted: #16202c;
+    --foreground: #e7ebf0;
+    --muted: #9aa8b8;
+    --border: #223042;
+    --brand-ink: var(--brand-soft);
     --positive: #3ccb7f;
     --negative: #f97066;
     }
 }
 
 :root[data-theme="dark"] {
-    --background: #0b0b0d;
-    --surface: #141417;
-    --surface-muted: #1a1a1e;
-    --foreground: #e7e7ea;
-    --muted: #9a9aa2;
-    --border: #26262b;
-    --gold-ink: var(--gold-soft);
+    --background: #080d14;
+    --surface: #101823;
+    --surface-muted: #16202c;
+    --foreground: #e7ebf0;
+    --muted: #9aa8b8;
+    --border: #223042;
+    --brand-ink: var(--brand-soft);
     --positive: #3ccb7f;
     --negative: #f97066;
 }
@@ -83,9 +86,9 @@
     --color-chrome-700: var(--chrome-700);
     --color-chrome-600: var(--chrome-600);
 
-    --color-gold: var(--gold);
-    --color-gold-soft: var(--gold-soft);
-    --color-gold-ink: var(--gold-ink);
+    --color-brand: var(--brand);
+    --color-brand-soft: var(--brand-soft);
+    --color-brand-ink: var(--brand-ink);
 
     --color-positive: var(--positive);
     --color-negative: var(--negative);

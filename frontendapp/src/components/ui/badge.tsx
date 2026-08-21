@@ -12,7 +12,7 @@ export type BadgeTone =
     | "solid";
 
 const TONES: Record<BadgeTone, string> = {
-    accent: "bg-gold/12 text-gold-ink",
+    accent: "bg-brand/12 text-brand-ink",
     neutral: "bg-surface-muted text-muted",
     positive: "bg-positive/12 text-positive",
     negative: "bg-negative/12 text-negative",

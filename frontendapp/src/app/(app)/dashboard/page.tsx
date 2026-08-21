@@ -31,8 +31,8 @@ export default async function DashboardPage() {
                 description="Portfolio at a glance."
             />
 
-            <div className="mb-8 flex items-start gap-3 rounded-xl border border-gold/30 bg-gold/8 px-4 py-3">
-                <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-gold-ink" />
+            <div className="mb-8 flex items-start gap-3 rounded-xl border border-brand/30 bg-brand/8 px-4 py-3">
+                <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-brand-ink" />
                 <p className="text-sm text-foreground">
                     <span className="font-medium">
                         The dashboard API is not built yet.
@@ -153,7 +153,7 @@ export default async function DashboardPage() {
                             Needs the installment schedule from{" "}
                             <Link
                                 href="/contracts"
-                                className="text-gold-ink underline-offset-2 hover:underline"
+                                className="text-brand-ink underline-offset-2 hover:underline"
                             >
                                 Module 4
                             </Link>

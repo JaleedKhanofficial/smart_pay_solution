@@ -49,9 +49,9 @@ work out which block you are actually looking at.
 To drop the feature and follow the OS only, delete `:root[data-theme="dark"]`
 and the toggle. To force one appearance, keep a single block.
 
-Note that `--gold-ink` is redefined in the dark blocks as `var(--gold-soft)`: a
-bright gold is unreadable as text on a light card but perfectly readable on a
-dark one, so the token flips automatically.
+Note that `--brand-ink` is redefined in the dark blocks as `var(--brand-soft)`:
+the bright sky blue is unreadable as text on a light card but perfectly readable
+on a dark one, so the token flips automatically.
 
 ### Files involved
 
@@ -98,9 +98,9 @@ mostly 12px, and a bare pass is not enough there.
 
 | Token | Used for |
 |---|---|
-| `--gold` | the `S` mark, active nav icon, the active-item bar in the sidebar |
-| `--gold-soft` | `SOLUTIONS` wordmark, the role label under the user's name |
-| `--gold-ink` | gold used as **text on a light surface** — `PENDING` pills, the active sort arrow |
+| `--brand` | the `S` mark, active nav icon, the active-item bar in the sidebar |
+| `--brand-soft` | `SOLUTIONS` wordmark, the role label under the user's name |
+| `--brand-ink` | the accent used as **text on a light surface** — `PENDING` pills, the active sort arrow |
 | `--positive` | success toasts, positive figures |
 | `--negative` | Delete buttons, validation errors |
 
@@ -205,9 +205,13 @@ import { CARD_CLASS } from "@/components/ui/card";
 
 ## 6. Rules that are not preferences
 
-**Gold as text must use `--gold-ink`.** Plain `--gold` on a light card measures
-2.42:1, below even the 3:1 large-text floor. Bright gold belongs on dark
-surfaces only.
+**The accent as text must use `--brand-ink`.** Plain `--brand` on a light card
+measures 1.91:1, far below even the 3:1 large-text floor. The bright sky blue
+belongs on dark surfaces only.
+
+The palette comes from the SmartPay logo: navy `#13365E` is the field, sky
+`#63C7F1` is the P and the swoosh. The mark's slate `#4872B8` is deliberately
+**not** a token — it fails at 2.55:1 on navy and does one decorative job.
 
 **Every colour pair must reach WCAG AA (4.5:1), and small text needs more.** The
 current palette is checked:
@@ -215,10 +219,13 @@ current palette is checked:
 | Pair | Ratio |
 |---|---|
 | `--foreground` on a card (light) | 21.0 |
-| white on `--chrome-800` | 17.7 |
+| white on `--chrome-900` | 12.2 |
+| white on `--chrome-800` | 9.8 |
+| `--brand-soft` on `--chrome-900` | 8.7 |
 | `--muted` on a card (light) | 7.7 |
-| gold on `--chrome-900` | 7.7 |
-| `--gold-ink` on the page | 5.4 |
+| `--brand-ink` on a card (light) | 7.2 |
+| `--brand-ink` on the page | 6.6 |
+| `--brand` on `--chrome-900` | 6.4 |
 
 If you change a token, re-check the pairs it participates in.
 

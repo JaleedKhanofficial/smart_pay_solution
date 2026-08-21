@@ -91,13 +91,13 @@ export function AppShell({
                                         }`}
                                     >
                                         {active ? (
-                                            <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-gold" />
+                                            <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-brand" />
                                         ) : null}
                                         <Icon
                                             name={item.icon}
                                             className={`size-4 shrink-0 ${
                                                 active
-                                                    ? "text-gold"
+                                                    ? "text-brand"
                                                     : "text-white/45 group-hover:text-white/70"
                                             }`}
                                         />
@@ -130,7 +130,7 @@ export function AppShell({
                 rail ? "justify-center px-2" : "gap-3 px-5"
             }`}
         >
-            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-gold text-sm font-bold text-chrome-900">
+            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-brand text-sm font-bold text-chrome-900">
                 S
             </span>
             {rail ? null : (
@@ -138,7 +138,7 @@ export function AppShell({
                     <span className="block text-sm font-semibold text-white">
                         SmartPay
                     </span>
-                    <span className="block text-[10px] uppercase tracking-[0.14em] text-gold-soft">
+                    <span className="block text-[10px] uppercase tracking-[0.14em] text-brand-soft">
                         Solutions
                     </span>
                 </span>
@@ -165,7 +165,7 @@ export function AppShell({
                         <span className="block truncate text-sm text-white">
                             {user.name}
                         </span>
-                        <span className="block truncate text-[11px] uppercase tracking-wide text-gold-soft">
+                        <span className="block truncate text-[11px] uppercase tracking-wide text-brand-soft">
                             {user.role}
                         </span>
                     </span>

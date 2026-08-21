@@ -147,7 +147,7 @@ function SortableHeader({
                         active && sort.dir === "asc" ? "chevronUp" : "chevronDown"
                     }
                     className={`size-3.5 ${
-                        active ? "text-gold-ink" : "text-muted/40"
+                        active ? "text-brand-ink" : "text-muted/40"
                     }`}
                 />
             </Link>

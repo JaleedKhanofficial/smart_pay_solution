@@ -48,7 +48,7 @@ const AlertContext = createContext<AlertContextValue | null>(null);
 const TONES: Record<DialogTone, { ring: string; colour: string }> = {
     success: { ring: "border-positive/30 bg-positive/10", colour: "text-positive" },
     error: { ring: "border-negative/30 bg-negative/10", colour: "text-negative" },
-    warning: { ring: "border-gold/40 bg-gold/10", colour: "text-gold-ink" },
+    warning: { ring: "border-brand/40 bg-brand/10", colour: "text-brand-ink" },
     question: { ring: "border-border bg-surface-muted", colour: "text-muted" },
 };
 

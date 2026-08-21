@@ -18,14 +18,14 @@ export default async function LoginPage() {
             {/* Brand panel — hidden on small screens */}
             <div className="hidden w-1/2 flex-col justify-between bg-chrome-900 p-12 lg:flex">
                 <div className="flex items-center gap-3">
-                    <span className="grid size-9 place-items-center rounded-md bg-gold text-base font-bold text-chrome-900">
+                    <span className="grid size-9 place-items-center rounded-md bg-brand text-base font-bold text-chrome-900">
                         S
                     </span>
                     <span className="leading-tight">
                         <span className="block text-sm font-semibold text-white">
                             SmartPay
                         </span>
-                        <span className="block text-[10px] uppercase tracking-[0.14em] text-gold-soft">
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-brand-soft">
                             Solutions
                         </span>
                     </span>
@@ -52,7 +52,7 @@ export default async function LoginPage() {
                     {/* The brand panel is hidden below lg, so the mark is
                         repeated above the card on small screens. */}
                     <div className="mb-6 flex items-center justify-center gap-3 lg:hidden">
-                        <span className="grid size-9 place-items-center rounded-md bg-gold text-base font-bold text-chrome-900">
+                        <span className="grid size-9 place-items-center rounded-md bg-brand text-base font-bold text-chrome-900">
                             S
                         </span>
                         <span className="text-sm font-semibold text-foreground">
