@@ -268,19 +268,30 @@ invisible to the compiler, and a mismatch between the form and
 `UPLOAD_FIELDS` in `actions.ts` drops the image with no error at all. That
 exact bug has already happened here once.
 
-### 8. The two-list trap, and the filter
+### 8. One list, not four
 
-Two pairs of lists match up with no compiler help. Miss either and the image is
-lost **silently** — no error, no log, no file:
+Image field names used to be restated in four places — the multipart
+interceptor, the map narrowing multer's output, the validator, and the removal
+whitelist — and a name present in one but missing from another lost the upload
+**silently**: no error, no log, no file. That bug landed twice.
 
-- `UPLOAD_FIELDS` in `customers.controller.ts` (what multer accepts) and
-  `toUploads()` directly below it (what reaches the service). A name in the
-  first but not the second is accepted and then dropped on the floor.
-- `UPLOAD_FIELDS` in the frontend `actions.ts`. A file input whose name is not
-  listed there never leaves the browser.
+They now all derive from `customers/customer-uploads.fields.ts`:
 
-Both were missed the first time this field was added. Grep the new field name
-across both projects and count the hits before calling it done.
+```ts
+export const CUSTOMER_UPLOAD_FIELDS = [
+  'customer_cnic_front', 'customer_cnic_back',
+  'guarantor1_cnic_front', 'guarantor1_cnic_back',
+  'guarantor2_cnic_front', 'guarantor2_cnic_back',
+] as const;
+```
+
+Adding an image on the API side is **one line here**. The type
+(`CustomerUploads`), the interceptor, `toUploads()`, `validateAll` and the
+`remove_images` whitelist all follow.
+
+The frontend is a separate project and still keeps its own `UPLOAD_FIELDS` in
+`actions.ts` — a file input whose name is not listed there never leaves the
+browser. That is the one list left to remember.
 
 `cnic_image=with|without` in `list-customers.dto.ts` tests one column. With two
 sides, choose deliberately — front only, either, or both — and say which in the

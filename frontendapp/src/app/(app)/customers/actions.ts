@@ -21,8 +21,10 @@ const SCALAR_FIELDS = [
 const UPLOAD_FIELDS = [
     "customer_cnic_front",
     "customer_cnic_back",
-    "guarantor1_cnic",
-    "guarantor2_cnic",
+    "guarantor1_cnic_front",
+    "guarantor1_cnic_back",
+    "guarantor2_cnic_front",
+    "guarantor2_cnic_back",
 ] as const;
 
 function guarantorFrom(formData: FormData, position: 1 | 2) {
@@ -59,7 +61,9 @@ function toApiForm(formData: FormData): FormData {
         .map((position) => ({
             position,
             details: guarantorFrom(formData, position),
-            image: formData.get(`guarantor${position}_cnic`),
+            image:
+                formData.get(`guarantor${position}_cnic_front`) ??
+                formData.get(`guarantor${position}_cnic_back`),
         }))
         .filter(
             ({ details, image }) =>

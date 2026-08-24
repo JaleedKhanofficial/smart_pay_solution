@@ -14,13 +14,14 @@ import {
 import type { CreateCustomerDto } from './dto/create-customer.dto';
 import type { UpdateCustomerDto } from './dto/update-customer.dto';
 
-/** The three optional CNIC images a customer save may carry (FR-CUS-04-v2). */
-export type CustomerUploads = {
-  customer_cnic_front?: Express.Multer.File;
-  customer_cnic_back?: Express.Multer.File;
-  guarantor1_cnic?: Express.Multer.File;
-  guarantor2_cnic?: Express.Multer.File;
-};
+/**
+ * The optional CNIC images a customer save may carry (FR-CUS-04-v2): both sides
+ * for the customer and for each guarantor. Derived from the field list so the
+ * names are stated once.
+ */
+export type CustomerUploads = Partial<
+  Record<CustomerUploadField, Express.Multer.File>
+>;
 
 /**
  * What one save wrote, so the caller can undo it. `written` is deleted if the
@@ -31,17 +32,26 @@ export type UploadLedger = {
   replaced: string[];
 };
 
+/** Both sides of one person's CNIC. */
+export type SidePair = {
+  front: string | null;
+  back: string | null;
+};
+
 export type ResolvedFiles = {
   customerFrontFileId: string | null;
   customerBackFileId: string | null;
   /** Keyed by guarantor position. */
-  guarantorFileIds: Map<number, string | null>;
+  guarantorFileIds: Map<number, SidePair>;
 };
 
 const GUARANTOR_POSITIONS = [1, 2];
 
-function uploadFieldFor(position: number): keyof CustomerUploads {
-  return position === 1 ? 'guarantor1_cnic' : 'guarantor2_cnic';
+export const SIDES = ['front', 'back'] as const;
+export type Side = (typeof SIDES)[number];
+
+function uploadFieldFor(position: number, side: Side): keyof CustomerUploads {
+  return `guarantor${position === 1 ? 1 : 2}_cnic_${side}` as keyof CustomerUploads;
 }
 
 function folderFor(position: number): UploadFolder {
@@ -104,14 +114,15 @@ export class CustomerUploadsService {
       'back',
     );
 
-    const guarantorFileIds = new Map<number, string | null>();
+    const guarantorFileIds = new Map<number, SidePair>();
 
     for (const guarantor of dto.guarantors) {
-      const field = uploadFieldFor(guarantor.position);
+      const pair: SidePair = { front: null, back: null };
 
-      guarantorFileIds.set(
-        guarantor.position,
-        await this.store(
+      for (const side of SIDES) {
+        const field = uploadFieldFor(guarantor.position, side);
+
+        pair[side] = await this.store(
           manager,
           ledger,
           actor_id,
@@ -120,8 +131,11 @@ export class CustomerUploadsService {
           folderFor(guarantor.position),
           guarantor.full_name,
           guarantor.cnic_number,
-        ),
-      );
+          side,
+        );
+      }
+
+      guarantorFileIds.set(guarantor.position, pair);
     }
 
     return { customerFrontFileId, customerBackFileId, guarantorFileIds };
@@ -190,11 +204,9 @@ export class CustomerUploadsService {
       customerBackFileId = null;
     }
 
-    const guarantorFileIds = new Map<number, string | null>();
+    const guarantorFileIds = new Map<number, SidePair>();
 
     for (const position of GUARANTOR_POSITIONS) {
-      const field = uploadFieldFor(position);
-      const upload = uploads[field];
       const existing = before.guarantors.find(
         (row) => row.position === position,
       );
@@ -205,34 +217,38 @@ export class CustomerUploadsService {
       // Nothing to say about a position that is neither on file nor submitted.
       if (!existing && !submitted) continue;
 
-      if (!upload) {
-        const clearing = removals.has(field) && existing?.cnic_file_id;
+      const stored: SidePair = {
+        front: existing?.cnic_file_front_id ?? null,
+        back: existing?.cnic_file_back_id ?? null,
+      };
 
-        if (clearing) ledger.replaced.push(existing.cnic_file_id as string);
+      const pair: SidePair = { front: stored.front, back: stored.back };
 
-        guarantorFileIds.set(
-          position,
-          clearing ? null : (existing?.cnic_file_id ?? null),
-        );
+      for (const side of SIDES) {
+        const field = uploadFieldFor(position, side);
+        const upload = uploads[field];
 
-        continue;
+        if (upload) {
+          if (stored[side]) ledger.replaced.push(stored[side]);
+
+          pair[side] = await this.store(
+            manager,
+            ledger,
+            actor_id,
+            upload,
+            field,
+            folderFor(position),
+            submitted?.full_name ?? existing?.full_name ?? '',
+            submitted?.cnic_number ?? existing?.cnic_number ?? '',
+            side,
+          );
+        } else if (removals.has(field) && stored[side]) {
+          ledger.replaced.push(stored[side]);
+          pair[side] = null;
+        }
       }
 
-      if (existing?.cnic_file_id) ledger.replaced.push(existing.cnic_file_id);
-
-      guarantorFileIds.set(
-        position,
-        await this.store(
-          manager,
-          ledger,
-          actor_id,
-          upload,
-          field,
-          folderFor(position),
-          submitted?.full_name ?? existing?.full_name ?? '',
-          submitted?.cnic_number ?? existing?.cnic_number ?? '',
-        ),
-      );
+      guarantorFileIds.set(position, pair);
     }
 
     return { customerFrontFileId, customerBackFileId, guarantorFileIds };

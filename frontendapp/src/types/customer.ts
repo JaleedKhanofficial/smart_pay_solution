@@ -27,7 +27,8 @@ export type Guarantor = {
     cnic_number: string;
     mobile_number: string;
     address: string;
-    cnic_file_id: string | null;
+    cnic_file_front_id: string | null;
+    cnic_file_back_id: string | null;
 };
 
 /**

@@ -306,16 +306,22 @@ export class CustomersService {
       return;
     }
 
-    // Images can be replaced without resubmitting the guarantor details.
+    // Images can be replaced or cleared without resubmitting the details.
     for (const existing of before.guarantors) {
-      const fileId = files.guarantorFileIds.get(existing.position);
+      const pair = files.guarantorFileIds.get(existing.position);
 
-      if (fileId === undefined || fileId === existing.cnic_file_id) continue;
+      if (!pair) continue;
+
+      const unchanged =
+        pair.front === existing.cnic_file_front_id &&
+        pair.back === existing.cnic_file_back_id;
+
+      if (unchanged) continue;
 
       await manager.update(
         Guarantor,
         { id: existing.id },
-        { cnic_file_id: fileId },
+        { cnic_file_front_id: pair.front, cnic_file_back_id: pair.back },
       );
     }
   }
@@ -329,7 +335,10 @@ export class CustomersService {
       cnic_number: guarantor.cnic_number,
       mobile_number: guarantor.mobile_number,
       address: guarantor.address,
-      cnic_file_id: files.guarantorFileIds.get(guarantor.position) ?? null,
+      cnic_file_front_id:
+        files.guarantorFileIds.get(guarantor.position)?.front ?? null,
+      cnic_file_back_id:
+        files.guarantorFileIds.get(guarantor.position)?.back ?? null,
     };
   }
 

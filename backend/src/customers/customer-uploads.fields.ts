@@ -12,8 +12,10 @@
 export const CUSTOMER_UPLOAD_FIELDS = [
   'customer_cnic_front',
   'customer_cnic_back',
-  'guarantor1_cnic',
-  'guarantor2_cnic',
+  'guarantor1_cnic_front',
+  'guarantor1_cnic_back',
+  'guarantor2_cnic_front',
+  'guarantor2_cnic_back',
 ] as const;
 
 export type CustomerUploadField = (typeof CUSTOMER_UPLOAD_FIELDS)[number];

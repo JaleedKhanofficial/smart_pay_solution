@@ -173,7 +173,8 @@ export class FilesService {
 
     try {
       await manager.insert(File, {
-        // The filename is the key, so cnic_file_id reads as the filename.
+        // The filename is the key, so cnic_file_front_id and cnic_file_back_id
+        // read as filenames rather than opaque ids.
         id: fileName,
         original_name: file.originalname.slice(0, 255),
         mime: signature.mime,

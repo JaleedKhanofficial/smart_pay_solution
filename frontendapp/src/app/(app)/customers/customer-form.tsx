@@ -173,9 +173,14 @@ export function CustomerForm({ customer }: Props) {
                             defaultValue={initial(`g${position}_mobile_number`, guarantor?.mobile_number)}
                         />
                         <ImageField
-                            label="CNIC image"
-                            name={`guarantor${position}_cnic`}
-                            existingFileId={guarantor?.cnic_file_id}
+                            label="CNIC Front Side"
+                            name={`guarantor${position}_cnic_front`}
+                            existingFileId={guarantor?.cnic_file_front_id}
+                        />
+                        <ImageField
+                            label="CNIC Back Side"
+                            name={`guarantor${position}_cnic_back`}
+                            existingFileId={guarantor?.cnic_file_back_id}
                         />
                         <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
                             <TextAreaField

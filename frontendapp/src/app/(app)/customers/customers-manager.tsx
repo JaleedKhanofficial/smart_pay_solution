@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { deleteCustomer } from "./actions";
 import { CustomerFilters } from "./customer-filters";
 import { FlashAlert } from "@/components/flash-alert";
@@ -126,11 +126,18 @@ function GuarantorThumbs({ customer }: { customer: Customer }) {
     return (
         <>
             {customer.guarantors.map((guarantor) => (
-                <Thumbnail
-                    key={guarantor.id}
-                    fileId={guarantor.cnic_file_id}
-                    alt={`CNIC of ${guarantor.full_name}`}
-                />
+                <Fragment key={guarantor.id}>
+                    <Thumbnail
+                        fileId={guarantor.cnic_file_front_id}
+                        alt={`CNIC front of ${guarantor.full_name}`}
+                        emptyLabel={`No CNIC front image for ${guarantor.full_name}`}
+                    />
+                    <Thumbnail
+                        fileId={guarantor.cnic_file_back_id}
+                        alt={`CNIC back of ${guarantor.full_name}`}
+                        emptyLabel={`No CNIC back image for ${guarantor.full_name}`}
+                    />
+                </Fragment>
             ))}
         </>
     );

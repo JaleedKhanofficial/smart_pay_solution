@@ -11,7 +11,8 @@ export type GuarantorResponse = {
   cnic_number: string;
   mobile_number: string;
   address: string;
-  cnic_file_id: string | null;
+  cnic_file_front_id: string | null;
+  cnic_file_back_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -50,7 +51,8 @@ function toGuarantorResponse(guarantor: Guarantor): GuarantorResponse {
     cnic_number: guarantor.cnic_number,
     mobile_number: guarantor.mobile_number,
     address: guarantor.address,
-    cnic_file_id: guarantor.cnic_file_id,
+    cnic_file_front_id: guarantor.cnic_file_front_id,
+    cnic_file_back_id: guarantor.cnic_file_back_id,
     created_at: guarantor.created_at.toISOString(),
     updated_at: guarantor.updated_at.toISOString(),
   };

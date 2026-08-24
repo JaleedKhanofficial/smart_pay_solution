@@ -59,8 +59,13 @@ export class File {
   @OneToMany(() => Customer, (customer) => customer.cnicFileBack)
   customerBacks: Relation<Customer>[];
 
-  @OneToMany(() => Guarantor, (guarantor) => guarantor.cnicFile)
-  guarantors: Relation<Guarantor>[];
+  /** Guarantors whose CNIC *front* scan this file is. */
+  @OneToMany(() => Guarantor, (guarantor) => guarantor.cnicFileFront)
+  guarantorFronts: Relation<Guarantor>[];
+
+  /** Guarantors whose CNIC *back* scan this file is. */
+  @OneToMany(() => Guarantor, (guarantor) => guarantor.cnicFileBack)
+  guarantorBacks: Relation<Guarantor>[];
 
   @OneToMany(() => LedgerSnapshot, (snapshot) => snapshot.pdfFile)
   ledgerSnapshots: Relation<LedgerSnapshot>[];
