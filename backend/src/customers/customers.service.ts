@@ -81,7 +81,8 @@ export class CustomersService {
           address: body.address,
           occupation: body.occupation,
           monthly_income: body.monthly_income.toFixed(2),
-          cnic_file_id: files.customerFileId,
+          cnic_file_front_id: files.customerFrontFileId,
+          cnic_file_back_id: files.customerBackFileId,
         });
 
         const saved = await manager.save(customer);
@@ -198,7 +199,8 @@ export class CustomersService {
             address: dto.address,
             occupation: dto.occupation,
             monthly_income: dto.monthly_income?.toFixed(2),
-            cnic_file_id: files.customerFileId,
+            cnic_file_front_id: files.customerFrontFileId,
+            cnic_file_back_id: files.customerBackFileId,
           },
         );
       });

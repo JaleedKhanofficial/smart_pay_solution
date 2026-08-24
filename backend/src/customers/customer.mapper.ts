@@ -31,7 +31,8 @@ export type CustomerResponse = {
   address: string;
   occupation: string;
   monthly_income: string;
-  cnic_file_id: string | null;
+  cnic_file_front_id: string | null;
+  cnic_file_back_id: string | null;
   guarantors: GuarantorResponse[];
   created_at: string;
   updated_at: string;
@@ -65,7 +66,8 @@ export function toCustomerResponse(customer: Customer): CustomerResponse {
     address: customer.address,
     occupation: customer.occupation,
     monthly_income: customer.monthly_income,
-    cnic_file_id: customer.cnic_file_id,
+    cnic_file_front_id: customer.cnic_file_front_id,
+    cnic_file_back_id: customer.cnic_file_back_id,
     // Sorted here rather than in the query: paginating a joined one-to-many
     // makes TypeORM select ids through a subquery first, and that subquery can
     // only order by columns on the root table.

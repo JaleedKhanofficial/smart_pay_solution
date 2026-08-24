@@ -19,7 +19,8 @@ const SCALAR_FIELDS = [
 ] as const;
 
 const UPLOAD_FIELDS = [
-    "customer_cnic",
+    "customer_cnic_front",
+    "customer_cnic_back",
     "guarantor1_cnic",
     "guarantor2_cnic",
 ] as const;

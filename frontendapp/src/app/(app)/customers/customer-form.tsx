@@ -108,9 +108,14 @@ export function CustomerForm({ customer }: Props) {
                     />
                 </div>
                 <ImageField
-                    label="CNIC image"
-                    name="customer_cnic"
-                    existingFileId={customer?.cnic_file_id}
+                    label="CNIC Front Side"
+                    name="customer_cnic_front"
+                    existingFileId={customer?.cnic_file_front_id}
+                />
+                <ImageField
+                    label="CNIC Back Side"
+                    name="customer_cnic_back"
+                    existingFileId={customer?.cnic_file_back_id}
                 />
                 </CardFields>
             </Card>

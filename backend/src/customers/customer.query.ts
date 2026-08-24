@@ -47,8 +47,8 @@ export function applyCustomerFilters(
   if (query.cnic_image) {
     qb.andWhere(
       query.cnic_image === 'with'
-        ? `${CUSTOMER_ALIAS}.cnic_file_id IS NOT NULL`
-        : `${CUSTOMER_ALIAS}.cnic_file_id IS NULL`,
+        ? `${CUSTOMER_ALIAS}.cnic_file_front_id IS NOT NULL`
+        : `${CUSTOMER_ALIAS}.cnic_file_front_id IS NULL`,
     );
   }
 

@@ -19,7 +19,7 @@ import { Guarantor } from './guarantor.entity';
  * SRS §5.3. Two deliberate departures from the base spec, both recorded in
  * SRS §2.7:
  *   1. the key is a sequential integer, so staff can quote a short reference;
- *   2. cnic_file_id holds a filename rather than a UUID.
+ *   2. cnic_file_front_id holds a filename rather than a UUID.
  *
  * CNIC is unique among live rows only, through the partial index
  * `uq_customers_cnic_live` (FR-CUS-08). TypeORM cannot express a partial index,
@@ -60,7 +60,10 @@ export class Customer {
   monthly_income: string;
 
   @Column({ type: 'text', nullable: true })
-  cnic_file_id: string | null;
+  cnic_file_front_id: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  cnic_file_back_id: string | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
@@ -72,12 +75,19 @@ export class Customer {
   @DeleteDateColumn({ type: 'timestamptz', nullable: true })
   deleted_at: Date | null;
 
-  @ManyToOne(() => File, (file) => file.customers, {
+  @ManyToOne(() => File, (file) => file.customerFronts, {
     nullable: true,
     onDelete: 'RESTRICT',
   })
-  @JoinColumn({ name: 'cnic_file_id' })
-  cnicFile: Relation<File> | null;
+  @JoinColumn({ name: 'cnic_file_front_id' })
+  cnicFileFront: Relation<File> | null;
+
+  @ManyToOne(() => File, (file) => file.customerBacks, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'cnic_file_back_id' })
+  cnicFileBack: Relation<File> | null;
 
   // No cascade: CustomersService writes guarantors explicitly, inside the same
   // transaction, so it controls the order and can attach the right file to each.

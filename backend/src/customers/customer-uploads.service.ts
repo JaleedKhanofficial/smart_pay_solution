@@ -12,7 +12,8 @@ import type { UpdateCustomerDto } from './dto/update-customer.dto';
 
 /** The three optional CNIC images a customer save may carry (FR-CUS-04-v2). */
 export type CustomerUploads = {
-  customer_cnic?: Express.Multer.File;
+  customer_cnic_front?: Express.Multer.File;
+  customer_cnic_back?: Express.Multer.File;
   guarantor1_cnic?: Express.Multer.File;
   guarantor2_cnic?: Express.Multer.File;
 };
@@ -27,13 +28,15 @@ export type UploadLedger = {
 };
 
 export type ResolvedFiles = {
-  customerFileId: string | null;
+  customerFrontFileId: string | null;
+  customerBackFileId: string | null;
   /** Keyed by guarantor position. */
   guarantorFileIds: Map<number, string | null>;
 };
 
 const UPLOAD_FIELDS = [
-  'customer_cnic',
+  'customer_cnic_front',
+  'customer_cnic_back',
   'guarantor1_cnic',
   'guarantor2_cnic',
 ] as const;
@@ -80,15 +83,28 @@ export class CustomerUploadsService {
     ledger: UploadLedger,
     actor_id: number,
   ): Promise<ResolvedFiles> {
-    const customerFileId = await this.store(
+    const customerFrontFileId = await this.store(
       manager,
       ledger,
       actor_id,
-      uploads.customer_cnic,
-      'customer_cnic',
+      uploads.customer_cnic_front,
+      'customer_cnic_front',
       UPLOAD_FOLDERS.customer,
       dto.full_name,
       dto.cnic_number,
+      'front',
+    );
+
+    const customerBackFileId = await this.store(
+      manager,
+      ledger,
+      actor_id,
+      uploads.customer_cnic_back,
+      'customer_cnic_back',
+      UPLOAD_FOLDERS.customer,
+      dto.full_name,
+      dto.cnic_number,
+      'back',
     );
 
     const guarantorFileIds = new Map<number, string | null>();
@@ -111,7 +127,7 @@ export class CustomerUploadsService {
       );
     }
 
-    return { customerFileId, guarantorFileIds };
+    return { customerFrontFileId, customerBackFileId, guarantorFileIds };
   }
 
   /**
@@ -126,21 +142,43 @@ export class CustomerUploadsService {
     ledger: UploadLedger,
     actor_id: number,
   ): Promise<ResolvedFiles> {
-    let customerFileId = before.cnic_file_id;
+    let customerFrontFileId = before.cnic_file_front_id;
 
-    if (uploads.customer_cnic) {
-      if (before.cnic_file_id) ledger.replaced.push(before.cnic_file_id);
+    if (uploads.customer_cnic_front) {
+      if (before.cnic_file_front_id)
+        ledger.replaced.push(before.cnic_file_front_id);
 
-      customerFileId = await this.store(
+      customerFrontFileId = await this.store(
         manager,
         ledger,
         actor_id,
-        uploads.customer_cnic,
-        'customer_cnic',
+        uploads.customer_cnic_front,
+        'customer_cnic_front',
         UPLOAD_FOLDERS.customer,
         // Falls back to the stored values when the edit only swaps the image.
         dto.full_name ?? before.full_name,
         dto.cnic_number ?? before.cnic_number,
+        'front',
+      );
+    }
+
+    let customerBackFileId = before.cnic_file_back_id;
+
+    if (uploads.customer_cnic_back) {
+      if (before.cnic_file_back_id)
+        ledger.replaced.push(before.cnic_file_back_id);
+
+      customerBackFileId = await this.store(
+        manager,
+        ledger,
+        actor_id,
+        uploads.customer_cnic_back,
+        'customer_cnic_back',
+        UPLOAD_FOLDERS.customer,
+        // Falls back to the stored values when the edit only swaps the image.
+        dto.full_name ?? before.full_name,
+        dto.cnic_number ?? before.cnic_number,
+        'back',
       );
     }
 
@@ -182,7 +220,7 @@ export class CustomerUploadsService {
       );
     }
 
-    return { customerFileId, guarantorFileIds };
+    return { customerFrontFileId, customerBackFileId, guarantorFileIds };
   }
 
   /** Removes bytes written by a transaction that then failed. */
@@ -204,12 +242,17 @@ export class CustomerUploadsService {
     folder: UploadFolder,
     personName: string,
     cnic_number: string,
+    /**
+     * Passed for a person who has more than one scan, so the two files are
+     * told apart on disk. Guarantors have a single image and stay unmarked.
+     */
+    side?: 'front' | 'back',
   ): Promise<string | null> {
     if (!upload) return null;
 
     const stored = await this.files.store(
       manager,
-      { field, folder, personName, cnic_number },
+      { field, folder, personName, cnic_number, side },
       upload,
       actor_id,
     );

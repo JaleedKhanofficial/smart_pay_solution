@@ -22,7 +22,7 @@ import { User } from './user.entity';
 export class File {
   /**
    * The filename on disk, e.g. "Ali Raza - 35201-1234567-1 - 18-08-2026.png".
-   * It doubles as the key, so customers.cnic_file_id reads as the filename
+   * It doubles as the key, so customers.cnic_file_front_id reads as the filename
    * rather than an opaque id (SRS §2.7 deviation 2). Clashes gain " (2)".
    */
   @PrimaryColumn({ type: 'text' })
@@ -51,8 +51,13 @@ export class File {
   @JoinColumn({ name: 'uploaded_by' })
   uploadedBy: Relation<User>;
 
-  @OneToMany(() => Customer, (customer) => customer.cnicFile)
-  customers: Relation<Customer>[];
+  /** Customers whose CNIC *front* scan this file is. */
+  @OneToMany(() => Customer, (customer) => customer.cnicFileFront)
+  customerFronts: Relation<Customer>[];
+
+  /** Customers whose CNIC *back* scan this file is. */
+  @OneToMany(() => Customer, (customer) => customer.cnicFileBack)
+  customerBacks: Relation<Customer>[];
 
   @OneToMany(() => Guarantor, (guarantor) => guarantor.cnicFile)
   guarantors: Relation<Guarantor>[];

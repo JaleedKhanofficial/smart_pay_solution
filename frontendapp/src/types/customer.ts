@@ -45,7 +45,8 @@ export type Customer = {
     address: string;
     occupation: string;
     monthly_income: string;
-    cnic_file_id: string | null;
+    cnic_file_front_id: string | null;
+    cnic_file_back_id: string | null;
     guarantors: Guarantor[];
     created_at: string;
     updated_at: string;

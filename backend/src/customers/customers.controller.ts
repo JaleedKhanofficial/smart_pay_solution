@@ -34,7 +34,8 @@ import { ListCustomersDto } from './dto/list-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 const UPLOAD_FIELDS = [
-  { name: 'customer_cnic', maxCount: 1 },
+  { name: 'customer_cnic_front', maxCount: 1 },
+  { name: 'customer_cnic_back', maxCount: 1 },
   { name: 'guarantor1_cnic', maxCount: 1 },
   { name: 'guarantor2_cnic', maxCount: 1 },
 ];
@@ -45,9 +46,18 @@ const UPLOAD_OPTIONS = {
 
 type UploadedFieldMap = Record<string, Express.Multer.File[] | undefined>;
 
+/**
+ * Multer hands back a map of field name to file array; this narrows it to the
+ * single file each field allows.
+ *
+ * Every name in UPLOAD_FIELDS above must appear here too. A field listed there
+ * but missing here is accepted by multer and then silently dropped — no error,
+ * no image, nothing in the log.
+ */
 function toUploads(files: UploadedFieldMap | undefined): CustomerUploads {
   return {
-    customer_cnic: files?.customer_cnic?.[0],
+    customer_cnic_front: files?.customer_cnic_front?.[0],
+    customer_cnic_back: files?.customer_cnic_back?.[0],
     guarantor1_cnic: files?.guarantor1_cnic?.[0],
     guarantor2_cnic: files?.guarantor2_cnic?.[0],
   };

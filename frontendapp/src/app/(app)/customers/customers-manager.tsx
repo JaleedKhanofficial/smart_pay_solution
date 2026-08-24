@@ -39,11 +39,20 @@ function formatPkr(value: string): string {
     return Number.isFinite(amount) ? `Rs. ${money.format(amount)}` : value;
 }
 
-function Thumbnail({ fileId, alt }: { fileId: string | null; alt: string }) {
+function Thumbnail({
+    fileId,
+    alt,
+    emptyLabel = "No CNIC image",
+}: {
+    fileId: string | null;
+    alt: string;
+    /** Named so a missing front and a missing back are distinguishable. */
+    emptyLabel?: string;
+}) {
     if (!fileId) {
         return (
             <span
-                title="No CNIC image"
+                title={emptyLabel}
                 className="grid size-9 place-items-center rounded-md border border-dashed border-border text-muted"
             >
                 <Icon name="fileText" className="size-4" />
@@ -80,6 +89,28 @@ function EmptyState({ filtered }: { filtered: boolean }) {
                     : "Add your first customer to get started."}
             </p>
         </div>
+    );
+}
+
+/**
+ * Both sides of the customer's own CNIC, rendered the same way the guarantor
+ * scans are. A missing side still occupies its slot, so front and back stay in
+ * the same position on every row and the pair is scannable down the column.
+ */
+function CustomerCnicThumbs({ customer }: { customer: Customer }) {
+    return (
+        <>
+            <Thumbnail
+                fileId={customer.cnic_file_front_id}
+                alt={`CNIC front of ${customer.full_name}`}
+                emptyLabel="No CNIC front image"
+            />
+            <Thumbnail
+                fileId={customer.cnic_file_back_id}
+                alt={`CNIC back of ${customer.full_name}`}
+                emptyLabel="No CNIC back image"
+            />
+        </>
     );
 }
 
@@ -282,10 +313,9 @@ export default function CustomersManager({
                     page.data.map((customer) => (
                         <Card key={customer.id} className="p-4">
                             <div className="flex items-start gap-3">
-                                <Thumbnail
-                                    fileId={customer.cnic_file_id}
-                                    alt={`CNIC of ${customer.full_name}`}
-                                />
+                                <div className="flex shrink-0 gap-1">
+                                    <CustomerCnicThumbs customer={customer} />
+                                </div>
                                 <div className="min-w-0 flex-1">
                                     <Link
                                         href={`/customers/${customer.id}/edit`}
@@ -392,7 +422,7 @@ export default function CustomersManager({
                         <tr>
                             <th className="px-4 py-3 font-medium">Sr #</th>
                             <th className="hidden px-4 py-3 font-medium xl:table-cell">
-                                CNIC image
+                                CNIC images
                             </th>
                             <SortableHeader
                                 field="full_name"
@@ -447,10 +477,11 @@ export default function CustomersManager({
                                         {from + index}
                                     </td>
                                     <td className="hidden px-4 py-3 xl:table-cell">
-                                        <Thumbnail
-                                            fileId={customer.cnic_file_id}
-                                            alt={`CNIC of ${customer.full_name}`}
-                                        />
+                                        <div className="flex items-center gap-1">
+                                            <CustomerCnicThumbs
+                                                customer={customer}
+                                            />
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3">
                                         <Link

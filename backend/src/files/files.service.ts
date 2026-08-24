@@ -27,6 +27,7 @@ export type UploadTarget = {
   /** Person the scan belongs to; becomes the first part of the filename. */
   personName: string;
   cnic_number: string;
+  side?: 'front' | 'back';
 };
 
 type Signature = {
@@ -230,8 +231,9 @@ export class FilesService {
   private baseName(target: UploadTarget): string {
     const name = sanitiseSegment(target.personName) || 'unnamed';
     const cnic = sanitiseSegment(target.cnic_number) || 'no-cnic';
+    const side = target.side ? ` ${target.side}` : '';
 
-    return `${name} - ${cnic} - ${stampToday(new Date())}`;
+    return `${name} - ${cnic}${side} - ${stampToday(new Date())}`;
   }
 
   /**
