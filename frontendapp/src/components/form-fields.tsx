@@ -2,6 +2,7 @@
 
 import {
     useEffect,
+    useRef,
     useState,
     type InputHTMLAttributes,
     type SelectHTMLAttributes,
@@ -167,10 +168,17 @@ type ImageFieldProps = {
     existingFileId?: string | null;
 };
 
-/** FR-CUS-04-v2 picker with a preview; leaving it empty keeps the stored image. */
+/**
+ * FR-CUS-04-v2 picker with a preview. Leaving it empty keeps the stored image;
+ * the × clears it. Removing a stored image posts `remove_images=<name>`, which
+ * is the only way the API is told to clear a column — an omitted file still
+ * means "keep".
+ */
 export function ImageField({ label, name, existingFileId }: ImageFieldProps) {
     const [preview, setPreview] = useState<string | null>(null);
     const [fileName, setFileName] = useState<string | null>(null);
+    const [removed, setRemoved] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         return () => {
@@ -178,33 +186,64 @@ export function ImageField({ label, name, existingFileId }: ImageFieldProps) {
         };
     }, [preview]);
 
+    const storedShown = existingFileId && !removed;
+
     const shown =
         preview ??
-        (existingFileId
-            ? `/media/${encodeURIComponent(existingFileId)}`
-            : null);
+        (storedShown ? `/media/${encodeURIComponent(existingFileId)}` : null);
+
+    function clear() {
+        if (preview) URL.revokeObjectURL(preview);
+
+        // Empties the file input, so a picked-then-cleared field is not sent.
+        if (inputRef.current) inputRef.current.value = "";
+
+        setPreview(null);
+        setFileName(null);
+
+        // Only a stored image needs telling the API; a picked one was never sent.
+        if (existingFileId) setRemoved(true);
+    }
 
     return (
         <div>
             <span className={labelClass}>{label}</span>
             <div className="flex items-center gap-3">
-                <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-surface-muted">
+                {/* Two boxes on purpose: the outer one positions the ×, the
+                    inner one clips the image. One box cannot do both, because
+                    overflow-hidden would cut the corner off the button. */}
+                <div className="relative shrink-0">
+                    <div className="grid size-16 place-items-center overflow-hidden rounded-md border border-border bg-surface-muted">
+                        {shown ? (
+                            // Plain <img>: the optimiser would fetch /media
+                            // without the session cookie and get a 401.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={shown}
+                                alt={label}
+                                className="size-full object-cover"
+                            />
+                        ) : (
+                            <Icon name="fileText" className="size-5 text-muted" />
+                        )}
+                    </div>
+
                     {shown ? (
-                        // Plain <img>: the optimiser would fetch /media without
-                        // the session cookie and get a 401.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={shown}
-                            alt={label}
-                            className="size-full object-cover"
-                        />
-                    ) : (
-                        <Icon name="fileText" className="size-5 text-muted" />
-                    )}
+                        <button
+                            type="button"
+                            onClick={clear}
+                            aria-label={`Remove ${label}`}
+                            title="Remove image"
+                            className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full border border-border bg-surface text-muted shadow-sm transition-colors hover:border-negative hover:bg-negative hover:text-white"
+                        >
+                            <Icon name="close" className="size-3" />
+                        </button>
+                    ) : null}
                 </div>
 
                 <div className="min-w-0 flex-1">
                     <input
+                        ref={inputRef}
                         id={name}
                         name={name}
                         type="file"
@@ -216,18 +255,29 @@ export function ImageField({ label, name, existingFileId }: ImageFieldProps) {
 
                             setPreview(file ? URL.createObjectURL(file) : null);
                             setFileName(file?.name ?? null);
+
+                            // Picking a replacement supersedes a removal.
+                            if (file) setRemoved(false);
                         }}
                         className="block w-full text-xs text-muted file:mr-3 file:rounded-md file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-foreground hover:file:bg-surface-muted"
                     />
                     <p className="mt-1 truncate text-[11px] text-muted">
                         {fileName
                             ? fileName
-                            : existingFileId
-                              ? "Stored image kept unless you choose a new one"
-                              : "JPG, PNG or WebP · 10 MB max"}
+                            : removed
+                              ? "Image will be removed when you save"
+                              : existingFileId
+                                ? "Stored image kept unless you choose a new one"
+                                : "JPG, PNG or WebP · 10 MB max"}
                     </p>
                 </div>
             </div>
+
+            {/* Read by the server action and forwarded to the API. Repeated
+                across fields, so several images can be cleared in one save. */}
+            {removed ? (
+                <input type="hidden" name="remove_images" value={name} />
+            ) : null}
         </div>
     );
 }

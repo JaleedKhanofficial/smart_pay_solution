@@ -26,6 +26,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { Paginated } from '../common/pagination';
 import { MAX_UPLOAD_BYTES } from '../files/files.service';
+import { CUSTOMER_UPLOAD_FIELDS } from './customer-uploads.fields';
 import type { CustomerUploads } from './customer-uploads.service';
 import type { CustomerResponse } from './customer.mapper';
 import { CustomersService } from './customers.service';
@@ -33,12 +34,12 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
-const UPLOAD_FIELDS = [
-  { name: 'customer_cnic_front', maxCount: 1 },
-  { name: 'customer_cnic_back', maxCount: 1 },
-  { name: 'guarantor1_cnic', maxCount: 1 },
-  { name: 'guarantor2_cnic', maxCount: 1 },
-];
+// Derived, not restated: an image field added to CUSTOMER_UPLOAD_FIELDS is
+// accepted here and narrowed below without either list being edited.
+const UPLOAD_FIELDS = CUSTOMER_UPLOAD_FIELDS.map((name) => ({
+  name,
+  maxCount: 1,
+}));
 
 const UPLOAD_OPTIONS = {
   limits: { fileSize: MAX_UPLOAD_BYTES, files: UPLOAD_FIELDS.length },
@@ -48,19 +49,17 @@ type UploadedFieldMap = Record<string, Express.Multer.File[] | undefined>;
 
 /**
  * Multer hands back a map of field name to file array; this narrows it to the
- * single file each field allows.
- *
- * Every name in UPLOAD_FIELDS above must appear here too. A field listed there
- * but missing here is accepted by multer and then silently dropped — no error,
- * no image, nothing in the log.
+ * single file each field allows. Built from the same list the interceptor uses,
+ * so a field cannot be accepted and then silently dropped here.
  */
 function toUploads(files: UploadedFieldMap | undefined): CustomerUploads {
-  return {
-    customer_cnic_front: files?.customer_cnic_front?.[0],
-    customer_cnic_back: files?.customer_cnic_back?.[0],
-    guarantor1_cnic: files?.guarantor1_cnic?.[0],
-    guarantor2_cnic: files?.guarantor2_cnic?.[0],
-  };
+  const uploads: CustomerUploads = {};
+
+  for (const field of CUSTOMER_UPLOAD_FIELDS) {
+    uploads[field] = files?.[field]?.[0];
+  }
+
+  return uploads;
 }
 
 @ApiTags('customers')

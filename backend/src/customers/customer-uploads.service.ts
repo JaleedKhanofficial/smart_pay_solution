@@ -7,6 +7,10 @@ import {
   type StoredUpload,
   type UploadFolder,
 } from '../files/files.service';
+import {
+  CUSTOMER_UPLOAD_FIELDS,
+  type CustomerUploadField,
+} from './customer-uploads.fields';
 import type { CreateCustomerDto } from './dto/create-customer.dto';
 import type { UpdateCustomerDto } from './dto/update-customer.dto';
 
@@ -33,13 +37,6 @@ export type ResolvedFiles = {
   /** Keyed by guarantor position. */
   guarantorFileIds: Map<number, string | null>;
 };
-
-const UPLOAD_FIELDS = [
-  'customer_cnic_front',
-  'customer_cnic_back',
-  'guarantor1_cnic',
-  'guarantor2_cnic',
-] as const;
 
 const GUARANTOR_POSITIONS = [1, 2];
 
@@ -69,7 +66,7 @@ export class CustomerUploadsService {
    * third upload cannot leave the first two on disk.
    */
   validateAll(uploads: CustomerUploads): void {
-    for (const field of UPLOAD_FIELDS) {
+    for (const field of CUSTOMER_UPLOAD_FIELDS) {
       const upload = uploads[field];
 
       if (upload) this.files.assertValidImage(field, upload);
@@ -142,6 +139,11 @@ export class CustomerUploadsService {
     ledger: UploadLedger,
     actor_id: number,
   ): Promise<ResolvedFiles> {
+    // An omitted image still means "keep" (FR-CUS-07), so clearing one has to
+    // be asked for by name — otherwise every edit that skipped the picker
+    // would wipe the scans.
+    const removals = new Set<CustomerUploadField>(dto.remove_images ?? []);
+
     let customerFrontFileId = before.cnic_file_front_id;
 
     if (uploads.customer_cnic_front) {
@@ -160,6 +162,9 @@ export class CustomerUploadsService {
         dto.cnic_number ?? before.cnic_number,
         'front',
       );
+    } else if (removals.has('customer_cnic_front') && customerFrontFileId) {
+      ledger.replaced.push(customerFrontFileId);
+      customerFrontFileId = null;
     }
 
     let customerBackFileId = before.cnic_file_back_id;
@@ -180,6 +185,9 @@ export class CustomerUploadsService {
         dto.cnic_number ?? before.cnic_number,
         'back',
       );
+    } else if (removals.has('customer_cnic_back') && customerBackFileId) {
+      ledger.replaced.push(customerBackFileId);
+      customerBackFileId = null;
     }
 
     const guarantorFileIds = new Map<number, string | null>();
@@ -198,7 +206,14 @@ export class CustomerUploadsService {
       if (!existing && !submitted) continue;
 
       if (!upload) {
-        guarantorFileIds.set(position, existing?.cnic_file_id ?? null);
+        const clearing = removals.has(field) && existing?.cnic_file_id;
+
+        if (clearing) ledger.replaced.push(existing.cnic_file_id as string);
+
+        guarantorFileIds.set(
+          position,
+          clearing ? null : (existing?.cnic_file_id ?? null),
+        );
 
         continue;
       }

@@ -79,6 +79,14 @@ function toApiForm(formData: FormData): FormData {
         }
     }
 
+    // One entry per image the user cleared with the × on its preview. Appended
+    // rather than set, because several can be cleared in a single save.
+    for (const field of formData.getAll("remove_images")) {
+        if (typeof field === "string" && UPLOAD_FIELDS.includes(field as never)) {
+            form.append("remove_images", field);
+        }
+    }
+
     return form;
 }
 
