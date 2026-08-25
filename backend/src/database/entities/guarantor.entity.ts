@@ -52,11 +52,11 @@ export class Guarantor {
   @Column({ type: 'text' })
   address: string;
 
-  @Column({ type: 'text', nullable: true })
-  cnic_file_front_id: string | null;
+  @Column({ type: 'integer', nullable: true })
+  cnic_file_front_id: number | null;
 
-  @Column({ type: 'text', nullable: true })
-  cnic_file_back_id: string | null;
+  @Column({ type: 'integer', nullable: true })
+  cnic_file_back_id: number | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
@@ -69,18 +69,4 @@ export class Guarantor {
   })
   @JoinColumn({ name: 'customer_id' })
   customer: Relation<Customer>;
-
-  @ManyToOne(() => File, (file) => file.guarantorFronts, {
-    nullable: true,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'cnic_file_front_id' })
-  cnicFileFront: Relation<File> | null;
-
-  @ManyToOne(() => File, (file) => file.guarantorBacks, {
-    nullable: true,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'cnic_file_back_id' })
-  cnicFileBack: Relation<File> | null;
 }

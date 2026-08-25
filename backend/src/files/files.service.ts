@@ -90,8 +90,18 @@ function stampToday(date: Date): string {
 }
 
 export type StoredUpload = {
-  fileId: string;
+  fileId: number;
   storage_path: string;
+};
+
+/**
+ * Who a file belongs to. Written after the owning rows exist — on a create the
+ * images are stored before the customer has an id — so both are optional here
+ * and stamped by `assignOwner` once they are known.
+ */
+export type FileOwner = {
+  customer_id?: number | null;
+  guarantor_id?: number | null;
 };
 
 @Injectable()
@@ -172,10 +182,9 @@ export class FilesService {
     );
 
     try {
-      await manager.insert(File, {
-        // The filename is the key, so cnic_file_front_id and cnic_file_back_id
-        // read as filenames rather than opaque ids.
-        id: fileName,
+      const inserted = await manager.insert(File, {
+        // The name is data now, not the key — see SRS §2.7 deviation 11.
+        stored_name: fileName,
         original_name: file.originalname.slice(0, 255),
         mime: signature.mime,
         size_bytes: file.size,
@@ -183,7 +192,10 @@ export class FilesService {
         uploaded_by,
       });
 
-      return { fileId: fileName, storage_path };
+      return {
+        fileId: (inserted.identifiers[0] as { id: number }).id,
+        storage_path,
+      };
     } catch (error) {
       // The bytes are on disk but the row failed, and this path was never
       // handed back to the caller, so its discard list will not cover it.
@@ -193,8 +205,28 @@ export class FilesService {
     }
   }
 
-  findById(id: string): Promise<File | null> {
+  findById(id: number): Promise<File | null> {
     return this.files.findOne({ where: { id } });
+  }
+
+  /**
+   * Stamps ownership once the owning rows exist. There is no foreign key
+   * behind these columns, so this is bookkeeping the application maintains
+   * rather than something the database enforces.
+   */
+  async assignOwner(
+    manager: EntityManager,
+    fileIds: Array<number | null>,
+    owner: FileOwner,
+  ): Promise<void> {
+    const ids = fileIds.filter((id): id is number => id !== null);
+
+    if (ids.length === 0) return;
+
+    await manager.update(File, ids, {
+      customer_id: owner.customer_id ?? null,
+      guarantor_id: owner.guarantor_id ?? null,
+    });
   }
 
   /** Removes bytes written by a transaction that then failed. */
@@ -210,7 +242,7 @@ export class FilesService {
    * FR-CUS-07: replaced files are deleted only after the transaction commits.
    * Failures are logged, never thrown — the customer save already succeeded.
    */
-  async removeAfterCommit(fileIds: string[]): Promise<void> {
+  async removeAfterCommit(fileIds: number[]): Promise<void> {
     for (const fileId of fileIds) {
       try {
         const record = await this.files.findOne({ where: { id: fileId } });
@@ -239,9 +271,9 @@ export class FilesService {
 
   /**
    * Re-uploading the same person's scan on the same day would collide, so the
-   * name gains a " (2)" suffix. Because the name is the primary key it has to
-   * be free in every folder, not just this one, so both the table and the
-   * directory are checked. The `wx` flag makes the write itself atomic.
+   * name gains a " (2)" suffix. The name is no longer the key, so it only has
+   * to be free in *this* folder — which the `wx` flag settles atomically, and
+   * the unique index on storage_path backs up.
    */
   private async writeUnique(
     manager: EntityManager,
@@ -256,13 +288,13 @@ export class FilesService {
           ? `${base}.${extension}`
           : `${base} (${attempt}).${extension}`;
 
-      const taken = await manager.getRepository(File).existsBy({
-        id: fileName,
-      });
+      const storage_path = join(directory, fileName);
+
+      const taken = await manager
+        .getRepository(File)
+        .existsBy({ storage_path });
 
       if (taken) continue;
-
-      const storage_path = join(directory, fileName);
 
       try {
         await writeFile(storage_path, contents, { flag: 'wx' });

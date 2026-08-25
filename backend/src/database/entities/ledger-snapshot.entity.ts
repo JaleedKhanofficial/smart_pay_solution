@@ -29,8 +29,8 @@ export class LedgerSnapshot {
   @Column({ type: 'jsonb' })
   payload: Record<string, unknown>;
 
-  @Column({ type: 'text', nullable: true })
-  pdf_file_id: string | null;
+  @Column({ type: 'integer', nullable: true })
+  pdf_file_id: number | null;
 
   @Column({ type: 'integer' })
   created_by: number;
@@ -47,13 +47,6 @@ export class LedgerSnapshot {
   })
   @JoinColumn({ name: 'contract_id' })
   contract: Relation<Contract>;
-
-  @ManyToOne(() => File, (file) => file.ledgerSnapshots, {
-    nullable: true,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'pdf_file_id' })
-  pdfFile: Relation<File> | null;
 
   @ManyToOne(() => User, (user) => user.ledgerSnapshots, {
     onDelete: 'RESTRICT',

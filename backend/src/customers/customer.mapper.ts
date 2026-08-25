@@ -11,8 +11,8 @@ export type GuarantorResponse = {
   cnic_number: string;
   mobile_number: string;
   address: string;
-  cnic_file_front_id: string | null;
-  cnic_file_back_id: string | null;
+  cnic_file_front_id: number | null;
+  cnic_file_back_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -32,8 +32,8 @@ export type CustomerResponse = {
   address: string;
   occupation: string;
   monthly_income: string;
-  cnic_file_front_id: string | null;
-  cnic_file_back_id: string | null;
+  cnic_file_front_id: number | null;
+  cnic_file_back_id: number | null;
   guarantors: GuarantorResponse[];
   created_at: string;
   updated_at: string;

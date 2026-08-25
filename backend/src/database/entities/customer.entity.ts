@@ -4,8 +4,6 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -59,11 +57,11 @@ export class Customer {
   })
   monthly_income: string;
 
-  @Column({ type: 'text', nullable: true })
-  cnic_file_front_id: string | null;
+  @Column({ type: 'integer', nullable: true })
+  cnic_file_front_id: number | null;
 
-  @Column({ type: 'text', nullable: true })
-  cnic_file_back_id: string | null;
+  @Column({ type: 'integer', nullable: true })
+  cnic_file_back_id: number | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
@@ -74,20 +72,6 @@ export class Customer {
   /** Soft delete (FR-CUS-09-v2). TypeORM excludes these rows on its own. */
   @DeleteDateColumn({ type: 'timestamptz', nullable: true })
   deleted_at: Date | null;
-
-  @ManyToOne(() => File, (file) => file.customerFronts, {
-    nullable: true,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'cnic_file_front_id' })
-  cnicFileFront: Relation<File> | null;
-
-  @ManyToOne(() => File, (file) => file.customerBacks, {
-    nullable: true,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'cnic_file_back_id' })
-  cnicFileBack: Relation<File> | null;
 
   // No cascade: CustomersService writes guarantors explicitly, inside the same
   // transaction, so it controls the order and can attach the right file to each.

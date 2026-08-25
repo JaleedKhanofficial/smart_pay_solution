@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.5 |
+| **Document version** | 2.6 |
 | **Date** | 08-17-2026, amended 08-18-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. 2.6 — CNIC front/back on customers and guarantors; `files` keyed by integer with owner columns and no FK (deviations 11–12). |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -140,9 +140,13 @@ the document and the code stop disagreeing.
 | 7 | §2.2 — TanStack Query, react-hook-form + zod, shadcn/ui | Server Components and Server Actions, native form validation, a hand-built component set (§8.3) | **open decision, not settled** — every screen now depends on it, and retrofitting costs more the longer it waits |
 | 8 | FR-PRD-07 — categories managed "under Settings" | categories are managed at **`/products/categories`**, shipped with Module 3 | FR-PRD-07 is a Module 3 requirement, and a catalogue whose every product is `misc` is not usable. Module 12 can surface the same screen under Settings without rework |
 | 9 | FR-PRD-07 — category lifecycle | categories can be added, renamed, and **deleted only while empty**; products soft-delete as specified | once a product is filed under a category the name is part of the Summary Report's deal dimension (FR-PRD-06), so that delete is refused rather than cascaded. "Empty" counts soft-deleted products too — a recycled product still holds the foreign key |
+| 11 | §2.7 item 2 — the filename is the `files` key | **`files.id` is a sequential integer**; the name moves to `files.stored_name` and stays readable as data | **supersedes deviation 2.** Ids are quoted and compared like every other key in the system; the readable name is still there, just not as the identifier |
+| 12 | §5 / NFR-05 — "foreign keys everywhere, `ON DELETE RESTRICT`" | `files` carries `customer_id` and `guarantor_id`, the owners carry `cnic_file_front_id` / `cnic_file_back_id`, and **none of these four are foreign keys** | the owner asked for plain integer columns with no join. The cost is real and accepted: the database no longer refuses an id that does not exist, nor blocks deleting a file still in use. `files.uploaded_by → users` keeps its FK |
 | 10 | §8.2 — registers are list screens | the product catalogue is added to and edited **entirely in a popup** (`Modal`); it has no add/edit pages at all, so filters, sort and page survive every edit | a catalogue is edited in short bursts, and losing a filtered view on each one is the friction the owner asked to remove. Customer registration keeps its pages: three uploads and two guarantor blocks are a page's worth of work, not a panel's |
 
-Item 7 is the one still worth revisiting. Items 1–6 and 8–10 are closed.
+Item 7 is the one still worth revisiting, and item 12 is the one with a
+standing cost — nothing but the application now keeps a file id honest.
+Items 1–6 and 8–11 are closed. Item 2 is superseded by item 11.
 
 ---
 
@@ -343,7 +347,7 @@ The v1 hand-typed JSON workbook is retired. The ledger is a **read-only analytic
 
 ## 5. Data model (PostgreSQL)
 
-All tables: `id UUID PK DEFAULT gen_random_uuid()`, `created_at timestamptz DEFAULT now()`, `updated_at timestamptz` (trigger-maintained), `deleted_at timestamptz NULL` for soft-deletable entities. All money `NUMERIC(12,2)`. **Foreign keys everywhere, `ON DELETE RESTRICT`.**
+All tables: sequential integer primary key (§2.7 item 1), `created_at timestamptz DEFAULT now()`, `updated_at timestamptz DEFAULT now()`, `deleted_at timestamptz NULL` for soft-deletable entities. All money `NUMERIC(12,2)`. **Foreign keys with `ON DELETE RESTRICT` on every relationship except the four file-ownership columns (§2.7 item 12).**
 
 ### 5.1 `users`
 `name`, `email` (unique, partial index where `deleted_at IS NULL`), `password_hash`, `role` (`admin`|`operator`), `status` (`active`|`disabled`), `last_login_at`.
@@ -358,7 +362,7 @@ All tables: `id UUID PK DEFAULT gen_random_uuid()`, `created_at timestamptz DEFA
 `customer_id FK`, `position` (1|2, unique per customer), `full_name`, `father_name`, `relationship`, `cnic_number`, `mobile_number`, `address`, `cnic_file_id FK NULL`.
 
 ### 5.5 `files`
-`uuid_name`, `original_name`, `mime`, `size_bytes`, `storage_path`, `uploaded_by FK users`. Served only via the authenticated file endpoint.
+`id` (sequential integer), `stored_name` (the readable filename on disk), `original_name`, `mime`, `size_bytes`, `storage_path` (unique), `uploaded_by FK users`, plus `customer_id` and `guarantor_id` — **indexed, nullable, and deliberately not foreign keys** (§2.7 items 11–12). Served only via the authenticated file endpoint.
 
 ### 5.6 `products`
 `name`, `category` (FK to `product_categories` or validated lookup, default `misc`), `status` (`Active`|`Inactive`).
@@ -472,7 +476,7 @@ All list endpoints support `page`, `pageSize` (default 25, max 100), `sort`, and
 | NFR-02 | **Localisation:** PKR only, `en-PK` grouping; CNIC/mobile Pakistani formats; dates shown `dd-mm-yyyy`, stored ISO/UTC. |
 | NFR-03 | **Printability:** invoice, ledger, and summary print as standalone documents via print stylesheets; server-side PDF in Phase 2. |
 | NFR-04 | **Security:** JWT + RBAC per §4.0; Argon2id; rate-limited auth; helmet headers; strict CORS to the web origin; DTO validation on every input; parameterised access via the ORM; uploads magic-byte-checked, UUID-named, auth-served; no secrets in the repo; `NODE_ENV=production` never leaks stack traces. |
-| NFR-05 | **Data integrity:** FKs on every relationship; every multi-write business operation in one transaction; unique constraints (CNIC, email, snapshot_no) at DB level; derived balance guarantees ledger/money agreement by construction. |
+| NFR-05 | **Data integrity:** FKs on every relationship except the four file-ownership columns, which are plain integers by decision (§2.7 item 12) and are kept consistent by the application alone; every multi-write business operation in one transaction; unique constraints (CNIC, email, snapshot_no) at DB level; derived balance guarantees ledger/money agreement by construction. |
 | NFR-06 | **Auditability:** append-only audit log per §4.11; soft deletes with actor and timestamp. |
 | NFR-07 | **Performance:** dashboard in one round trip; every list paginated; indexes on FK columns, `payments.payment_date`, `customers.full_name`, `customers.cnic_number`; summary responsive at ≥ 1,000 contracts; P95 API latency < 300 ms at that volume on a single modest host. |
 | NFR-08 | **Reliability & backup:** Dockerised single-host deployment; nightly `pg_dump` retained 30 days; documented restore procedure; app is stateless apart from the file store. |

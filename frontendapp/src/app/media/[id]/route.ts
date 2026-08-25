@@ -21,7 +21,7 @@ export async function GET(
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // `id` is the filename; Next has already decoded the path segment.
+    // `id` is the numeric files.id; the API rejects anything else.
     const upstream = await fetch(`${API_BASE}/files/${encodeURIComponent(id)}`, {
         headers: { Authorization: `Bearer ${access}` },
         cache: "no-store",

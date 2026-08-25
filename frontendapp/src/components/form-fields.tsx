@@ -165,7 +165,7 @@ type ImageFieldProps = {
     label: string;
     name: string;
     /** Existing upload, streamed through /media so the token stays server-side. */
-    existingFileId?: string | null;
+    existingFileId?: number | null;
 };
 
 /**

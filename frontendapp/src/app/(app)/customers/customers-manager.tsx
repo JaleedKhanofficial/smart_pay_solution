@@ -44,7 +44,7 @@ function Thumbnail({
     alt,
     emptyLabel = "No CNIC image",
 }: {
-    fileId: string | null;
+    fileId: number | null;
     alt: string;
     /** Named so a missing front and a missing back are distinguishable. */
     emptyLabel?: string;

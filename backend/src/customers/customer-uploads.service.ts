@@ -29,18 +29,18 @@ export type CustomerUploads = Partial<
  */
 export type UploadLedger = {
   written: StoredUpload[];
-  replaced: string[];
+  replaced: number[];
 };
 
-/** Both sides of one person's CNIC. */
+/** Both sides of one person's CNIC, as `files.id` values. */
 export type SidePair = {
-  front: string | null;
-  back: string | null;
+  front: number | null;
+  back: number | null;
 };
 
 export type ResolvedFiles = {
-  customerFrontFileId: string | null;
-  customerBackFileId: string | null;
+  customerFrontFileId: number | null;
+  customerBackFileId: number | null;
   /** Keyed by guarantor position. */
   guarantorFileIds: Map<number, SidePair>;
 };
@@ -264,6 +264,36 @@ export class CustomerUploadsService {
     return this.files.removeAfterCommit(ledger.replaced);
   }
 
+  /**
+   * Stamps `files.customer_id` / `files.guarantor_id` once those rows exist.
+   * On a create the images are written before the customer has an id, so
+   * ownership cannot be set at insert time — it is filled in here, still inside
+   * the same transaction.
+   */
+  async assignOwners(
+    manager: EntityManager,
+    files: ResolvedFiles,
+    customer_id: number,
+    guarantorIdByPosition: Map<number, number>,
+  ): Promise<void> {
+    await this.files.assignOwner(
+      manager,
+      [files.customerFrontFileId, files.customerBackFileId],
+      { customer_id },
+    );
+
+    for (const [position, pair] of files.guarantorFileIds) {
+      const guarantor_id = guarantorIdByPosition.get(position);
+
+      if (guarantor_id === undefined) continue;
+
+      await this.files.assignOwner(manager, [pair.front, pair.back], {
+        customer_id,
+        guarantor_id,
+      });
+    }
+  }
+
   private async store(
     manager: EntityManager,
     ledger: UploadLedger,
@@ -278,7 +308,7 @@ export class CustomerUploadsService {
      * told apart on disk. Guarantors have a single image and stay unmarked.
      */
     side?: 'front' | 'back',
-  ): Promise<string | null> {
+  ): Promise<number | null> {
     if (!upload) return null;
 
     const stored = await this.files.store(

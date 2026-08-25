@@ -87,13 +87,27 @@ export class CustomersService {
 
         const saved = await manager.save(customer);
 
-        await manager.insert(
+        const inserted = await manager.insert(
           Guarantor,
           body.guarantors.map((guarantor) => ({
             customer_id: saved.id,
             ...this.guarantorFields(guarantor, files),
           })),
         );
+
+        // The images were written before the customer had an id, so ownership
+        // is stamped now — the identifiers come back in the order inserted.
+        const guarantorIds = new Map<number, number>();
+
+        body.guarantors.forEach((guarantor, index) => {
+          const id = (
+            inserted.identifiers[index] as { id?: number } | undefined
+          )?.id;
+
+          if (id !== undefined) guarantorIds.set(guarantor.position, id);
+        });
+
+        await this.uploads.assignOwners(manager, files, saved.id, guarantorIds);
 
         return saved.id;
       });
@@ -186,7 +200,15 @@ export class CustomersService {
           actor.id,
         );
 
-        await this.saveGuarantors(manager, id, before, dto, files);
+        const guarantorIds = await this.saveGuarantors(
+          manager,
+          id,
+          before,
+          dto,
+          files,
+        );
+
+        await this.uploads.assignOwners(manager, files, id, guarantorIds);
 
         await manager.update(
           Customer,
@@ -281,6 +303,9 @@ export class CustomersService {
   /**
    * Writes the submitted guarantors, and carries a replaced image across for a
    * position whose details were not resubmitted.
+   *
+   * Returns position → guarantor id, which is what lets the file rows be
+   * stamped with their owner afterwards.
    */
   private async saveGuarantors(
     manager: EntityManager,
@@ -288,7 +313,13 @@ export class CustomersService {
     before: Customer,
     dto: UpdateCustomerDto,
     files: ResolvedFiles,
-  ): Promise<void> {
+  ): Promise<Map<number, number>> {
+    const ids = new Map<number, number>();
+
+    for (const existing of before.guarantors) {
+      ids.set(existing.position, existing.id);
+    }
+
     if (dto.guarantors) {
       for (const guarantor of dto.guarantors) {
         const fields = this.guarantorFields(guarantor, files);
@@ -299,11 +330,18 @@ export class CustomersService {
         if (existing) {
           await manager.update(Guarantor, { id: existing.id }, fields);
         } else {
-          await manager.insert(Guarantor, { customer_id, ...fields });
+          const inserted = await manager.insert(Guarantor, {
+            customer_id,
+            ...fields,
+          });
+          const id = (inserted.identifiers[0] as { id?: number } | undefined)
+            ?.id;
+
+          if (id !== undefined) ids.set(guarantor.position, id);
         }
       }
 
-      return;
+      return ids;
     }
 
     // Images can be replaced or cleared without resubmitting the details.
@@ -324,6 +362,8 @@ export class CustomersService {
         { cnic_file_front_id: pair.front, cnic_file_back_id: pair.back },
       );
     }
+
+    return ids;
   }
 
   private guarantorFields(guarantor: GuarantorDto, files: ResolvedFiles) {
