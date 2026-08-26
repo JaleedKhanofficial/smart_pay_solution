@@ -1,11 +1,14 @@
 import { AuditLog } from './audit-log.entity';
 import { CapitalEntry } from './capital-entry.entity';
 import { Contract } from './contract.entity';
+import { ContractFunding } from './contract-funding.entity';
 import { Customer } from './customer.entity';
 import { ExpenseEntry } from './expense-entry.entity';
 import { File } from './file.entity';
 import { Guarantor } from './guarantor.entity';
 import { Installment } from './installment.entity';
+import { Investor } from './investor.entity';
+import { InvestorTransaction } from './investor-transaction.entity';
 import { LedgerSnapshot } from './ledger-snapshot.entity';
 import { Payment } from './payment.entity';
 import { Product } from './product.entity';
@@ -19,11 +22,14 @@ export {
   AuditLog,
   CapitalEntry,
   Contract,
+  ContractFunding,
   Customer,
   ExpenseEntry,
   File,
   Guarantor,
   Installment,
+  Investor,
+  InvestorTransaction,
   LedgerSnapshot,
   Payment,
   Product,
@@ -43,11 +49,14 @@ export const ENTITIES = [
   AuditLog,
   CapitalEntry,
   Contract,
+  ContractFunding,
   Customer,
   ExpenseEntry,
   File,
   Guarantor,
   Installment,
+  Investor,
+  InvestorTransaction,
   LedgerSnapshot,
   Payment,
   Product,

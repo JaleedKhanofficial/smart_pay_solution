@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.6 |
-| **Date** | 08-17-2026, amended 08-18-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. 2.6 — CNIC front/back on customers and guarantors; `files` keyed by integer with owner columns and no FK (deviations 11–12). |
+| **Document version** | 2.8 |
+| **Date** | 08-17-2026, amended 08-25-2026 |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. 2.6 — CNIC front/back on customers and guarantors; `files` keyed by integer with owner columns and no FK (deviations 11–12). 2.7 — Module 4 built; the plan preview is priced server-side and pickers read unpaged lookups (deviations 13–14). 2.8 — one purchase price replaces the cost/sale pair, settling amendment questions 6 and 9 (deviation 15); the markup rupee override leaves the form (deviation 16). |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -125,7 +125,7 @@ Any Docker-capable Linux host. Evergreen browsers. Internet access is not requir
 
 ### 2.7 As-built deviations
 
-Modules 2 and 3 are built. These decisions differ from the text above; each was
+Modules 2, 3 and 4 are built. These decisions differ from the text above; each was
 taken deliberately and each binds the modules still to come. They are recorded here so
 the document and the code stop disagreeing.
 
@@ -143,6 +143,10 @@ the document and the code stop disagreeing.
 | 11 | §2.7 item 2 — the filename is the `files` key | **`files.id` is a sequential integer**; the name moves to `files.stored_name` and stays readable as data | **supersedes deviation 2.** Ids are quoted and compared like every other key in the system; the readable name is still there, just not as the identifier |
 | 12 | §5 / NFR-05 — "foreign keys everywhere, `ON DELETE RESTRICT`" | `files` carries `customer_id` and `guarantor_id`, the owners carry `cnic_file_front_id` / `cnic_file_back_id`, and **none of these four are foreign keys** | the owner asked for plain integer columns with no join. The cost is real and accepted: the database no longer refuses an id that does not exist, nor blocks deleting a file still in use. `files.uploaded_by → users` keeps its FK |
 | 10 | §8.2 — registers are list screens | the product catalogue is added to and edited **entirely in a popup** (`Modal`); it has no add/edit pages at all, so filters, sort and page survive every edit | a catalogue is edited in short bursts, and losing a filtered view on each one is the friction the owner asked to remove. Customer registration keeps its pages: three uploads and two guarantor blocks are a page's worth of work, not a panel's |
+| 13 | §2.5 — one formula package shared by both builds | the formula package lives in the API only; the browser gets its figures from **`POST /contracts/preview`**, which prices without writing | the guarantee wanted is that the plan on screen is the plan that gets stored. One shared package gives two copies of the arithmetic compiled into two builds that can drift; one endpoint gives **one execution**, and the preview is priced by the very code that will persist it. The cost is a round trip per edit, debounced to 350 ms |
+| 14 | §7 — every collection is a paged list | customer and product **pickers** read `GET /customers/lookup` and `GET /products/lookup`, which are unpaged `{ id, label }` lists | a dropdown fed by page one of a 100-row page silently makes record 101 unselectable, with nothing on screen to explain it. The registers stay paged; only the pickers are not. `/products/lookup` returns **Active products only** (FR-PRD-05) |
+| 15 | FR-CON-03-v2 — cost price and sale price are separate inputs; NFR-15 — cost price is admin-only | the contract form asks for **one "Purchase price"**, stored as both `cost_price` and `sale_price`; **retail margin is removed from the screen**; `cost_price` is returned to every role | the business buys the unit and applies its markup to what it paid — there is no second, higher cash price. Two inputs meant typing the same number twice, and a typo would have booked phantom retail margin. Both columns are kept because BR-15 measures investor capital against `cost_price`. NFR-15 still holds for the investor figures — `house_funded_amount` and all of Module 13 — but hiding a cost price identical to a sale price the operator already sees protects nothing. **Settles amendment open questions 6 and 9: both bases are the same number, and all profit is markup.** This also fixed a defect — the price field was gated on `isAdmin`, so an operator's form posted no `cost_price` and every contract they created was rejected |
+| 16 | FR-CON-03-v2 — "markup % (dropdown) **or** direct markup amount override" | the form offers the **percentage only**; the rupee override is removed from the screen | the business always quotes a rate, so the second field was a way to express the same thing twice. The API keeps the override (BR-01 is unchanged and the formula still honours it) — omitting the field is exactly what tells the server to let the percentage decide, which is also how a term edit resets a previously overridden contract. `markup_pct` is now required on the form, since it is the only lever left |
 
 Item 7 is the one still worth revisiting, and item 12 is the one with a
 standing cost — nothing but the application now keeps a file id honest.

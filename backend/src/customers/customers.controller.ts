@@ -24,6 +24,7 @@ import {
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { LookupOption } from '../common/lookup';
 import type { Paginated } from '../common/pagination';
 import { MAX_UPLOAD_BYTES } from '../files/files.service';
 import { CUSTOMER_UPLOAD_FIELDS } from './customer-uploads.fields';
@@ -97,6 +98,19 @@ export class CustomersController {
   @ApiOperation({ summary: 'Occupations present in the register' })
   occupations(): Promise<string[]> {
     return this.customers.occupations();
+  }
+
+  /**
+   * Every live customer as `{ id, label }`, for the contract picker. Separate
+   * from the paged list on purpose: a picker that stops at page one would make
+   * customer 101 unselectable, and nothing on screen would say why.
+   *
+   * Declared before ':id' so the literal path is matched first.
+   */
+  @Get('lookup')
+  @ApiOperation({ summary: 'Customers as picker options' })
+  lookup(): Promise<LookupOption[]> {
+    return this.customers.lookup();
   }
 
   @Get(':id')

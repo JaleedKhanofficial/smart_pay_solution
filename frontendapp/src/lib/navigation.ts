@@ -68,17 +68,10 @@ export const NAVIGATION: NavSection[] = [
                 label: "Contracts",
                 href: "/contracts",
                 icon: "fileText",
-                built: false,
+                built: true,
                 summary:
                     "Installment agreements, priced and scheduled server-side.",
-                capabilities: [
-                    "FR-CON-03-v2 — sale price, markup, down payment, plan months",
-                    "FR-CON-04-v2 — the server recomputes and persists every figure",
-                    "FR-CON-05-v2 — installment schedule generated per BR-04-v2",
-                    "FR-CON-07-v2 — terms lock once a payment exists",
-                    "FR-CON-08-v2 — automatic active ↔ completed transitions",
-                    "Module 5 — invoice and agreement printout",
-                ],
+                capabilities: [],
             },
             {
                 module: 6,

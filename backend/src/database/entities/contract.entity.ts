@@ -37,6 +37,14 @@ export class Contract {
   @Column({ type: 'integer' })
   product_id: number;
 
+  /**
+   * BR-14. What the business paid, and the basis for capital deployed —
+   * distinct from the sale price. `sale_price - cost_price` is retail
+   * margin: house profit, never part of the investor split.
+   */
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  cost_price: string;
+
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   sale_price: string;
 

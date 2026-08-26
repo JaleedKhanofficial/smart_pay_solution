@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   type Relation,
 } from 'typeorm';
+import { SnapshotKind } from '../../common/enums';
 import { Contract } from './contract.entity';
 import { File } from './file.entity';
 import { User } from './user.entity';
@@ -19,8 +20,20 @@ export class LedgerSnapshot {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'integer' })
-  contract_id: number;
+  /** Exactly one of contract_id and investor_id is set (§5.10). */
+  @Column({ type: 'integer', nullable: true })
+  contract_id: number | null;
+
+  @Column({ type: 'integer', nullable: true })
+  investor_id: number | null;
+
+  @Column({
+    type: 'enum',
+    enum: SnapshotKind,
+    enumName: 'SnapshotKind',
+    default: SnapshotKind.recovery,
+  })
+  kind: SnapshotKind;
 
   @Index('ledger_snapshots_snapshot_no_key', { unique: true })
   @Column({ type: 'varchar', length: 40 })

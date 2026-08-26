@@ -16,6 +16,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { LookupOption } from '../common/lookup';
 import type { Paginated } from '../common/pagination';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListProductsDto } from './dto/list-products.dto';
@@ -45,6 +46,19 @@ export class ProductsController {
     @Query() query: ListProductsDto,
   ): Promise<Paginated<ProductResponse>> {
     return this.products.findAll(query);
+  }
+
+  /**
+   * FR-PRD-05. Only Active products, as `{ id, label }` for the contract
+   * picker — an Inactive product must not be offerable on a new contract, and
+   * the paged list would stop at 100 rows.
+   *
+   * Declared before ':id' so the literal path is matched first.
+   */
+  @Get('lookup')
+  @ApiOperation({ summary: 'Active products as picker options' })
+  lookup(): Promise<LookupOption[]> {
+    return this.products.lookup();
   }
 
   @Get(':id')

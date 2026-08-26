@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Not, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import type { LookupOption } from '../common/lookup';
 import { paginate, type Paginated } from '../common/pagination';
 import { Contract, Customer, Guarantor } from '../database/entities';
 import {
@@ -163,6 +164,23 @@ export class CustomersService {
       .getRawMany<{ occupation: string }>();
 
     return rows.map((row) => row.occupation);
+  }
+
+  /**
+   * FR-CON-03-v2. Every live customer, ordered by name, as picker options.
+   * The CNIC rides along in the label because two customers can share a name
+   * and the operator has to be able to tell them apart.
+   */
+  async lookup(): Promise<LookupOption[]> {
+    const rows = await this.customers.find({
+      select: { id: true, full_name: true, cnic_number: true },
+      order: { full_name: 'ASC' },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      label: `${row.full_name} · ${row.cnic_number}`,
+    }));
   }
 
   async findOne(id: number): Promise<CustomerResponse> {

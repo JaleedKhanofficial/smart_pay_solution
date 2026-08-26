@@ -35,15 +35,18 @@ export function formatMobile(value: string): string {
 type TextFieldProps = InputHTMLAttributes<HTMLInputElement> & {
     label: string;
     name: string;
+    /** A line under the field, for a rule the label cannot carry on its own. */
+    hint?: string;
 };
 
-export function TextField({ label, name, ...props }: TextFieldProps) {
+export function TextField({ label, name, hint, ...props }: TextFieldProps) {
     return (
         <div>
             <label className={labelClass} htmlFor={name}>
                 {label}
             </label>
             <input id={name} name={name} className={fieldClass} {...props} />
+            {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
         </div>
     );
 }

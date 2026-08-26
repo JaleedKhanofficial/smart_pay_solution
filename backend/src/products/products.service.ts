@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { ProductStatus } from '../common/enums';
+import type { LookupOption } from '../common/lookup';
 import { paginate, type Paginated } from '../common/pagination';
 import { Contract, Product, ProductCategory } from '../database/entities';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -96,6 +98,20 @@ export class ProductsService {
       query.page,
       query.page_size,
     );
+  }
+
+  /**
+   * FR-PRD-05. Active products only, name ascending — an Inactive product is
+   * kept for history but must not be offerable on a new contract.
+   */
+  async lookup(): Promise<LookupOption[]> {
+    const rows = await this.products.find({
+      select: { id: true, name: true },
+      where: { status: ProductStatus.Active },
+      order: { name: 'ASC' },
+    });
+
+    return rows.map((row) => ({ id: row.id, label: row.name }));
   }
 
   async findOne(id: number): Promise<ProductResponse> {
