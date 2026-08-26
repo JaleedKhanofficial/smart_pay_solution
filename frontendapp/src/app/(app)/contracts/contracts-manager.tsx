@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { deleteContract } from "./actions";
 import { CancelContractDialog } from "./cancel-contract-dialog";
 import { ContractFilters } from "./contract-filters";
@@ -35,6 +36,8 @@ type Props = {
     products: Option[];
     isAdmin: boolean;
     flash?: string;
+    /** The contract just created, if the register was reached by creating one. */
+    createdId: number | null;
     loadError: string | null;
 };
 
@@ -153,6 +156,7 @@ export default function ContractsManager({
     products,
     isAdmin,
     flash,
+    createdId,
     loadError,
 }: Props) {
     const activeFilters = Object.values(filters).filter(Boolean).length;
@@ -161,6 +165,42 @@ export default function ContractsManager({
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [cancelling, setCancelling] = useState<Contract | null>(null);
     const [, startTransition] = useTransition();
+    const router = useRouter();
+
+    /**
+     * FR-INV-06. A new contract is worth printing straight away — that is when
+     * the customer is standing at the counter waiting to sign. The dialog also
+     * serves as the write's acknowledgement (NFR-14.6), which is why a create
+     * carries `?created=` instead of a flash message.
+     *
+     * The `?created=` parameter is cleared either way, so a refresh or a back
+     * button does not ask twice.
+     */
+    useEffect(() => {
+        if (createdId === null) return;
+
+        let abandoned = false;
+
+        void (async () => {
+            const print = await confirm({
+                title: `Contract #${createdId} created`,
+                text: "The installment schedule has been generated. Print the agreement for the customer to sign now?",
+                tone: "success",
+                confirmLabel: "Print agreement",
+                cancelLabel: "Not now",
+            });
+
+            if (abandoned) return;
+
+            router.replace(
+                print ? `/contracts/${createdId}/invoice` : "/contracts"
+            );
+        })();
+
+        return () => {
+            abandoned = true;
+        };
+    }, [createdId, confirm, router]);
 
     async function handleDelete(contract: Contract) {
         const confirmed = await confirm({
@@ -346,6 +386,16 @@ export default function ContractsManager({
 
                             <div className="mt-3 flex justify-end gap-2 border-t border-border pt-3">
                                 <ButtonLink
+                                    href={`/contracts/${contract.id}/invoice`}
+                                    variant="secondary"
+                                    size="sm"
+                                    iconOnly
+                                    aria-label={`Print contract ${contract.id}`}
+                                    title="Invoice / agreement"
+                                >
+                                    <Icon name="fileText" className="size-4" />
+                                </ButtonLink>
+                                <ButtonLink
                                     href={`/contracts/${contract.id}/edit`}
                                     variant="secondary"
                                     size="sm"
@@ -510,6 +560,19 @@ export default function ContractsManager({
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex justify-end gap-2">
+                                            <ButtonLink
+                                                href={`/contracts/${contract.id}/invoice`}
+                                                variant="secondary"
+                                                size="sm"
+                                                iconOnly
+                                                aria-label={`Print contract ${contract.id}`}
+                                                title="Invoice / agreement"
+                                            >
+                                                <Icon
+                                                    name="fileText"
+                                                    className="size-4"
+                                                />
+                                            </ButtonLink>
                                             <ButtonLink
                                                 href={`/contracts/${contract.id}/edit`}
                                                 variant="secondary"

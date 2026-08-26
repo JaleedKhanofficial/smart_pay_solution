@@ -191,12 +191,15 @@ export async function saveContract(
     revalidatePath("/contracts");
 
     // redirect() throws a control-flow signal, so it must sit outside the try.
+    //
+    // A create carries the new id rather than a flash message: the register
+    // asks whether to print the agreement, and that dialog is the write's
+    // acknowledgement (NFR-14.6). An update keeps the flash — there is nothing
+    // to print that was not printable a moment ago.
     redirect(
-        `/contracts?flash=${encodeURIComponent(
-            id
-                ? "Contract updated."
-                : `Contract #${saved.contract.id} created — ${saved.contract.plan_months} installments scheduled.`
-        )}`
+        id
+            ? `/contracts?flash=${encodeURIComponent("Contract updated.")}`
+            : `/contracts?created=${saved.contract.id}`
     );
 }
 

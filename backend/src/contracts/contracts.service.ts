@@ -34,6 +34,12 @@ import {
   CUSTOMER_ALIAS,
   PRODUCT_ALIAS,
 } from './contract.query';
+import { toCustomerResponse } from '../customers/customer.mapper';
+import {
+  BUSINESS_IDENTITY_KEY,
+  toBusinessIdentity,
+  type InvoiceResponse,
+} from './invoice.mapper';
 import {
   CreateContractDto,
   PreviewContractDto,
@@ -187,6 +193,42 @@ export class ContractsService {
     return toContractDetailResponse(contract, {
       include_cost: this.maySeeCost(actor),
     });
+  }
+
+  /**
+   * FR-INV-01..05, FR-INV-07. The printed agreement in one payload: the deal,
+   * its schedule, the customer with both guarantors, and the letterhead.
+   *
+   * The customer is loaded with `withDeleted`, because a contract outlives the
+   * customer record being recycled and the agreement must still print.
+   */
+  async invoice(id: number): Promise<InvoiceResponse> {
+    const contract = await this.loadOrFail(id);
+
+    const customer = await this.customers.findOne({
+      where: { id: contract.customer_id },
+      relations: { guarantors: true },
+      withDeleted: true,
+    });
+
+    if (!customer) {
+      throw new NotFoundException(
+        `Contract ${id} names customer ${contract.customer_id}, which no longer exists`,
+      );
+    }
+
+    const identity = await this.settings.findOne({
+      where: { key: BUSINESS_IDENTITY_KEY },
+    });
+
+    return {
+      // NFR-15 does not apply to the operator printing this: cost equals the
+      // sale price now (§2.7 item 15). The document itself prints neither.
+      contract: toContractDetailResponse(contract, { include_cost: true }),
+      customer: toCustomerResponse(customer),
+      business: toBusinessIdentity(identity?.value),
+      issued_at: new Date().toISOString(),
+    };
   }
 
   /**

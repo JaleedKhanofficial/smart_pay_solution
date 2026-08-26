@@ -178,3 +178,41 @@ body {
         stroke-dasharray: none;
     }
 }
+
+/* ---------------------------------------------------------------- print --
+   NFR-03. A printed document is not a screenshot of a screen: it has no
+   chrome, no dark mode, and it owns the page.
+
+   The app is theme-aware, so `body` carries whatever appearance the viewer
+   chose. On paper that is wrong every time — dark mode prints a navy block
+   and burns the toner — so the page is forced white here, and the document
+   itself uses fixed colours rather than theme tokens. */
+@page {
+    size: A4;
+    margin: 12mm;
+}
+
+@media print {
+    html,
+    body {
+        background: #ffffff !important;
+        color: #0f172a;
+    }
+
+    /* Keep the headline strip and table rules — without this most browsers
+       drop every background and the document loses its structure. */
+    .sps-sheet,
+    .sps-sheet * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* The sheet already sizes itself to A4; @page supplies the margin, so the
+       screen padding and shadow would only push it onto a second page. */
+    .sps-sheet {
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
+}

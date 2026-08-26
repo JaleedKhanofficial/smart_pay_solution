@@ -70,7 +70,7 @@ export const NAVIGATION: NavSection[] = [
                 icon: "fileText",
                 built: true,
                 summary:
-                    "Installment agreements, priced and scheduled server-side.",
+                    "Installment agreements, priced and scheduled server-side, with the printed agreement.",
                 capabilities: [],
             },
             {

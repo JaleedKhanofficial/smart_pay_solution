@@ -30,6 +30,8 @@ const EMPTY_PAGE: Paginated<Contract> = {
 type SearchParams = Partial<Record<keyof ContractFilterValues, string>> & {
     page?: string;
     flash?: string;
+    /** Set by a successful create, so the register can offer the printout. */
+    created?: string;
     sort?: string;
     dir?: string;
 };
@@ -103,6 +105,11 @@ export default async function ContractsPage({
             products={products}
             isAdmin={user?.role === "admin"}
             flash={params.flash}
+            createdId={
+                params.created && /^\d+$/.test(params.created)
+                    ? Number(params.created)
+                    : null
+            }
             loadError={loadError}
         />
     );

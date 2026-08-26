@@ -30,6 +30,7 @@ import {
   PreviewContractDto,
 } from './dto/create-contract.dto';
 import { ListContractsDto } from './dto/list-contracts.dto';
+import type { InvoiceResponse } from './invoice.mapper';
 import { UpdateContractDto } from './dto/update-contract.dto';
 
 @ApiTags('contracts')
@@ -67,6 +68,15 @@ export class ContractsController {
     @Query() query: ListContractsDto,
   ): Promise<Paginated<ContractResponse>> {
     return this.contracts.findAll(query);
+  }
+
+  /** FR-INV-01..05 / §7. Everything the printed agreement renders. */
+  @Get(':id/invoice')
+  @ApiOperation({
+    summary: 'Invoice payload: contract, schedule, customer, guarantors',
+  })
+  invoice(@Param('id', ParseIntPipe) id: number): Promise<InvoiceResponse> {
+    return this.contracts.invoice(id);
   }
 
   @Get(':id')
