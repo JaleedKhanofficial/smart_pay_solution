@@ -15,6 +15,12 @@ type Props = {
     disabled?: boolean;
     hint?: string;
     placeholder?: string;
+    /**
+     * Fired with the chosen option's value. The hidden input still carries it
+     * for the form post — this is for a caller that must *react* to the choice,
+     * such as the payment form prefilling from the selected contract.
+     */
+    onValueChange?: (value: string) => void;
 };
 
 /**
@@ -46,6 +52,7 @@ export function ComboboxField({
     disabled,
     hint,
     placeholder = "Type to search…",
+    onValueChange,
 }: Props) {
     const listId = useId();
     const optionId = (index: number) => `${listId}-option-${index}`;
@@ -75,6 +82,7 @@ export function ComboboxField({
         setValue(option.value);
         setQuery(option.label);
         setOpen(false);
+        onValueChange?.(option.value);
     }
 
     function close() {

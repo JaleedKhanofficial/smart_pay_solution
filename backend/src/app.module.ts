@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { ContractsModule } from './contracts/contracts.module';
+import { PaymentsModule } from './payments/payments.module';
 import { CustomersModule } from './customers/customers.module';
 import { DatabaseModule } from './database/database.module';
 import { FilesModule } from './files/files.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     CustomersModule,
     ProductsModule,
     ContractsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [
