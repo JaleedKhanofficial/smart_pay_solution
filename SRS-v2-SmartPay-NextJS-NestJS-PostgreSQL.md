@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.9 |
+| **Document version** | 2.10 |
 | **Date** | 08-17-2026, amended 08-25-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. 2.6 — CNIC front/back on customers and guarantors; `files` keyed by integer with owner columns and no FK (deviations 11–12). 2.7 — Module 4 built; the plan preview is priced server-side and pickers read unpaged lookups (deviations 13–14). 2.8 — one purchase price replaces the cost/sale pair, settling amendment questions 6 and 9 (deviation 15); the markup rupee override leaves the form (deviation 16). 2.9 — Module 5 built: the agreement prints white-on-navy from its own route group, and the 16 clauses ship as replaceable defaults (deviations 17–18). |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. 2.6 — CNIC front/back on customers and guarantors; `files` keyed by integer with owner columns and no FK (deviations 11–12). 2.7 — Module 4 built; the plan preview is priced server-side and pickers read unpaged lookups (deviations 13–14). 2.8 — one purchase price replaces the cost/sale pair, settling amendment questions 6 and 9 (deviation 15); the markup rupee override leaves the form (deviation 16). 2.9 — Module 5 built: the agreement prints white-on-navy from its own route group, and the 16 clauses ship as replaceable defaults (deviations 17–18). 2.10 — Module 14 (Customer Messaging / WhatsApp) added in two stages, with BR-27 and `message_log`. |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -193,6 +193,7 @@ implementation; a new module should be readable by anyone who has read it.
 | 10 | Recycle Bin | `/settings/recycle-bin` | `/api/v1/recycle-bin` | New (was dead link) |
 | 11 | Audit Log | `/settings/audit` | `/api/v1/audit` | New |
 | 12 | System Settings | `/settings/system` | `/api/v1/settings` | New |
+| 14 | Customer Messaging (WhatsApp) | *(no page of its own; controls sit on the contract register and the invoice)* | `/api/v1/messaging` *(Phase 2 only)* | New |
 
 ---
 
@@ -346,8 +347,55 @@ The v1 hand-typed JSON workbook is retired. The ledger is a **read-only analytic
 
 | ID | Requirement |
 |---|---|
-| FR-SET-01 | Editable settings: plan-month range (default 1-20), `allow_overpayment` (default off), Recycle Bin retention, business identity block for the invoice letterhead, punctuality band thresholds and tier thresholds (defaults per BR-06/BR-07). |
+| FR-SET-01 | Editable settings: plan-month range (default 1-20), `allow_overpayment` (default off), Recycle Bin retention, business identity block for the invoice letterhead, punctuality band thresholds and tier thresholds (defaults per BR-06/BR-07), and the WhatsApp block — on/off, template names and variable order, reminder days-before, quiet hours (Module 14, FR-WAP-08/12). |
 | FR-SET-02 | Settings changes are audit-logged and take effect without redeploy. |
+
+### 4.13 Module 14: Customer Messaging (WhatsApp)
+
+*Module 13 is Investor Capital, specified in the v2.6 amendment; this module is
+numbered 14 so the two do not collide when that document is merged.*
+
+Sending the agreement and the plan figures to the customer on WhatsApp. The
+module has **two stages**, and they are genuinely different systems — stage 1
+costs nothing and needs no approval, stage 2 needs a Meta business account.
+Stage 1 does not become obsolete: the message template and the number
+conversion carry over to stage 2 unchanged.
+
+**The constraint that decides everything:** a `wa.me` deep link carries **text
+only**. It cannot attach a file. That is the documented behaviour of the link
+format, not a limitation to be worked around. A PDF can only be sent through
+the Cloud API (stage 2), or attached by hand from the staff member's own phone.
+
+#### Stage 1 — click-to-chat deep link (Phase 1, no cost, works on localhost)
+
+| ID | Requirement |
+|---|---|
+| FR-WAP-01 | The dialog shown after a contract is created (FR-INV-06) offers a third action, **Send on WhatsApp**, beside *Print agreement* and *Not now*. Choosing it opens the link and leaves the register where it is. |
+| FR-WAP-02 | A **WhatsApp** action is also available per row in the contract register and on the invoice page, so a message can be sent later without recreating anything. |
+| FR-WAP-03 | The action opens `https://wa.me/{msisdn}?text={encoded}` in a new tab with `rel="noopener"`. `{msisdn}` is derived per BR-27; `{encoded}` is the rendered template, `encodeURIComponent`-escaped. Nothing is sent by the system — WhatsApp opens with the message composed and addressed, and a human presses send. |
+| FR-WAP-04 | The message body lives in **one editable template file**, in the same manner as the invoice clauses (§2.7 item 18), with tokens substituted at render time: business name, agreement number, customer name, product, total payable, down payment, monthly installment, plan months, first and final due dates. |
+| FR-WAP-05 | **No attachment is possible on this route.** The control must not imply otherwise: the printed agreement is offered separately, and staff may attach a saved PDF by hand in the same chat. |
+| FR-WAP-06 | Where a customer's number cannot be converted per BR-27, the control is **disabled with the reason shown**, never silently hidden and never opened with a malformed number. |
+| FR-WAP-07 | The message carries **only figures already printed on the customer's own agreement**. Cost price, retail margin, house-funded amount, and every investor figure are excluded by construction — the same confidentiality rule the printed agreement obeys (NFR-15 in the v2.6 investor amendment). A message leaves the building; nothing internal may ride on it. |
+
+#### Stage 2 — WhatsApp Business Platform / Cloud API (Phase 2)
+
+| ID | Requirement |
+|---|---|
+| FR-WAP-08 | Business-initiated messages are sent through **Meta-approved message templates**. Template names and their variable order are configuration (FR-SET-01), never literals in code: a template cannot be reworded without Meta re-approving it, so the code must not assume the wording. |
+| FR-WAP-09 | The agreement PDF is delivered by **uploading the bytes to the media endpoint and sending the returned media id**, not by giving Meta a URL to fetch. This is what allows the feature to work from a private network, and it avoids exposing any document endpoint publicly. |
+| FR-WAP-10 | **Opt-in is required and recorded** before any business-initiated message: `customers.whatsapp_opt_in` with the timestamp, captured at registration. A customer without opt-in is not messageable through the API; the stage 1 deep link remains available, because a human is pressing send. |
+| FR-WAP-11 | Every send is recorded in `message_log` (§5.16) with its template, rendered body, recipient, and delivery state updated from the platform's status webhooks. A send is never fire-and-forget. |
+| FR-WAP-12 | **Installment reminders:** a message *n* days before each due date, and a follow-up when an installment goes past due, both driven by the existing `installments` table and the past-due derivation of FR-CON-01. `n`, the quiet hours, and the on/off switch are settings. |
+| FR-WAP-13 | Free-form (non-template) replies are permitted only inside the platform's **24-hour customer service window** opened by an inbound message. Outside it, only templates. |
+| FR-WAP-14 | Sending the customer a **link** to view the agreement requires the application to be publicly hosted **and** a signed, expiring, unauthenticated document URL. Until both exist, the invoice is delivered as an attachment or not at all — a link to a staff route is never sent. |
+
+#### Notes for implementation
+
+- Stage 2 needs a phone number **dedicated to the API**; that number can no longer be used in the ordinary WhatsApp or WhatsApp Business handset app.
+- Business verification with Meta takes days, not minutes. It is a scheduling dependency, not a coding one.
+- Template messages are billed per message; utility-category rates for Pakistan should be checked at the time of build rather than assumed from this document.
+- The reminders of FR-WAP-12, not the invoice, are what make stage 2 worth its cost: nobody will click sixty deep links a month by hand.
 
 ---
 
@@ -407,7 +455,16 @@ contracts 1 ──< installments   (the plan)
 contracts 1 ──< payments       (the money; single source of truth)
 contracts 1 ──< ledger_snapshots
 files ──referenced by customers, guarantors, snapshots
+customers 1 ──< message_log >── 0..1 contracts   (Phase 2)
 ```
+
+### 5.16 `message_log`  *(new; Module 14 stage 2 only)*
+`customer_id FK`, `contract_id FK NULL`, `channel` (`whatsapp`), `template_name`, `body TEXT` (the rendered message exactly as sent), `msisdn`, `provider_message_id NULL`, `status` (`queued`|`sent`|`delivered`|`read`|`failed`), `error TEXT NULL`, `sent_by FK users NULL` (null for a scheduled reminder), `created_at`, `updated_at`. Append-only apart from `status` and `error`, which the delivery webhook updates. Index on `(customer_id, created_at)` and on `provider_message_id`.
+
+Stage 1 writes **no row**. Nothing is sent by the system, so there is nothing whose delivery the system could honestly claim to know — what the staff member actually sent is in their own WhatsApp.
+
+### 5.17 `customers` — messaging columns *(Module 14 stage 2)*
+`whatsapp_opt_in boolean NOT NULL DEFAULT false`, `whatsapp_opt_in_at timestamptz NULL`. Required before any business-initiated message (FR-WAP-10); irrelevant to stage 1, where a human presses send.
 
 ---
 
@@ -443,6 +500,11 @@ Implemented once in the shared formula package, unit-tested, used by both API an
 |---|---|
 | BR-12 | In the same transaction as any payment write or void: if outstanding ≤ 0 set contract `completed`; if a void raises outstanding above 0 on a `completed` contract, set it back to `active`. `cancelled` is manual only. |
 
+### Messaging
+| ID | Rule |
+|---|---|
+| BR-27 | **MSISDN conversion.** Mobile numbers are stored as `03XX-XXXXXXX` and normalised on write (a leading `92` is already stripped there), so conversion is total and unambiguous: strip every non-digit, drop the single leading `0`, prefix `92` — `0300-1234567` becomes `923001234567`. Anything that does not yield exactly twelve digits beginning `92` is **refused, not guessed**; the caller shows the reason (FR-WAP-06). No `+` and no spaces: `wa.me` rejects both. |
+
 ---
 
 ## 7. API specification (summary)
@@ -469,6 +531,10 @@ Base `/api/v1`, JSON, Bearer JWT. Errors follow one envelope: `{statusCode, erro
 | GET `/audit` | Audit log | admin |
 | GET/PATCH `/settings` | System settings | admin |
 | GET `/files/{uuid}` | Authenticated file serving | any |
+| POST `/messaging/whatsapp/send` | Send a template message with the agreement attached (FR-WAP-08/09) | any |
+| POST `/messaging/whatsapp/webhook` | Delivery status callbacks from the platform (FR-WAP-11) | *public, signature-verified* |
+
+**Stage 1 has no endpoint at all.** The deep link is built in the browser and opens WhatsApp directly (FR-WAP-03); nothing reaches the API, which is exactly why it needs no account, no approval and no public host.
 
 All list endpoints support `page`, `pageSize` (default 25, max 100), `sort`, and module-specific filters.
 
@@ -577,9 +643,9 @@ One-time ETL script, run against a frozen copy of `smartpaysolution`, idempotent
 
 | Phase | Contents |
 |---|---|
-| **1 (MVP, replaces v1)** | Auth/RBAC, Customers, Products, Contracts + schedule, Invoice (print), Payments, derived Recovery Ledger, Dashboard, Recycle Bin, Audit Log, Settings, migration ETL. |
-| **2** | Internal Summary Report with scenarios and persisted capital/expenses, server-side PDF, ledger snapshots archive, Top Performer / Client Profile modals. |
-| **3 (optional, previously out of scope)** | SMS/WhatsApp payment reminders driven by the installment schedule; multi-branch; customer-facing statement link. |
+| **1 (MVP, replaces v1)** | Auth/RBAC, Customers, Products, Contracts + schedule, Invoice (print), **WhatsApp deep link (Module 14 stage 1)**, Payments, derived Recovery Ledger, Dashboard, Recycle Bin, Audit Log, Settings, migration ETL. |
+| **2** | Internal Summary Report with scenarios and persisted capital/expenses, server-side PDF, ledger snapshots archive, Top Performer / Client Profile modals, **WhatsApp Cloud API with installment reminders (Module 14 stage 2)**. |
+| **3 (optional, previously out of scope)** | Multi-branch; customer-facing statement link. *(WhatsApp moved out of this row: stage 1 of Module 14 is Phase 1 because it costs nothing and needs no hosting, and stage 2 with the reminders is Phase 2.)* |
 
 ---
 
