@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { PrintLedgerButton } from "./print-button";
+import { LedgerActions } from "./ledger-actions";
 import { ApiError } from "@/api/api.repository";
 import { Icon } from "@/components/icons";
 import { PageContainer } from "@/components/page-container";
@@ -129,7 +129,7 @@ export default async function LedgerPage({
                 title={`Recovery ledger - ${contract.customer_name}`}
                 description={`Contract # ${contract.id} · ${contract.product_name} · ${formatDate(contract.start_date)} to ${formatDate(contract.end_date)}`}
                 actions={
-                    <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="flex flex-col gap-2 sm:flex-row print-hide">
                         <ButtonLink
                             href={`/payments?contract_id=${contract.id}`}
                             variant="secondary"
@@ -138,7 +138,7 @@ export default async function LedgerPage({
                             <Icon name="creditCard" className="size-4" />
                             Payments
                         </ButtonLink>
-                        <PrintLedgerButton />
+                        <LedgerActions ledger={ledger} />
                     </div>
                 }
             />
@@ -281,12 +281,12 @@ export default async function LedgerPage({
             </div>
 
             {/* FR-REC-03 */}
-            <Card className="overflow-x-auto">
+            <Card className="overflow-x-auto print:overflow-visible">
                 <CardHeader
                     title="Month by month"
                     description="Payments applied oldest due date first (BR-13); a row is graded by the payment that completed it."
                 />
-                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[860px] border-collapse text-left text-sm print:min-w-0 print:text-[9px]">
                     <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
                         <tr>
                             <th className="px-4 py-3 font-medium">#</th>

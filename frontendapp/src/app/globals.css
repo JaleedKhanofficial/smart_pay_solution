@@ -193,10 +193,35 @@ body {
 }
 
 @media print {
+    /*
+     * Paper has no appearance setting. Forcing only the page white — which is
+     * what this block did at first — left every token dark, so a dark-mode
+     * screen printed white text on white paper and came out blank apart from
+     * the few tinted panels. The tokens themselves have to come back to their
+     * light values, and this block is last in the file so it wins over both
+     * dark selectors above.
+     *
+     * Same values as the `:root` light block; CSS has no include, so if you
+     * change one, change the other.
+     */
+    :root,
+    :root[data-theme="dark"],
+    :root:not([data-theme="light"]) {
+        --background: #f4f6fa;
+        --surface: #ffffff;
+        --surface-muted: #fafbfc;
+        --foreground: #000000;
+        --muted: #475467;
+        --border: #e3e6ea;
+        --brand-ink: #0b5e80;
+        --positive: #067647;
+        --negative: #b42318;
+    }
+
     html,
     body {
         background: #ffffff !important;
-        color: #0f172a;
+        color: #000000;
     }
 
     /* Screens that also print — the recovery ledger — stay inside the app
