@@ -1,5 +1,10 @@
 import { buildSchedule } from './contract';
-import { applyFifo, outstandingOf, type ScheduleRow } from './ledger';
+import {
+  applyFifo,
+  matureProfit,
+  outstandingOf,
+  type ScheduleRow,
+} from './ledger';
 import { toPaisa } from './money';
 
 /** The §O worked plan: 500,000 financed over 10 months, 50,000 each. */
@@ -104,5 +109,56 @@ describe('outstandingOf (BR-12)', () => {
 
   it('is the balance while money is still owed', () => {
     expect(outstandingOf(toPaisa(1_000), toPaisa(400))).toBe(toPaisa(600));
+  });
+});
+
+describe('matureProfit (BR-09)', () => {
+  /** The §O plan: sale 500,000, down 100,000, markup 100,000, financed 500,000. */
+  const terms = {
+    sale_price: 500_000,
+    down_payment: 100_000,
+    markup_amount: 100_000,
+  };
+
+  it('earns nothing until the investment is repaid', () => {
+    const result = matureProfit({ ...terms, paid: toPaisa(400_000) });
+
+    expect(result.investment).toBe(toPaisa(400_000));
+    expect(result.mature).toBe(0);
+    expect(result.unmatured).toBe(toPaisa(100_000));
+  });
+
+  it('counts only what arrives beyond the investment', () => {
+    const result = matureProfit({ ...terms, paid: toPaisa(430_000) });
+
+    expect(result.mature).toBe(toPaisa(30_000));
+    expect(result.unmatured).toBe(toPaisa(70_000));
+  });
+
+  it('caps at the markup — the plan cannot earn more than it charges', () => {
+    const result = matureProfit({ ...terms, paid: toPaisa(500_000) });
+
+    expect(result.mature).toBe(toPaisa(100_000));
+    expect(result.unmatured).toBe(0);
+  });
+
+  it('always reconciles: mature plus unmatured is the markup', () => {
+    for (const paid of [0, 150_000, 400_000, 455_000, 500_000]) {
+      const result = matureProfit({ ...terms, paid: toPaisa(paid) });
+
+      expect(result.mature + result.unmatured).toBe(toPaisa(100_000));
+    }
+  });
+
+  it('treats a down payment above the sale price as nothing left to recover', () => {
+    const result = matureProfit({
+      sale_price: 10_000,
+      down_payment: 12_000,
+      markup_amount: 2_000,
+      paid: toPaisa(500),
+    });
+
+    expect(result.investment).toBe(0);
+    expect(result.mature).toBe(toPaisa(500));
   });
 });

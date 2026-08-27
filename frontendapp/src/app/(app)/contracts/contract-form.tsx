@@ -322,7 +322,7 @@ export function ContractForm({
                        than blanked — blanking on every keystroke makes the
                        panel flash and tells the operator nothing. */
                     <div className={stale ? "opacity-50 transition-opacity" : ""}>
-                        <dl className="grid gap-4 px-4 py-4 sm:grid-cols-3 sm:px-5 lg:grid-cols-4">
+                        <dl className="grid gap-4 px-4 py-4 sm:grid-cols-3 sm:px-5 lg:grid-cols-5">
                             <Figure
                                 label="Profit"
                                 value={pkr(preview.markup_amount)}

@@ -105,6 +105,34 @@ export function outstandingOf(financed: Paisa, paid: Paisa): Paisa {
   return Math.max(0, financed - paid);
 }
 
+/**
+ * BR-09. Profit maturity, carried over from v1.
+ *
+ * A customer's payments repay what the business put in before any of them
+ * count as earnings: `investment` is the sale price less the down payment
+ * already in hand, and only what arrives beyond that is profit — capped at the
+ * markup, because the markup is all there is to earn.
+ *
+ * The three figures always reconcile: `mature + unmatured === markup`.
+ */
+export function matureProfit(terms: {
+  sale_price: string | number;
+  down_payment: string | number;
+  markup_amount: string | number;
+  paid: Paisa;
+}): { investment: Paisa; mature: Paisa; unmatured: Paisa } {
+  const investment = Math.max(
+    0,
+    toPaisa(terms.sale_price) - toPaisa(terms.down_payment),
+  );
+  const markup = toPaisa(terms.markup_amount);
+
+  const excess = Math.max(0, terms.paid - investment);
+  const mature = Math.min(excess, markup);
+
+  return { investment, mature, unmatured: markup - mature };
+}
+
 /** Convenience for a response: the same figure as a money string. */
 export function outstandingAmount(
   financed: string | number,
