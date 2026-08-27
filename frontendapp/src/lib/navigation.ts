@@ -130,13 +130,9 @@ export const NAVIGATION: NavSection[] = [
                 href: "/settings/recycle-bin",
                 icon: "trash",
                 roles: ["admin"],
-                built: false,
+                built: true,
                 summary: "Restore or purge soft-deleted records.",
-                capabilities: [
-                    "FR-BIN-01 — deleted customers, products, contracts and voided payments",
-                    "FR-BIN-02 — restore, blocked when it would break uniqueness",
-                    "FR-BIN-03 — purge behind typed confirmation, audit-logged",
-                ],
+                capabilities: [],
             },
             {
                 module: 11,
