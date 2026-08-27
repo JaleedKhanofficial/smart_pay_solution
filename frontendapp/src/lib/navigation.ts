@@ -120,13 +120,9 @@ export const NAVIGATION: NavSection[] = [
                 href: "/settings/users",
                 icon: "shield",
                 roles: ["admin"],
-                built: false,
+                built: true,
                 summary: "Staff accounts and roles.",
-                capabilities: [
-                    "FR-USR-01 — list, create, edit, disable, soft-delete",
-                    "FR-USR-02-v2 — Argon2id passwords, minimum 10 characters",
-                    "FR-USR-03 — an admin cannot demote or disable themselves",
-                ],
+                capabilities: [],
             },
             {
                 module: 10,
