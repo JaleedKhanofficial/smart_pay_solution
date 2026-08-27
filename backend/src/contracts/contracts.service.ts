@@ -17,9 +17,9 @@ import {
   Installment,
   Payment,
   Product,
-  Setting,
 } from '../database/entities';
 import { buildLedger, priceContract, toAmount, toPaisa } from '../formulas';
+import { SettingsService } from '../settings/settings.service';
 import {
   toAuditSnapshot,
   toContractDetailResponse,
@@ -36,11 +36,7 @@ import {
 } from './contract.query';
 import { toCustomerResponse } from '../customers/customer.mapper';
 import { toLedgerResponse, type LedgerResponse } from './ledger.mapper';
-import {
-  BUSINESS_IDENTITY_KEY,
-  toBusinessIdentity,
-  type InvoiceResponse,
-} from './invoice.mapper';
+import type { InvoiceResponse } from './invoice.mapper';
 import {
   CreateContractDto,
   PreviewContractDto,
@@ -86,10 +82,9 @@ export class ContractsService {
     private readonly products: Repository<Product>,
     @InjectRepository(Payment)
     private readonly payments: Repository<Payment>,
-    @InjectRepository(Setting)
-    private readonly settings: Repository<Setting>,
     private readonly dataSource: DataSource,
     private readonly audit: AuditService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   /** FR-CON-03-v2, FR-CON-05-v2: priced, scheduled and activated in one transaction. */
@@ -212,11 +207,19 @@ export class ContractsService {
       select: { id: true, amount: true, payment_date: true },
     });
 
-    const report = buildLedger(contract.installments ?? [], payments, {
-      net_amount: contract.net_amount,
-      down_payment: contract.down_payment,
-      financed_amount: contract.financed_amount,
-    });
+    const { punctuality_thresholds, loyalty } =
+      await this.settingsService.getMany(['punctuality_thresholds', 'loyalty']);
+
+    const report = buildLedger(
+      contract.installments ?? [],
+      payments,
+      {
+        net_amount: contract.net_amount,
+        down_payment: contract.down_payment,
+        financed_amount: contract.financed_amount,
+      },
+      { thresholds: punctuality_thresholds, loyalty },
+    );
 
     return toLedgerResponse(toContractResponse(contract), report);
   }
@@ -243,16 +246,12 @@ export class ContractsService {
       );
     }
 
-    const identity = await this.settings.findOne({
-      where: { key: BUSINESS_IDENTITY_KEY },
-    });
-
     return {
       // NFR-15 does not apply to the operator printing this: cost equals the
       // sale price now (§2.7 item 15). The document itself prints neither.
       contract: toContractDetailResponse(contract, { include_cost: true }),
       customer: toCustomerResponse(customer),
-      business: toBusinessIdentity(identity?.value),
+      business: await this.settingsService.get('business_identity'),
       issued_at: new Date().toISOString(),
     };
   }
@@ -576,10 +575,11 @@ export class ContractsService {
 
   /** FR-SET-01: the plan range is a setting, not a constant. */
   private async assertPlanMonthsAllowed(plan_months: number): Promise<void> {
-    const [min, max] = await Promise.all([
-      this.settingNumber('plan_months_min', 1),
-      this.settingNumber('plan_months_max', 20),
-    ]);
+    const { plan_months_min: min, plan_months_max: max } =
+      await this.settingsService.getMany([
+        'plan_months_min',
+        'plan_months_max',
+      ]);
 
     if (plan_months < min || plan_months > max) {
       throw new BadRequestException({
@@ -589,13 +589,6 @@ export class ContractsService {
         field_errors: { plan_months: `Between ${min} and ${max} months` },
       });
     }
-  }
-
-  private async settingNumber(key: string, fallback: number): Promise<number> {
-    const row = await this.settings.findOne({ where: { key } });
-    const value = row?.value as unknown;
-
-    return typeof value === 'number' ? value : fallback;
   }
 
   // ------------------------------------------------------------------ reads --

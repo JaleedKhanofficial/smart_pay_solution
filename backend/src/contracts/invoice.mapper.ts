@@ -2,9 +2,10 @@ import type { CustomerResponse } from '../customers/customer.mapper';
 import type { ContractDetailResponse } from './contract.mapper';
 
 /**
- * FR-SET-01. The letterhead block. Module 12 will make these editable; until
- * then the defaults below ship with the build, and `business_identity` in the
- * settings table overrides any of them the moment a row exists.
+ * FR-SET-01. The letterhead block, and the values that apply until an admin
+ * sets their own. The key name, the validation and the editing all live in the
+ * settings registry now — this file keeps only the shape and the fallback,
+ * because the invoice is what they are for.
  */
 export type BusinessIdentity = {
   name: string;
@@ -22,9 +23,6 @@ export const DEFAULT_BUSINESS_IDENTITY: BusinessIdentity = {
   email: '',
 };
 
-/** The settings key Module 12 will write. */
-export const BUSINESS_IDENTITY_KEY = 'business_identity';
-
 /**
  * FR-INV-01..05, FR-INV-07. Everything the printed agreement needs, in one
  * call: the deal, the schedule, the customer with both guarantors, and the
@@ -41,24 +39,3 @@ export type InvoiceResponse = {
   /** Stamped by the server so two prints of the same contract agree. */
   issued_at: string;
 };
-
-/** Unknown keys in the stored value are ignored; missing ones fall back. */
-export function toBusinessIdentity(
-  stored: Record<string, unknown> | undefined,
-): BusinessIdentity {
-  const text = (key: keyof BusinessIdentity): string => {
-    const value = stored?.[key];
-
-    return typeof value === 'string' && value.trim() !== ''
-      ? value.trim()
-      : DEFAULT_BUSINESS_IDENTITY[key];
-  };
-
-  return {
-    name: text('name'),
-    tagline: text('tagline'),
-    address: text('address'),
-    phone: text('phone'),
-    email: text('email'),
-  };
-}

@@ -20,26 +20,53 @@ export type PunctualityBand = {
   to: number | null;
 };
 
-export const PUNCTUALITY_BANDS: PunctualityBand[] = [
-  { key: 'early', label: 'Early — Excellent', from: 0, to: 4 },
-  { key: 'on_time', label: 'On Time', from: 5, to: 9 },
-  { key: 'slight_delay', label: 'Slight Delay', from: 10, to: 14 },
-  { key: 'late', label: 'Late', from: 15, to: 19 },
-  { key: 'very_late', label: 'Very Late', from: 20, to: 24 },
-  { key: 'overdue', label: 'Overdue', from: 25, to: null },
+const BAND_LABELS: { key: PunctualityBand['key']; label: string }[] = [
+  { key: 'early', label: 'Early — Excellent' },
+  { key: 'on_time', label: 'On Time' },
+  { key: 'slight_delay', label: 'Slight Delay' },
+  { key: 'late', label: 'Late' },
+  { key: 'very_late', label: 'Very Late' },
+  { key: 'overdue', label: 'Overdue' },
 ];
+
+/** The inclusive upper bound of each band but the last, in days late. */
+export type PunctualityThresholds = [number, number, number, number, number];
+
+export const DEFAULT_THRESHOLDS: PunctualityThresholds = [4, 9, 14, 19, 24];
+
+/**
+ * BR-06-v2. Six bands from five bounds: the last is open-ended, and the first
+ * absorbs everything below it so paying early cannot fall off the scale.
+ *
+ * A function of the bounds rather than a constant, because FR-SET-01 makes the
+ * boundaries configurable. The labels are fixed; only where they divide moves.
+ */
+export function buildBands(
+  thresholds: PunctualityThresholds = DEFAULT_THRESHOLDS,
+): PunctualityBand[] {
+  return BAND_LABELS.map((band, index) => ({
+    ...band,
+    from: index === 0 ? 0 : thresholds[index - 1] + 1,
+    to: index < thresholds.length ? thresholds[index] : null,
+  }));
+}
+
+export const PUNCTUALITY_BANDS: PunctualityBand[] = buildBands();
 
 /**
  * Paying *before* the due date is at least as good as paying on it, so a
  * negative lateness falls in the first band rather than off the scale.
  */
-export function bandFor(days_late: number): PunctualityBand {
-  const found = PUNCTUALITY_BANDS.find(
+export function bandFor(
+  days_late: number,
+  bands: PunctualityBand[] = PUNCTUALITY_BANDS,
+): PunctualityBand {
+  const found = bands.find(
     (band) =>
       days_late >= band.from && (band.to === null || days_late <= band.to),
   );
 
-  return found ?? PUNCTUALITY_BANDS[0];
+  return found ?? bands[0];
 }
 
 /** FR-REC-03. What a scheduled month is doing. */
@@ -118,6 +145,24 @@ export type LedgerReport = {
   distribution: { band: PunctualityBand; count: number }[];
 };
 
+/** BR-07, configurable per FR-SET-01. Where the boundaries sit, and the
+ *  reduction each tier advises. */
+export type LoyaltyRules = {
+  gold_min_within_pct: number;
+  silver_max_late_pct: number;
+  platinum_reduction_pct: number;
+  gold_reduction_pct: number;
+  silver_reduction_pct: number;
+};
+
+export const DEFAULT_LOYALTY_RULES: LoyaltyRules = {
+  gold_min_within_pct: 80,
+  silver_max_late_pct: 50,
+  platinum_reduction_pct: 5,
+  gold_reduction_pct: 3,
+  silver_reduction_pct: 1,
+};
+
 const AWAITING: LoyaltyTier = {
   key: 'awaiting',
   label: 'Awaiting data',
@@ -127,7 +172,10 @@ const AWAITING: LoyaltyTier = {
 };
 
 /** BR-07, in the order the rule states — the first test that passes wins. */
-export function awardTier(bands: PunctualityBand[]): LoyaltyTier {
+export function awardTier(
+  bands: PunctualityBand[],
+  rules: LoyaltyRules = DEFAULT_LOYALTY_RULES,
+): LoyaltyTier {
   if (bands.length === 0) return AWAITING;
 
   const share = (predicate: (band: PunctualityBand) => boolean): number =>
@@ -146,28 +194,27 @@ export function awardTier(bands: PunctualityBand[]): LoyaltyTier {
     return {
       key: 'platinum',
       label: 'Platinum',
-      reduction_pct: 5,
-      behaviour: 'Every installment settled within four days of its due date.',
+      reduction_pct: rules.platinum_reduction_pct,
+      behaviour: 'Every installment settled inside the first punctuality band.',
       reward: 'A 5% reduction may be offered on the next contract.',
     };
   }
 
-  if (withinOnTime >= 0.8) {
+  if (withinOnTime * 100 >= rules.gold_min_within_pct) {
     return {
       key: 'gold',
       label: 'Gold',
-      reduction_pct: 3,
-      behaviour:
-        'At least four installments in five settled within nine days of their due date.',
+      reduction_pct: rules.gold_reduction_pct,
+      behaviour: `At least ${rules.gold_min_within_pct}% of installments settled inside the first two punctuality bands.`,
       reward: 'A 3% reduction may be offered on the next contract.',
     };
   }
 
-  if (atFifteenPlus < 0.5) {
+  if (atFifteenPlus * 100 < rules.silver_max_late_pct) {
     return {
       key: 'silver',
       label: 'Silver',
-      reduction_pct: 1,
+      reduction_pct: rules.silver_reduction_pct,
       behaviour:
         'Most installments settled inside a fortnight, with some running late.',
       reward: 'A 1% reduction may be offered on the next contract.',
@@ -178,8 +225,7 @@ export function awardTier(bands: PunctualityBand[]): LoyaltyTier {
     key: 'caution',
     label: 'Caution',
     reduction_pct: 0,
-    behaviour:
-      'Half or more of the installments settled fifteen days or later after their due date.',
+    behaviour: `${rules.silver_max_late_pct}% or more of the installments settled in the late bands.`,
     reward: 'Stricter terms are advised, and a guarantor is recommended.',
   };
 }
@@ -195,6 +241,12 @@ export function awardTier(bands: PunctualityBand[]): LoyaltyTier {
  * Voided payments must be filtered out by the caller: this function has no
  * notion of a void, only of money that arrived.
  */
+/** FR-SET-01. Omitted, the rules published in BR-06-v2 and BR-07 apply. */
+export type RecoveryConfig = {
+  thresholds?: PunctualityThresholds;
+  loyalty?: LoyaltyRules;
+};
+
 export function buildLedger(
   schedule: LedgerScheduleRow[],
   payments: LedgerPayment[],
@@ -203,7 +255,9 @@ export function buildLedger(
     down_payment: string | number;
     financed_amount: string | number;
   },
+  config: RecoveryConfig = {},
 ): LedgerReport {
+  const bandScale = buildBands(config.thresholds);
   const orderedSchedule = [...schedule].sort((a, b) => a.seq - b.seq);
 
   // Oldest money first, and `id` breaks a same-day tie so the reading is
@@ -269,7 +323,7 @@ export function buildLedger(
       completed_on: completedOn,
       completed_by_payment_id: completedBy,
       days_late,
-      band: days_late === null ? null : bandFor(days_late),
+      band: days_late === null ? null : bandFor(days_late, bandScale),
     };
   });
 
@@ -295,8 +349,8 @@ export function buildLedger(
           : Math.min(100, (paid / financed) * 100).toFixed(2),
       net_days: completed.reduce((sum, row) => sum + (row.days_late ?? 0), 0),
     },
-    tier: awardTier(bands),
-    distribution: PUNCTUALITY_BANDS.map((band) => ({
+    tier: awardTier(bands, config.loyalty),
+    distribution: bandScale.map((band) => ({
       band,
       count: bands.filter((row) => row.key === band.key).length,
     })),

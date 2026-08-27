@@ -10,8 +10,9 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { ContractStatus } from '../common/enums';
 import { paginate, type Paginated } from '../common/pagination';
-import { Contract, Payment, Setting } from '../database/entities';
+import { Contract, Payment } from '../database/entities';
 import { applyFifo, outstandingOf, toAmount, toPaisa } from '../formulas';
+import { SettingsService } from '../settings/settings.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ListPaymentsDto } from './dto/list-payments.dto';
 import { VoidPaymentDto } from './dto/void-payment.dto';
@@ -32,8 +33,6 @@ import {
   type PaymentWriteResult,
 } from './payment.mapper';
 
-const ALLOW_OVERPAYMENT_KEY = 'allow_overpayment';
-
 /** Contract 7 reads as SPS-0007, matching the printed agreement. */
 function reference(id: number): string {
   return `SPS-${String(id).padStart(4, '0')}`;
@@ -47,10 +46,9 @@ export class PaymentsService {
     private readonly payments: Repository<Payment>,
     @InjectRepository(Contract)
     private readonly contracts: Repository<Contract>,
-    @InjectRepository(Setting)
-    private readonly settings: Repository<Setting>,
     private readonly dataSource: DataSource,
     private readonly audit: AuditService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ----------------------------------------------------------- reads --
@@ -360,12 +358,8 @@ export class PaymentsService {
     }
   }
 
-  private async overpaymentAllowed(): Promise<boolean> {
-    const row = await this.settings.findOne({
-      where: { key: ALLOW_OVERPAYMENT_KEY },
-    });
-
-    return (row?.value as unknown) === true;
+  private overpaymentAllowed(): Promise<boolean> {
+    return this.settings.get('allow_overpayment');
   }
 
   /** Total of non-voided payments, in paisa. The only definition of "paid". */

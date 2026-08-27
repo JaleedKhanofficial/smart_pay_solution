@@ -3,6 +3,7 @@ import { toPaisa } from './money';
 import {
   awardTier,
   bandFor,
+  buildBands,
   buildLedger,
   PUNCTUALITY_BANDS,
   type LedgerPayment,
@@ -86,6 +87,73 @@ describe('awardTier (BR-07)', () => {
 
   it('never auto-applies: the reduction is advisory', () => {
     expect(awardTier([band('early')]).reward).toMatch(/may be offered/);
+  });
+});
+
+describe('configurable thresholds (FR-SET-01)', () => {
+  it('rebuilds the bands from the given bounds, last one open-ended', () => {
+    const bands = buildBands([0, 2, 5, 10, 20]);
+
+    expect(bands.map((band) => [band.from, band.to])).toEqual([
+      [0, 0],
+      [1, 2],
+      [3, 5],
+      [6, 10],
+      [11, 20],
+      [21, null],
+    ]);
+    // The labels are fixed; only where they divide moves.
+    expect(bands[0].key).toBe('early');
+    expect(bands[5].key).toBe('overdue');
+  });
+
+  it('grades the same lateness differently under tighter bounds', () => {
+    const tight = buildBands([0, 2, 5, 10, 20]);
+
+    expect(bandFor(3).key).toBe('early');
+    expect(bandFor(3, tight).key).toBe('slight_delay');
+  });
+
+  it('lets the ledger be graded by configured bounds', () => {
+    const relaxed = buildLedger(
+      SCHEDULE,
+      [payment(1, 5_500, '2026-10-04')],
+      TOTALS,
+    );
+    const strict = buildLedger(
+      SCHEDULE,
+      [payment(1, 5_500, '2026-10-04')],
+      TOTALS,
+      { thresholds: [0, 2, 5, 10, 20] },
+    );
+
+    // Four days late: inside the default first band, well outside a tight one.
+    expect(relaxed.rows[0].band?.key).toBe('early');
+    expect(relaxed.tier.key).toBe('platinum');
+    expect(strict.rows[0].band?.key).toBe('slight_delay');
+    expect(strict.tier.key).toBe('silver');
+  });
+
+  it('moves the tier boundaries and the advised reductions', () => {
+    const bands = buildBands();
+
+    // Four of five inside the first two bands — exactly the default Gold bar.
+    const history = [bands[0], bands[0], bands[0], bands[1], bands[2]];
+
+    expect(awardTier(history).key).toBe('gold');
+    expect(awardTier(history).reduction_pct).toBe(3);
+
+    // Raising the bar to every row pushes the same history down to Silver.
+    const strict = awardTier(history, {
+      gold_min_within_pct: 100,
+      silver_max_late_pct: 50,
+      platinum_reduction_pct: 9,
+      gold_reduction_pct: 6,
+      silver_reduction_pct: 2,
+    });
+
+    expect(strict.key).toBe('silver');
+    expect(strict.reduction_pct).toBe(2);
   });
 });
 

@@ -6,7 +6,6 @@ import {
   Installment,
   Payment,
   Product,
-  Setting,
 } from '../database/entities';
 import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
@@ -20,7 +19,6 @@ import { ContractsService } from './contracts.service';
       Customer,
       Product,
       Payment,
-      Setting,
     ]),
   ],
   controllers: [ContractsController],
