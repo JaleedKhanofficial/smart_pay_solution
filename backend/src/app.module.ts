@@ -11,6 +11,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ReportsModule } from './reports/reports.module';
 import { RecycleBinModule } from './recycle-bin/recycle-bin.module';
 import { SettingsModule } from './settings/settings.module';
 import { CustomersModule } from './customers/customers.module';
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module';
     DashboardModule,
     ContractsModule,
     PaymentsModule,
+    ReportsModule,
     RecycleBinModule,
     SettingsModule,
   ],
