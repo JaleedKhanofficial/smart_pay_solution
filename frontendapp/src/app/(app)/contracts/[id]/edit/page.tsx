@@ -40,7 +40,7 @@ export default async function EditContractPage({
         <PageContainer>
             <PageHeader
                 eyebrow="Module 4"
-                title={`Contract #${contract.id}`}
+                title={`Contract # ${contract.id}`}
                 description={`${contract.customer_name}  |  ${contract.product_name}  |  Started ${formatDate(contract.start_date)}`}
             />
 

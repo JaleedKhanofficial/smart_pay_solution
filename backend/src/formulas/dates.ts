@@ -64,6 +64,27 @@ export function addMonths(date: IsoDate, months: number): IsoDate {
 }
 
 /**
+ * Whole days from `from` to `to`, signed: negative means `to` is earlier.
+ *
+ * Counted through a UTC epoch rather than local `Date` arithmetic, which is
+ * the trap this package exists to avoid — a local midnight shifts by the
+ * viewer's zone and would put a payment a day late in Karachi and on time in
+ * London. y/m/d in, an integer out, no zone anywhere.
+ */
+export function daysBetween(from: IsoDate, to: IsoDate): number {
+  const a = parseIsoDate(from);
+  const b = parseIsoDate(to);
+
+  const MS_PER_DAY = 86_400_000;
+
+  return Math.round(
+    (Date.UTC(b.year, b.month - 1, b.day) -
+      Date.UTC(a.year, a.month - 1, a.day)) /
+      MS_PER_DAY,
+  );
+}
+
+/**
  * BR-05. Installment `seq` falls due on the **first day of the seq-th month
  * after the agreement month** — so an agreement signed any day in May has its
  * first installment due on 1 June, and the signing day never matters.

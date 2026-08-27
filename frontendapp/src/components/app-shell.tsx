@@ -186,9 +186,10 @@ export function AppShell({
     );
 
     return (
-        <div className="flex min-h-dvh bg-background">
+        <div className="flex min-h-dvh bg-background print:block print:min-h-0">
             {/* Desktop rail */}
             <aside
+                data-app-chrome
                 className={`fixed inset-y-0 left-0 z-30 hidden flex-col bg-chrome-900 transition-[width] duration-200 lg:flex ${
                     collapsed ? "w-16" : "w-60"
                 }`}
@@ -243,7 +244,10 @@ export function AppShell({
             >
                 {/* Dark chrome continues across the top bar; the content area
                     below stays light so records remain easy to read. */}
-                <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-white/10 bg-chrome-900 px-4 sm:px-6">
+                <header
+                    data-app-chrome
+                    className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-white/10 bg-chrome-900 px-4 sm:px-6"
+                >
                     <button
                         type="button"
                         onClick={() => setMobileOpen(true)}

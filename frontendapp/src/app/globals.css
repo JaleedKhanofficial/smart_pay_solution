@@ -199,6 +199,14 @@ body {
         color: #0f172a;
     }
 
+    /* Screens that also print — the recovery ledger — stay inside the app
+       shell so staff keep their navigation, and shed it on paper. The invoice
+       needs none of this: it has its own route group and no shell at all. */
+    [data-app-chrome],
+    .print-hide {
+        display: none !important;
+    }
+
     /* Keep the headline strip and table rules — without this most browsers
        drop every background and the document loses its structure. */
     .sps-sheet,

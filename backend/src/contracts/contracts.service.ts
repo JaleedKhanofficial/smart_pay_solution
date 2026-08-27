@@ -19,7 +19,7 @@ import {
   Product,
   Setting,
 } from '../database/entities';
-import { priceContract, toAmount, toPaisa } from '../formulas';
+import { buildLedger, priceContract, toAmount, toPaisa } from '../formulas';
 import {
   toAuditSnapshot,
   toContractDetailResponse,
@@ -35,6 +35,7 @@ import {
   PRODUCT_ALIAS,
 } from './contract.query';
 import { toCustomerResponse } from '../customers/customer.mapper';
+import { toLedgerResponse, type LedgerResponse } from './ledger.mapper';
 import {
   BUSINESS_IDENTITY_KEY,
   toBusinessIdentity,
@@ -193,6 +194,31 @@ export class ContractsService {
     return toContractDetailResponse(contract, {
       include_cost: this.maySeeCost(actor),
     });
+  }
+
+  /**
+   * FR-REC-01-v2 … FR-REC-06. The recovery ledger, derived from the schedule
+   * and the payments table — never stored, so it cannot disagree with the
+   * money. This is the fix for v1 §9.2, where the workbook was hand-typed.
+   *
+   * Voided payments are excluded here rather than inside the formula, which
+   * has no notion of a void: what it grades is money that arrived.
+   */
+  async ledger(id: number): Promise<LedgerResponse> {
+    const contract = await this.loadOrFail(id);
+
+    const payments = await this.payments.find({
+      where: { contract_id: id },
+      select: { id: true, amount: true, payment_date: true },
+    });
+
+    const report = buildLedger(contract.installments ?? [], payments, {
+      net_amount: contract.net_amount,
+      down_payment: contract.down_payment,
+      financed_amount: contract.financed_amount,
+    });
+
+    return toLedgerResponse(toContractResponse(contract), report);
   }
 
   /**

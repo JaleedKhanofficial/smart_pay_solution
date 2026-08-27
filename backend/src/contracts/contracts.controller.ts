@@ -30,6 +30,7 @@ import {
   PreviewContractDto,
 } from './dto/create-contract.dto';
 import { ListContractsDto } from './dto/list-contracts.dto';
+import type { LedgerResponse } from './ledger.mapper';
 import type { InvoiceResponse } from './invoice.mapper';
 import { UpdateContractDto } from './dto/update-contract.dto';
 
@@ -68,6 +69,15 @@ export class ContractsController {
     @Query() query: ListContractsDto,
   ): Promise<Paginated<ContractResponse>> {
     return this.contracts.findAll(query);
+  }
+
+  /** FR-REC-01-v2 / §7. The derived recovery ledger for one contract. */
+  @Get(':id/ledger')
+  @ApiOperation({
+    summary: 'Recovery ledger: per-month grading, summary and loyalty tier',
+  })
+  ledger(@Param('id', ParseIntPipe) id: number): Promise<LedgerResponse> {
+    return this.contracts.ledger(id);
   }
 
   /** FR-INV-01..05 / §7. Everything the printed agreement renders. */

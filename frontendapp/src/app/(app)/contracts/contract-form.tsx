@@ -324,9 +324,9 @@ export function ContractForm({
                     <div className={stale ? "opacity-50 transition-opacity" : ""}>
                         <dl className="grid gap-4 px-4 py-4 sm:grid-cols-3 sm:px-5 lg:grid-cols-4">
                             <Figure
-                                label="Markup"
+                                label="Profit"
                                 value={pkr(preview.markup_amount)}
-                                hint={`${preview.markup_pct}% of purchase`}
+                                hint={`${preview.markup_pct} % of purchase`}
                             />
                             <Figure
                                 label="Net amount"

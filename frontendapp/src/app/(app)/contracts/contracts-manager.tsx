@@ -386,6 +386,16 @@ export default function ContractsManager({
 
                             <div className="mt-3 flex justify-end gap-2 border-t border-border pt-3">
                                 <ButtonLink
+                                    href={`/contracts/${contract.id}/ledger`}
+                                    variant="secondary"
+                                    size="sm"
+                                    iconOnly
+                                    aria-label={`Recovery ledger for contract ${contract.id}`}
+                                    title="Recovery ledger"
+                                >
+                                    <Icon name="trendingUp" className="size-4" />
+                                </ButtonLink>
+                                <ButtonLink
                                     href={`/contracts/${contract.id}/invoice`}
                                     variant="secondary"
                                     size="sm"
@@ -560,6 +570,19 @@ export default function ContractsManager({
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex justify-end gap-2">
+                                            <ButtonLink
+                                                href={`/contracts/${contract.id}/ledger`}
+                                                variant="secondary"
+                                                size="sm"
+                                                iconOnly
+                                                aria-label={`Recovery ledger for contract ${contract.id}`}
+                                                title="Recovery ledger"
+                                            >
+                                                <Icon
+                                                    name="trendingUp"
+                                                    className="size-4"
+                                                />
+                                            </ButtonLink>
                                             <ButtonLink
                                                 href={`/contracts/${contract.id}/invoice`}
                                                 variant="secondary"
