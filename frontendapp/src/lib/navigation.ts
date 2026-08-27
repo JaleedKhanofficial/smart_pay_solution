@@ -144,13 +144,9 @@ export const NAVIGATION: NavSection[] = [
                 href: "/settings/audit",
                 icon: "history",
                 roles: ["admin"],
-                built: false,
+                built: true,
                 summary: "Append-only record of every write.",
-                capabilities: [
-                    "FR-AUD-01 — actor, entity, before/after diff, timestamp, IP",
-                    "FR-AUD-02 — filter by entity, actor, action and date range",
-                    "Auth events are already being recorded",
-                ],
+                capabilities: [],
             },
             {
                 module: 12,

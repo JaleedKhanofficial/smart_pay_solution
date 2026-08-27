@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Document version** | 2.14 |
+| **Document version** | 2.15 |
 | **Date** | 08-17-2026, amended 08-25-2026 |
-| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. 2.6 — CNIC front/back on customers and guarantors; `files` keyed by integer with owner columns and no FK (deviations 11–12). 2.7 — Module 4 built; the plan preview is priced server-side and pickers read unpaged lookups (deviations 13–14). 2.8 — one purchase price replaces the cost/sale pair, settling amendment questions 6 and 9 (deviation 15); the markup rupee override leaves the form (deviation 16). 2.9 — Module 5 built: the agreement prints white-on-navy from its own route group, and the 16 clauses ship as replaceable defaults (deviations 17–18). 2.11 — Modules 6 and 7 built; the ledger downloads as a data-built PDF and print no longer inherits dark mode (deviations 19–20). 2.12 — Module 12 built on a typed settings registry; the punctuality bands and loyalty tiers became configurable (deviations 21–22). 2.13 — Module 1 built; BR-09 profit maturity moved into the formula package. 2.14 — Module 9 built; the role split verified end to end against a real operator token (deviation 23). 2.10 — Module 14 (Customer Messaging / WhatsApp) added in two stages, with BR-27 and `message_log`. |
+| **Amendments** | 2.1 — added NFR-12 and §8.1, responsive layout. 2.2 — added §2.7 as-built deviations, §8.2 list-screen conventions (NFR-13) and §8.3 interface system (NFR-14). 2.3 — ORM changed from Prisma to TypeORM; added §2.8 persistence layer. 2.4 — identity updated to the navy/sky logo palette; all data-shape names follow the database columns; all primary keys sequential. 2.5 — Module 3 built; deviations 8–10 added. 2.6 — CNIC front/back on customers and guarantors; `files` keyed by integer with owner columns and no FK (deviations 11–12). 2.7 — Module 4 built; the plan preview is priced server-side and pickers read unpaged lookups (deviations 13–14). 2.8 — one purchase price replaces the cost/sale pair, settling amendment questions 6 and 9 (deviation 15); the markup rupee override leaves the form (deviation 16). 2.9 — Module 5 built: the agreement prints white-on-navy from its own route group, and the 16 clauses ship as replaceable defaults (deviations 17–18). 2.11 — Modules 6 and 7 built; the ledger downloads as a data-built PDF and print no longer inherits dark mode (deviations 19–20). 2.12 — Module 12 built on a typed settings registry; the punctuality bands and loyalty tiers became configurable (deviations 21–22). 2.13 — Module 1 built; BR-09 profit maturity moved into the formula package. 2.14 — Module 9 built; the role split verified end to end against a real operator token (deviation 23). 2.15 — Module 11 built: the viewer computes the before/after diff server-side, and FR-AUD-03 is enforced by the controller having no write route at all. 2.10 — Module 14 (Customer Messaging / WhatsApp) added in two stages, with BR-27 and `message_log`. |
 | **Supersedes** | SRS 1.0 (08-14-2026, CodeIgniter 3 / MySQL as-built) |
 | **Status** | Target specification for the greenfield rebuild |
 
@@ -125,7 +125,7 @@ Any Docker-capable Linux host. Evergreen browsers. Internet access is not requir
 
 ### 2.7 As-built deviations
 
-Modules 1, 2, 3, 4, 5, 6, 7, 9 and 12 are built. These decisions differ from the text above; each was
+Modules 1, 2, 3, 4, 5, 6, 7, 9, 11 and 12 are built. These decisions differ from the text above; each was
 taken deliberately and each binds the modules still to come. They are recorded here so
 the document and the code stop disagreeing.
 
