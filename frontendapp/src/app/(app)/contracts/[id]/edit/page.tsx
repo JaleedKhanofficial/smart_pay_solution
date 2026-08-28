@@ -45,6 +45,9 @@ export default async function EditContractPage({
             />
 
             <ContractForm
+                /* BR-19. Funding is fixed at activation, so the edit form
+                   offers none — see FundingPanel. */
+                fundableInvestors={[]}
                 contract={contract}
                 customers={withCurrent(
                     customers,

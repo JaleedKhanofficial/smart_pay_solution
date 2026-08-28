@@ -124,6 +124,46 @@ export class InvestorsService {
     };
   }
 
+  /**
+   * FR-CON-11. Active investors with money to deploy, for the funding panel.
+   *
+   * Only those with an available balance: an investor who is fully deployed
+   * has nothing to offer this deal, and listing them at zero would invite an
+   * allocation the API would then refuse.
+   */
+  async fundable(): Promise<
+    {
+      id: number;
+      full_name: string;
+      profit_share_pct: string;
+      available: string;
+    }[]
+  > {
+    const rows = await this.investors.find({
+      where: { status: InvestorStatus.active },
+      order: { full_name: 'ASC' },
+    });
+
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((row) => row.id);
+    const ledgers = await this.ledgersFor(ids);
+    const deployments = await this.funding.deploymentsFor(ids);
+
+    return rows
+      .map((row) => ({
+        id: row.id,
+        full_name: row.full_name,
+        profit_share_pct: row.profit_share_pct,
+        available: bucketBalances(
+          ledgers.get(row.id) ?? [],
+          deployments.get(row.id) ?? NO_DEPLOYMENTS,
+        ).available,
+      }))
+      .filter((row) => row.available > 0)
+      .map((row) => ({ ...row, available: toAmount(row.available) }));
+  }
+
   /** FR-IVT-02 */
   async create(
     dto: CreateInvestorDto,

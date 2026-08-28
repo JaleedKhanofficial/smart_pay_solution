@@ -16,6 +16,7 @@ import {
 import {
   bucketBalances,
   fundingShare,
+  houseFunded,
   splitDeployment,
   splitRecovery,
   toAmount,
@@ -227,6 +228,32 @@ export class FundingService {
       share_override_reason: row.share_override_reason,
       funded_at: row.funded_at.toISOString(),
     }));
+  }
+
+  /**
+   * BR-14. What the house itself put in: the cost, less every investor stake.
+   *
+   * Read from the stored rows rather than remembered, because the funding is
+   * the authority — the contract carries no column for it, precisely so the
+   * two cannot drift apart.
+   */
+  async houseFundedFor(
+    contractId: number,
+    costPrice: string | number,
+  ): Promise<string> {
+    const rows = await this.fundings.find({
+      where: { contract_id: contractId },
+      select: { investor_id: true, amount: true },
+    });
+
+    // Only the amount matters to BR-14, so the row is narrowed to it rather
+    // than selecting six columns to satisfy a shape nothing here reads.
+    return toAmount(
+      houseFunded(
+        costPrice,
+        rows.map((row) => ({ amount: toPaisa(row.amount) }) as FundingRow),
+      ),
+    );
   }
 
   /**

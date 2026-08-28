@@ -76,6 +76,33 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
     "Cheque",
 ];
 
+/**
+ * FR-CON-11. An investor the funding panel may offer, with what they can
+ * actually deploy right now. Only investors with a balance appear.
+ */
+export type FundableInvestor = {
+    id: number;
+    full_name: string;
+    profit_share_pct: string;
+    available: string;
+};
+
+/** FR-CON-11. A funding line as stored — fixed at activation (FR-CON-15). */
+export type ContractFunding = {
+    id: number;
+    investor_id: number;
+    investor_name: string;
+    amount: string;
+    share_pct: string;
+    profit_share_pct: string;
+    funded_from_principal: string;
+    funded_from_profit: string;
+    /** BR-23. Recovered capital or matured profit paid for this. */
+    reinvested: boolean;
+    share_override_reason: string | null;
+    funded_at: string;
+};
+
 export type InvestorFilterValues = { search: string; status: string };
 export const EMPTY_FILTERS: InvestorFilterValues = { search: "", status: "" };
 

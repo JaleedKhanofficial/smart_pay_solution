@@ -1,4 +1,5 @@
 import { apiCall } from "@/lib/api";
+import type { FundableInvestor } from "@/types/investor";
 
 export type Option = { value: string; label: string };
 
@@ -52,4 +53,18 @@ export function withCurrent(
     return options.some((option) => option.value === value)
         ? options
         : [{ value, label: `${label} — no longer selectable` }, ...options];
+}
+
+/**
+ * FR-CON-11. Investors with capital to deploy, for the funding panel.
+ *
+ * Admin-only on the API (NFR-15), so an operator's call 403s — and that is
+ * handled the same way a failed lookup is: an empty list, which renders no
+ * funding card at all. The operator writes a house-funded contract, which is
+ * what FR-CON-13 says an unfunded contract is.
+ */
+export async function loadFundableInvestors(): Promise<FundableInvestor[]> {
+    return apiCall<FundableInvestor[]>("/investors/fundable").catch(
+        () => [] as FundableInvestor[]
+    );
 }

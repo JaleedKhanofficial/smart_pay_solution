@@ -180,18 +180,19 @@ export default async function InvestorPage({
                 </dl>
             </Card>
 
-            {/* FR-IVT-10's Redeploy and FR-IVT-11's Cycles table need funding,
-                which is not built. Saying so beats a control that does
-                nothing. */}
+            {/* FR-IVT-11's cycles table is not built. Saying where the money
+                goes beats an empty table. */}
             <div className="mb-6 flex items-start gap-3 rounded-xl border border-border bg-surface-muted px-4 py-3">
                 <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-muted" />
                 <p className="text-sm text-muted">
                     <span className="font-medium text-foreground">
-                        Deploying capital is not built yet.
+                        Capital is deployed by funding a contract.
                     </span>{" "}
-                    Until a contract can be funded, deployed stays at zero and
-                    no profit can mature — so the cycles table and the Redeploy
-                    action are absent rather than empty.
+                    Add this investor to the Funding panel when creating one,
+                    and the deployed and profit figures above follow from what
+                    that contract recovers. Idle profit can fund the next deal
+                    with no separate step (BR-23). The per-cycle breakdown is
+                    not built yet.
                 </p>
             </div>
 

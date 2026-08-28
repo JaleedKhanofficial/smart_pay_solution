@@ -30,6 +30,7 @@ import {
   PreviewContractDto,
 } from './dto/create-contract.dto';
 import { ListContractsDto } from './dto/list-contracts.dto';
+import { FundingService, type FundingResponse } from './funding.service';
 import type { LedgerResponse } from './ledger.mapper';
 import type { InvoiceResponse } from './invoice.mapper';
 import { UpdateContractDto } from './dto/update-contract.dto';
@@ -38,7 +39,10 @@ import { UpdateContractDto } from './dto/update-contract.dto';
 @ApiBearerAuth()
 @Controller('contracts')
 export class ContractsController {
-  constructor(private readonly contracts: ContractsService) {}
+  constructor(
+    private readonly contracts: ContractsService,
+    private readonly funding: FundingService,
+  ) {}
 
   @Post()
   @ApiOperation({
@@ -69,6 +73,13 @@ export class ContractsController {
     @Query() query: ListContractsDto,
   ): Promise<Paginated<ContractResponse>> {
     return this.contracts.findAll(query);
+  }
+
+  /** FR-CON-11. Who funded this contract, and out of which bucket. */
+  @Get(':id/fundings')
+  @ApiOperation({ summary: 'The funding rows fixed at activation (FR-CON-11)' })
+  fundings(@Param('id', ParseIntPipe) id: number): Promise<FundingResponse[]> {
+    return this.funding.forContract(id);
   }
 
   /** FR-REC-01-v2 / §7. The derived recovery ledger for one contract. */

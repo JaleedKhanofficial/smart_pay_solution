@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { previewContract, saveContract } from "./actions";
+import { FundingPanel } from "./funding-panel";
 import { SelectField, TextAreaField, TextField } from "@/components/form-fields";
 import { Icon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { ComboboxField } from "@/components/ui/combobox";
 import { formatDate } from "@/lib/format";
 import { EMPTY_FORM_STATE } from "@/types/customer";
 import type { Contract, ContractPreview } from "@/types/contract";
+import type { FundableInvestor } from "@/types/investor";
 
 type Option = { value: string; label: string };
 
@@ -20,6 +22,12 @@ type Props = {
     products: Option[];
     /** FR-CON-07-v2: set once a payment exists, which locks the terms. */
     termsLocked: boolean;
+    /**
+     * FR-CON-11. Investors with capital to deploy. Empty for an operator and
+     * on the edit path, and the funding card is then absent entirely — BR-19
+     * fixes funding at activation, so there is nothing to edit later.
+     */
+    fundableInvestors: FundableInvestor[];
 };
 
 const money = new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 });
@@ -66,6 +74,7 @@ export function ContractForm({
     customers,
     products,
     termsLocked,
+    fundableInvestors,
 }: Props) {
     const isEditing = contract !== null;
 
@@ -292,6 +301,15 @@ export function ContractForm({
                     </div>
                 </CardFields>
             </Card>
+
+            {/* Create only. Funding is fixed at activation (FR-CON-15), so an
+                edit has nothing to offer here. */}
+            {!isEditing && fundableInvestors.length > 0 ? (
+                <FundingPanel
+                    investors={fundableInvestors}
+                    costPrice={terms.cost_price}
+                />
+            ) : null}
 
             <Card>
                 <CardHeader

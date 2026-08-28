@@ -114,6 +114,10 @@ export function toContractDetailResponse(
       .slice()
       .sort((a, b) => a.seq - b.seq)
       .map(toInstallmentResponse),
+    // BR-14. The caller reads this from the funding rows. The fallback is the
+    // full cost because a contract with no funding *is* wholly house-funded —
+    // but a caller that has fundings and omits this would report a lie, so
+    // every detail path passes it explicitly.
     house_funded_amount: options.include_cost
       ? (options.house_funded ?? contract.cost_price)
       : null,

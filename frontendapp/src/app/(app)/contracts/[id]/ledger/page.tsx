@@ -5,11 +5,13 @@ import { LedgerActions } from "./ledger-actions";
 import { ApiError } from "@/api/api.repository";
 import { Icon } from "@/components/icons";
 import { PageContainer } from "@/components/page-container";
+import { FundingCard } from "./funding-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { apiCall } from "@/lib/api";
+import type { ContractFunding } from "@/types/investor";
 import { formatDate } from "@/lib/format";
 import type {
     BandKey,
@@ -114,6 +116,13 @@ export default async function LedgerPage({
     );
 
     if (!ledger) notFound();
+
+    // FR-CON-11. Admin-only on the API (NFR-15), so an operator gets a 403 and
+    // an empty list — the card then renders nothing at all, which is the right
+    // outcome either way: an unfunded contract has no funders to show.
+    const fundings = await apiCall<ContractFunding[]>(
+        `/contracts/${id}/fundings`
+    ).catch(() => [] as ContractFunding[]);
 
     const { contract, summary, tier, rows, distribution } = ledger;
     const busiest = Math.max(1, ...distribution.map((entry) => entry.count));
@@ -279,6 +288,8 @@ export default async function LedgerPage({
                     </div>
                 </Card>
             </div>
+
+            <FundingCard fundings={fundings} />
 
             {/* FR-REC-03 */}
             <Card className="overflow-x-auto print:overflow-visible">

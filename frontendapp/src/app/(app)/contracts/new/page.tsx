@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ContractForm } from "../contract-form";
-import { loadPickers } from "../lookups";
+import { loadFundableInvestors, loadPickers } from "../lookups";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 
@@ -14,8 +14,10 @@ export const metadata: Metadata = {
  * (frontendapp/STYLING.md).
  */
 export default async function NewContractPage() {
-    const { customers, products } = await loadPickers();
-
+    const [{ customers, products }, fundableInvestors] = await Promise.all([
+        loadPickers(),
+        loadFundableInvestors(),
+    ]);
 
     return (
         <PageContainer>
@@ -30,6 +32,7 @@ export default async function NewContractPage() {
                 customers={customers}
                 products={products}
                 termsLocked={false}
+                fundableInvestors={fundableInvestors}
             />
         </PageContainer>
     );

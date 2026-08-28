@@ -66,6 +66,16 @@ export class InvestorsController {
     return this.investors.findAll(query);
   }
 
+  /**
+   * FR-CON-11. Investors with money to deploy, for the contract funding panel.
+   * Declared before ':id' so the literal path is matched first.
+   */
+  @Get('fundable')
+  @ApiOperation({ summary: 'Active investors with an available balance' })
+  fundable() {
+    return this.investors.fundable();
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'One investor: derived balances and ledger (FR-IVT-09)',

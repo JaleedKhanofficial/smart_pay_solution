@@ -200,8 +200,15 @@ export class ContractsService {
   ): Promise<ContractDetailResponse> {
     const contract = await this.loadOrFail(id);
 
+    const include_cost = this.maySeeCost(actor);
+
     return toContractDetailResponse(contract, {
-      include_cost: this.maySeeCost(actor),
+      include_cost,
+      // BR-14. Only read where it will be shown — an operator's response
+      // carries no cost figure at all, so there is nothing to compute.
+      house_funded: include_cost
+        ? await this.funding.houseFundedFor(contract.id, contract.cost_price)
+        : null,
     });
   }
 
@@ -263,7 +270,13 @@ export class ContractsService {
     return {
       // NFR-15 does not apply to the operator printing this: cost equals the
       // sale price now (§2.7 item 15). The document itself prints neither.
-      contract: toContractDetailResponse(contract, { include_cost: true }),
+      contract: toContractDetailResponse(contract, {
+        include_cost: true,
+        house_funded: await this.funding.houseFundedFor(
+          contract.id,
+          contract.cost_price,
+        ),
+      }),
       customer: toCustomerResponse(customer),
       business: await this.settingsService.get('business_identity'),
       issued_at: new Date().toISOString(),
