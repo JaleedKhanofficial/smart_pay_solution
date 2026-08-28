@@ -35,6 +35,7 @@ const EMPTY: Summary = {
     expenses: { total: "0.00", entries: [] },
     deal_types: [],
     missing: { no_mobile: [], no_cnic: [] },
+    top_performer: null,
     generated_at: new Date().toISOString(),
 };
 

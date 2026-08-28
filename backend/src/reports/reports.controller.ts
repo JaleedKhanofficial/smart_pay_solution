@@ -23,6 +23,7 @@ import { EntryDto } from './dto/entry.dto';
 import { SummaryQueryDto } from './dto/summary-query.dto';
 import {
   ReportsService,
+  type ClientProfile,
   type EntryResponse,
   type SummaryResponse,
 } from './reports.service';
@@ -50,6 +51,13 @@ export class ReportsController {
   })
   summary(@Query() query: SummaryQueryDto): Promise<SummaryResponse> {
     return this.reports.summary(query);
+  }
+
+  /** FR-SUM-07. One client's position across every deal they hold. */
+  @Get('clients/:id')
+  @ApiOperation({ summary: 'Client profile: KPIs, deals and BR-11 score' })
+  client(@Param('id', ParseIntPipe) id: number): Promise<ClientProfile> {
+    return this.reports.client(id);
   }
 
   @Post('capital')

@@ -20,6 +20,7 @@ import {
 } from '../database/entities';
 import { buildLedger, priceContract, toAmount, toPaisa } from '../formulas';
 import { SettingsService } from '../settings/settings.service';
+import { FundingService } from './funding.service';
 import {
   toAuditSnapshot,
   toContractDetailResponse,
@@ -85,6 +86,7 @@ export class ContractsService {
     private readonly dataSource: DataSource,
     private readonly audit: AuditService,
     private readonly settingsService: SettingsService,
+    private readonly funding: FundingService,
   ) {}
 
   /** FR-CON-03-v2, FR-CON-05-v2: priced, scheduled and activated in one transaction. */
@@ -99,6 +101,14 @@ export class ContractsService {
 
     const priced = this.price(body);
     const corrections = this.compare(priced, body.preview);
+
+    // FR-CON-13. Every reason a funding set could be refused is checked here,
+    // before anything is written: an investor short of funds, an inactive one,
+    // a total above the cost price, an override with no reason.
+    const fundings = await this.funding.prepare(
+      body.fundings ?? [],
+      priced.cost_price,
+    );
 
     const id = await this.dataSource.transaction(async (manager) => {
       const contract = manager.create(Contract, {
@@ -123,6 +133,10 @@ export class ContractsService {
       const saved = await manager.save(contract);
 
       await this.writeSchedule(manager, saved.id, priced.schedule);
+
+      // FR-CON-11/13. Validated before the transaction opened, so this only
+      // writes — an invalid allocation never leaves a half-activated deal.
+      await this.funding.attach(manager, saved.id, fundings, actor);
 
       return saved.id;
     });

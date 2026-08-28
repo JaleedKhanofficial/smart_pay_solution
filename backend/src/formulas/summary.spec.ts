@@ -1,6 +1,7 @@
 import { toPaisa } from './money';
 import {
   scoreDeal,
+  summariseClient,
   summariseDeal,
   totalPortfolio,
   type DealSummary,
@@ -166,5 +167,55 @@ describe('totalPortfolio (BR-10)', () => {
     expect(totals.deals).toBe(0);
     expect(totals.average_markup_pct).toBe('0.00');
     expect(totals.net_balance).toBe('0.00');
+  });
+});
+
+describe('summariseClient (FR-SUM-07)', () => {
+  const deal = (paid: number, sale = 500_000, markup = 100_000) => {
+    const summary = summariseDeal({
+      sale_price: sale,
+      markup_amount: markup,
+      down_payment: 100_000,
+      paid: toPaisa(paid),
+    });
+
+    return { ...summary, ...scoreDeal(summary, toPaisa(paid)) };
+  };
+
+  it('passes a single deal through unchanged', () => {
+    const one = deal(500_000);
+    const client = summariseClient([one]);
+
+    expect(client.deals).toBe(1);
+    expect(client.score).toBe(one.score);
+    expect(client.band).toBe(one.band);
+  });
+
+  it('sums the money across a client’s deals', () => {
+    const client = summariseClient([deal(500_000), deal(100_000)]);
+
+    expect(client.deals).toBe(2);
+    expect(client.completed).toBe(1);
+    expect(client.total_paid).toBe('600000.00');
+    expect(client.total_outstanding).toBe('400000.00');
+  });
+
+  it('weights the score by deal value, not flat', () => {
+    // A small plan paid perfectly beside a large one barely touched. A flat
+    // average would flatter this client; the weighting must not.
+    const small = deal(12_000, 10_000, 2_000);
+    const large = deal(0, 1_000_000, 200_000);
+
+    const flat = (Number(small.score) + Number(large.score)) / 2;
+    const client = summariseClient([small, large]);
+
+    expect(Number(client.score)).toBeLessThan(flat);
+  });
+
+  it('falls back to a flat average rather than dividing by zero', () => {
+    const free = deal(0, 0, 0);
+
+    expect(() => summariseClient([free])).not.toThrow();
+    expect(summariseClient([free]).total_sale).toBe('0.00');
   });
 });

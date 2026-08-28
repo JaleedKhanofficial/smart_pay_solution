@@ -85,15 +85,10 @@ export const NAVIGATION: NavSection[] = [
                 label: "Recovery",
                 href: "/recovery",
                 icon: "trendingUp",
-                built: false,
+                built: true,
                 summary:
                     "Ledger derived from the schedule and the payments table.",
-                capabilities: [
-                    "FR-REC-02-v2 — payments applied oldest due date first",
-                    "FR-REC-03 — per-month variance and punctuality per BR-06-v2",
-                    "FR-REC-06 — loyalty tier per BR-07",
-                    "FR-REC-08 — immutable archive snapshots",
-                ],
+                capabilities: [],
             },
             {
                 module: 8,
@@ -110,6 +105,16 @@ export const NAVIGATION: NavSection[] = [
     {
         title: "Administration",
         items: [
+            {
+                module: 13,
+                label: "Investors",
+                href: "/investors",
+                icon: "users",
+                roles: ["admin"],
+                built: true,
+                summary: "Capital put in by other people, and what it has earned.",
+                capabilities: [],
+            },
             {
                 module: 9,
                 label: "Users",

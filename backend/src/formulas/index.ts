@@ -12,3 +12,4 @@ export * from './contract';
 export * from './ledger';
 export * from './recovery';
 export * from './summary';
+export * from './investor';

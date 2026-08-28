@@ -4,6 +4,7 @@ import { ContractStatus } from '../common/enums';
 import {
   AuditLog,
   Contract,
+  ContractFunding,
   Customer,
   File,
   Guarantor,
@@ -189,11 +190,27 @@ export const CONTRACT_DEFINITION: BinDefinition<Contract> = {
       : 'Its product is deleted. Restore the product first.';
   },
 
-  purgeBlocker: never,
+  /**
+   * BR-20 says purging a **funded** contract writes Loss rows against the
+   * investors whose capital did not come back. That allocation is not built
+   * yet, so the purge is refused rather than performed without it — deleting
+   * the funding rows would erase someone's stake and leave their balance
+   * quietly wrong, which is worse than refusing.
+   */
+  purgeBlocker: async (row, manager) => {
+    const funders = await manager.count(ContractFunding, {
+      where: { contract_id: row.id },
+    });
+
+    return funders > 0
+      ? `This contract was funded by ${funders} investor${funders === 1 ? '' : 's'}. Purging it has to write off their unrecovered capital (BR-20), which is not built yet — so it cannot be purged.`
+      : null;
+  },
 
   purge: async (row, manager) => {
     // The schedule and the payments are the contract; nothing else references
-    // them, and leaving either behind would orphan money.
+    // them, and leaving either behind would orphan money. Funding rows are
+    // not deleted here — the blocker above means there are none.
     await manager.delete(Payment, { contract_id: row.id });
     await manager.delete(Installment, { contract_id: row.id });
     await manager.delete(Contract, { id: row.id });

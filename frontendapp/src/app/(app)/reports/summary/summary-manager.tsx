@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ClientProfileModal } from "./client-profile-modal";
 import { EntriesPanel } from "./entries-panel";
+import { SummaryActions } from "./summary-actions";
 import { Icon } from "@/components/icons";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
@@ -14,6 +16,7 @@ import { formatDate } from "@/lib/format";
 import {
     DEFAULT_SORT,
     SEARCH_SCOPES,
+    type ClientProfile,
     type ScoreBand,
     type SortDirection,
     type SortField,
@@ -93,6 +96,27 @@ export default function SummaryManager({
 }: Props) {
     const { rows, totals, capital, expenses, deal_types, missing } = summary;
     const [showMissing, setShowMissing] = useState(false);
+    const [profile, setProfile] = useState<ClientProfile | null>(null);
+    const [loadingProfile, setLoadingProfile] = useState<number | null>(null);
+
+    /**
+     * FR-SUM-07. The profile is fetched rather than assembled from the page:
+     * a client's other deals may be on a page you are not looking at, and a
+     * profile missing half their business would be worse than none.
+     */
+    async function openProfile(customerId: number) {
+        setLoadingProfile(customerId);
+
+        try {
+            const response = await fetch(`/api/clients/${customerId}`);
+
+            if (response.ok) {
+                setProfile((await response.json()) as ClientProfile);
+            }
+        } finally {
+            setLoadingProfile(null);
+        }
+    }
 
     function hrefWith(overrides: {
         page?: number;
@@ -136,7 +160,43 @@ export default function SummaryManager({
                 eyebrow="Module 8"
                 title="Summary report"
                 description="Every column derived server-side from the contracts and the payments table, so the workbook cannot disagree with the registers."
+                actions={<SummaryActions summary={summary} />}
             />
+
+            {/* FR-SUM-07 */}
+            {summary.top_performer ? (
+                <button
+                    type="button"
+                    onClick={() =>
+                        openProfile(summary.top_performer!.customer_id)
+                    }
+                    className={`mb-6 w-full ${CARD_CLASS} p-4 text-left transition-colors hover:bg-surface-muted`}
+                >
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-positive/12 text-positive">
+                            <Icon name="trendingUp" className="size-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                                Top performer
+                            </p>
+                            <p className="truncate text-sm font-medium text-foreground">
+                                {summary.top_performer.customer_name}
+                            </p>
+                            <p className="text-xs text-muted">
+                                {summary.top_performer.deals} deal
+                                {summary.top_performer.deals === 1 ? "" : "s"} ·{" "}
+                                {pkr(summary.top_performer.total_paid)} collected
+                                · {pkr(summary.top_performer.total_outstanding)}{" "}
+                                outstanding
+                            </p>
+                        </div>
+                        <Badge tone={BAND_TONE[summary.top_performer.band]}>
+                            {summary.top_performer.score}
+                        </Badge>
+                    </div>
+                </button>
+            ) : null}
 
             {loadError ? (
                 <p className="mb-6 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">
@@ -452,14 +512,27 @@ export default function SummaryManager({
                                     className="align-middle text-foreground transition-colors hover:bg-surface-muted"
                                 >
                                     <td className="px-3 py-3">
-                                        <Link
-                                            href={`/contracts/${row.contract_id}/ledger`}
-                                            className="font-medium underline-offset-2 hover:underline"
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                openProfile(row.customer_id)
+                                            }
+                                            disabled={
+                                                loadingProfile ===
+                                                row.customer_id
+                                            }
+                                            className="text-left font-medium underline-offset-2 hover:underline"
                                         >
                                             {row.customer_name}
-                                        </Link>
+                                        </button>
                                         <p className="text-xs tabular-nums text-muted">
-                                            {row.customer_mobile}
+                                            {row.customer_mobile} ·{" "}
+                                            <Link
+                                                href={`/contracts/${row.contract_id}/ledger`}
+                                                className="underline-offset-2 hover:underline"
+                                            >
+                                                ledger
+                                            </Link>
                                         </p>
                                     </td>
                                     <td className="px-3 py-3 text-xs">
@@ -557,6 +630,11 @@ export default function SummaryManager({
                 As at {formatDate(summary.generated_at)}. Voided payments are
                 excluded from every figure.
             </p>
+
+            <ClientProfileModal
+                profile={profile}
+                onClose={() => setProfile(null)}
+            />
         </PageContainer>
     );
 }

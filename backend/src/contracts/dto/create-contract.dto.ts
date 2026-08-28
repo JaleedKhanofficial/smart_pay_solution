@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
   IsEnum,
   IsInt,
   IsISO8601,
@@ -10,9 +11,11 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { ProductCondition } from '../../common/enums';
 import { trim } from '../../common/normalise';
+import { FundingLineDto } from './funding-line.dto';
 
 /** Money arrives as a number and is validated to the column's precision. */
 const MONEY = { maxDecimalPlaces: 2 } as const;
@@ -119,6 +122,21 @@ export class CreateContractDto extends PreviewContractDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  /**
+   * FR-CON-11. Who funded this deal, if anyone. Omitted or empty means the
+   * contract is entirely house-funded, which FR-CON-13 allows explicitly.
+   *
+   * Fixed at activation and immutable thereafter (FR-CON-15), so this is
+   * accepted on create only — `UpdateContractDto` inherits it but the service
+   * refuses it.
+   */
+  @ApiPropertyOptional({ type: [FundingLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FundingLineDto)
+  fundings?: FundingLineDto[];
 
   /**
    * FR-CON-04-v2. What the browser calculated, sent so the server can say

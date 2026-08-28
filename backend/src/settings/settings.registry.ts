@@ -38,7 +38,19 @@ export type SettingValues = {
   punctuality_thresholds: PunctualityThresholds;
   loyalty: LoyaltyThresholds;
   recycle_bin_retention_days: number;
+  default_profit_share_pct: number;
+  withdrawal_source: DrawSource;
+  deployment_source: DrawSource;
 };
+
+/** BR-22 / FR-IVT-06. Which bucket a draw takes from, and in what order. */
+export const DRAW_SOURCES = [
+  'profit_first',
+  'principal_first',
+  'pro_rata',
+] as const;
+
+export type DrawSource = (typeof DRAW_SOURCES)[number];
 
 export type SettingKey = keyof SettingValues;
 
@@ -49,6 +61,7 @@ export const SETTING_GROUPS = [
   'payments',
   'recovery',
   'retention',
+  'investors',
 ] as const;
 
 export type SettingGroup = (typeof SETTING_GROUPS)[number];
@@ -86,6 +99,21 @@ function parseInteger(label: string, min: number, max: number) {
     value <= max
       ? value
       : fail(`${label} must be a whole number between ${min} and ${max}`);
+}
+
+function parseDrawSource(label: string) {
+  return (value: unknown): DrawSource =>
+    typeof value === 'string' &&
+    (DRAW_SOURCES as readonly string[]).includes(value)
+      ? (value as DrawSource)
+      : fail(`${label} must be one of ${DRAW_SOURCES.join(', ')}`);
+}
+
+function parsePercent(label: string) {
+  return (value: unknown): number =>
+    typeof value === 'number' && value >= 0 && value <= 100
+      ? Math.round(value * 100) / 100
+      : fail(`${label} must be a percentage between 0 and 100`);
 }
 
 function parseText(value: unknown): string {
@@ -229,6 +257,37 @@ export const SETTING_DEFINITIONS: {
     },
     parse: parseLoyalty,
     in_effect: true,
+  },
+
+  default_profit_share_pct: {
+    group: 'investors',
+    label: 'Default profit share',
+    description:
+      'FR-IVT-02. Seeded onto a new investor and onto each funding row. Changing it affects future deployments only — a funded contract keeps the rate it was written with (BR-16).',
+    default: 50,
+    parse: parsePercent('The default profit share'),
+    in_effect: true,
+  },
+
+  withdrawal_source: {
+    group: 'investors',
+    label: 'Withdrawals draw from',
+    description:
+      'FR-IVT-06. Which bucket a withdrawal takes from first. The default keeps original principal intact unless the investor asks for it.',
+    default: 'profit_first',
+    parse: parseDrawSource('The withdrawal source'),
+    in_effect: true,
+  },
+
+  deployment_source: {
+    group: 'investors',
+    label: 'Deployments draw from',
+    description:
+      'BR-22. Which bucket funding a contract takes from first. Profit first keeps principal liquid.',
+    default: 'profit_first',
+    parse: parseDrawSource('The deployment source'),
+    // Nothing reads it until funding is built.
+    in_effect: false,
   },
 
   recycle_bin_retention_days: {

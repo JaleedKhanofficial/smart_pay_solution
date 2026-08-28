@@ -180,3 +180,58 @@ export function totalPortfolio(
     net_balance: toAmount(capital + unmatured - expenses - outstanding),
   };
 }
+
+export type ClientDeal = DealSummary & DealScore;
+
+export type ClientSummary = {
+  deals: number;
+  completed: number;
+  total_sale: string;
+  total_paid: string;
+  total_outstanding: string;
+  mature_profit: string;
+  unmatured_profit: string;
+  /**
+   * FR-SUM-07. One score for a client who may hold several deals.
+   *
+   * Weighted by each deal's written value rather than averaged flat: a
+   * customer who pays a small plan perfectly and lets a large one run late has
+   * not behaved as well as a flat average would suggest, and this ranking is
+   * meant to say who is worth writing more business with.
+   *
+   * With one deal the weighting is a no-op, which is the common case.
+   */
+  score: string;
+  band: ScoreBand;
+};
+
+export function summariseClient(deals: ClientDeal[]): ClientSummary {
+  const sum = (pick: (deal: ClientDeal) => string): Paisa =>
+    deals.reduce((total, deal) => total + toPaisa(pick(deal)), 0);
+
+  const weight = sum((deal) => deal.total_sale);
+
+  const weighted =
+    weight === 0
+      ? // Every deal written at zero value: a flat average rather than a
+        // division by nothing.
+        deals.reduce((total, deal) => total + Number(deal.score), 0) /
+        Math.max(1, deals.length)
+      : deals.reduce(
+          (total, deal) =>
+            total + Number(deal.score) * toPaisa(deal.total_sale),
+          0,
+        ) / weight;
+
+  return {
+    deals: deals.length,
+    completed: deals.filter((deal) => deal.matured).length,
+    total_sale: toAmount(weight),
+    total_paid: toAmount(sum((deal) => deal.paid)),
+    total_outstanding: toAmount(sum((deal) => deal.outstanding)),
+    mature_profit: toAmount(sum((deal) => deal.mature_profit)),
+    unmatured_profit: toAmount(sum((deal) => deal.unmatured_profit)),
+    score: pct(weighted),
+    band: weighted >= 75 ? 'green' : weighted >= 45 ? 'gold' : 'red',
+  };
+}

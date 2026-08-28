@@ -13,10 +13,12 @@ import {
 } from '../database/entities';
 import {
   scoreDeal,
+  summariseClient,
   summariseDeal,
   toAmount,
   toPaisa,
   totalPortfolio,
+  type ClientSummary,
   type DealScore,
   type DealSummary,
   type PortfolioTotals,
@@ -68,6 +70,15 @@ export type MissingData = {
   no_cnic: { customer_id: number; customer_name: string }[];
 };
 
+/** FR-SUM-07. A client, aggregated across whatever deals they hold. */
+export type ClientProfile = ClientSummary & {
+  customer_id: number;
+  customer_name: string;
+  customer_mobile: string;
+  customer_cnic: string;
+  deals_detail: SummaryRow[];
+};
+
 export type SummaryResponse = {
   rows: Paginated<SummaryRow>;
   /** Computed across the **whole** portfolio, not the page. */
@@ -76,6 +87,8 @@ export type SummaryResponse = {
   expenses: { total: string; entries: EntryResponse[] };
   deal_types: DealTypeShare[];
   missing: MissingData;
+  /** FR-SUM-07. Null until at least one deal exists to rank. */
+  top_performer: ClientProfile | null;
   generated_at: string;
 };
 
@@ -104,6 +117,35 @@ export class ReportsService {
    * contracts, one grouped payment sum, and the entries.
    */
   async summary(query: SummaryQueryDto): Promise<SummaryResponse> {
+    const rows = await this.allRows();
+
+    const [capital, expenses] = await Promise.all([
+      this.listEntries(this.capital),
+      this.listEntries(this.expenses),
+    ]);
+
+    const capitalTotal = this.sumEntries(capital);
+    const expenseTotal = this.sumEntries(expenses);
+
+    const matching = this.applySearch(rows, query);
+
+    return {
+      rows: this.paginate(this.applySort(matching, query), query),
+      totals: totalPortfolio(rows, capitalTotal, expenseTotal),
+      capital: { total: toAmount(capitalTotal), entries: capital },
+      expenses: { total: toAmount(expenseTotal), entries: expenses },
+      deal_types: this.dealTypes(rows),
+      missing: this.missingData(rows),
+      top_performer: this.topPerformer(rows),
+      generated_at: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Every deal, summarised. Shared by the workbook and the client profile so
+   * the two cannot disagree about the same figures.
+   */
+  private async allRows(): Promise<SummaryRow[]> {
     const contracts = await this.contracts.find({
       relations: { customer: true, product: { category: true } },
     });
@@ -112,7 +154,7 @@ export class ReportsService {
       contracts.map((contract) => contract.id),
     );
 
-    const rows: SummaryRow[] = contracts.map((contract) => {
+    return contracts.map((contract) => {
       const paid = paidByContract.get(contract.id) ?? 0;
 
       const summary = summariseDeal({
@@ -140,25 +182,61 @@ export class ReportsService {
         start_date: contract.start_date,
       };
     });
+  }
 
-    const [capital, expenses] = await Promise.all([
-      this.listEntries(this.capital),
-      this.listEntries(this.expenses),
-    ]);
+  /**
+   * FR-SUM-07. One client's whole position, for the profile modal.
+   *
+   * Built from the same `summary()` reading rather than its own query, so the
+   * profile and the row it was opened from cannot disagree.
+   */
+  async client(customerId: number): Promise<ClientProfile> {
+    const rows = await this.allRows();
+    const mine = rows.filter((row) => row.customer_id === customerId);
 
-    const capitalTotal = this.sumEntries(capital);
-    const expenseTotal = this.sumEntries(expenses);
+    if (mine.length === 0) {
+      throw new NotFoundException(`No deals found for customer ${customerId}`);
+    }
 
-    const matching = this.applySearch(rows, query);
+    return this.toProfile(mine);
+  }
+
+  /** FR-SUM-07. The highest-scoring client in the portfolio. */
+  private topPerformer(rows: SummaryRow[]): ClientProfile | null {
+    if (rows.length === 0) return null;
+
+    const byClient = new Map<number, SummaryRow[]>();
+
+    for (const row of rows) {
+      byClient.set(row.customer_id, [
+        ...(byClient.get(row.customer_id) ?? []),
+        row,
+      ]);
+    }
+
+    const profiles = [...byClient.values()].map((deals) =>
+      this.toProfile(deals),
+    );
+
+    return profiles.sort(
+      (a, b) =>
+        Number(b.score) - Number(a.score) ||
+        // A tie goes to whoever has more money in play, which is the more
+        // useful answer to "who should we write more business with".
+        toPaisa(b.total_sale) - toPaisa(a.total_sale),
+    )[0];
+  }
+
+  private toProfile(deals: SummaryRow[]): ClientProfile {
+    const first = deals[0];
 
     return {
-      rows: this.paginate(this.applySort(matching, query), query),
-      totals: totalPortfolio(rows, capitalTotal, expenseTotal),
-      capital: { total: toAmount(capitalTotal), entries: capital },
-      expenses: { total: toAmount(expenseTotal), entries: expenses },
-      deal_types: this.dealTypes(rows),
-      missing: this.missingData(rows),
-      generated_at: new Date().toISOString(),
+      ...summariseClient(deals),
+      customer_id: first.customer_id,
+      customer_name: first.customer_name,
+      customer_mobile: first.customer_mobile,
+      customer_cnic: first.customer_cnic,
+      deals_detail: deals,
     };
   }
 

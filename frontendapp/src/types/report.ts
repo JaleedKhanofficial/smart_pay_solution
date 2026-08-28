@@ -70,6 +70,25 @@ export type MissingData = {
     no_cnic: { customer_id: number; customer_name: string }[];
 };
 
+/** FR-SUM-07. A client aggregated across every deal they hold. */
+export type ClientProfile = {
+    customer_id: number;
+    customer_name: string;
+    customer_mobile: string;
+    customer_cnic: string;
+    deals: number;
+    completed: number;
+    total_sale: string;
+    total_paid: string;
+    total_outstanding: string;
+    mature_profit: string;
+    unmatured_profit: string;
+    /** Weighted by deal value, not a flat average across deals. */
+    score: string;
+    band: ScoreBand;
+    deals_detail: SummaryRow[];
+};
+
 export type Summary = {
     rows: Paginated<SummaryRow>;
     /** Portfolio-wide, not the page — narrowing the table does not move these. */
@@ -78,6 +97,8 @@ export type Summary = {
     expenses: { total: string; entries: Entry[] };
     deal_types: DealTypeShare[];
     missing: MissingData;
+    /** FR-SUM-07. Null until there is a deal to rank. */
+    top_performer: ClientProfile | null;
     generated_at: string;
 };
 

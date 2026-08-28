@@ -5,7 +5,8 @@ export type SettingGroup =
     | "contracts"
     | "payments"
     | "recovery"
-    | "retention";
+    | "retention"
+    | "investors";
 
 export type BusinessIdentity = {
     name: string;
@@ -50,6 +51,7 @@ export const GROUP_TITLES: Record<SettingGroup, string> = {
     payments: "Payments",
     recovery: "Recovery grading",
     retention: "Retention",
+    investors: "Investors",
 };
 
 export const GROUP_BLURBS: Record<SettingGroup, string> = {
@@ -58,6 +60,8 @@ export const GROUP_BLURBS: Record<SettingGroup, string> = {
     payments: "How collection behaves at the counter.",
     recovery: "How punctuality is judged and how loyalty is awarded.",
     retention: "How long deleted records stay restorable.",
+    investors:
+        "Defaults for investor capital. A funded contract keeps the rate it was written with.",
 };
 
 export type { FormState };
