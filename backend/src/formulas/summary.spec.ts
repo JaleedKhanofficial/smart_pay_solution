@@ -121,7 +121,7 @@ describe('scoreDeal (BR-11)', () => {
   });
 });
 
-describe('totalPortfolio (BR-10)', () => {
+describe('totalPortfolio (BR-25, replacing BR-10)', () => {
   const deals: DealSummary[] = [
     summariseDeal({ ...TERMS, paid: toPaisa(500_000) }),
     summariseDeal({ ...TERMS, paid: toPaisa(100_000) }),
@@ -167,6 +167,70 @@ describe('totalPortfolio (BR-10)', () => {
     expect(totals.deals).toBe(0);
     expect(totals.average_markup_pct).toBe('0.00');
     expect(totals.net_balance).toBe('0.00');
+  });
+
+  it('reads an unfunded portfolio as wholly the house, which is BR-10', () => {
+    const totals = totalPortfolio(deals, toPaisa(1_000_000), toPaisa(50_000));
+
+    expect(totals.house_outstanding).toBe(totals.total_outstanding);
+    expect(totals.house_unmatured_profit).toBe(totals.unmatured_profit);
+  });
+
+  it('nets the investors out of the outstanding balance', () => {
+    // Deal two is half funded; deal one is not funded at all.
+    const totals = totalPortfolio(deals, 0, 0, [
+      { investor_share_pct: 0, investor_entitlement: 0 },
+      { investor_share_pct: 50, investor_entitlement: toPaisa(25_000) },
+    ]);
+
+    // The customer still owes 400,000 and the register still says so...
+    expect(totals.total_outstanding).toBe('400000.00');
+    // ...but half of it is owed onward to the investor.
+    expect(totals.house_outstanding).toBe('200000.00');
+  });
+
+  it('keeps only the markup the investors are not entitled to', () => {
+    const totals = totalPortfolio(deals, 0, 0, [
+      { investor_share_pct: 0, investor_entitlement: 0 },
+      { investor_share_pct: 50, investor_entitlement: toPaisa(25_000) },
+    ]);
+
+    // 100,000 markup less the investor's 25,000, none of it matured.
+    expect(totals.unmatured_profit).toBe('100000.00');
+    expect(totals.house_unmatured_profit).toBe('75000.00');
+  });
+
+  it('nets the balance on the house figures, not the portfolio ones', () => {
+    const totals = totalPortfolio(deals, toPaisa(1_000_000), toPaisa(50_000), [
+      { investor_share_pct: 0, investor_entitlement: 0 },
+      { investor_share_pct: 50, investor_entitlement: toPaisa(25_000) },
+    ]);
+
+    // 1,000,000 + 75,000 - 50,000 - 200,000. BR-10 would have said 650,000,
+    // which credits the business with money it has to hand back.
+    expect(totals.net_balance).toBe('825000.00');
+  });
+
+  it('leaves the house nothing on a wholly investor-funded deal', () => {
+    const totals = totalPortfolio(deals, 0, 0, [
+      { investor_share_pct: 0, investor_entitlement: 0 },
+      { investor_share_pct: 100, investor_entitlement: toPaisa(100_000) },
+    ]);
+
+    expect(totals.house_outstanding).toBe('0.00');
+    expect(totals.house_unmatured_profit).toBe('0.00');
+  });
+
+  it('does not credit the house for an over-funded row', () => {
+    const totals = totalPortfolio(deals, 0, 0, [
+      { investor_share_pct: 0, investor_entitlement: 0 },
+      // FR-CON-13 rejects this, but a bad row must not turn the house's
+      // share negative and add to the balance.
+      { investor_share_pct: 150, investor_entitlement: toPaisa(200_000) },
+    ]);
+
+    expect(totals.house_outstanding).toBe('0.00');
+    expect(totals.house_unmatured_profit).toBe('0.00');
   });
 });
 

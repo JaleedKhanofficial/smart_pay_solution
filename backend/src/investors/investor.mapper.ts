@@ -33,6 +33,27 @@ export type InvestorRow = InvestorResponse & {
   payable: string;
 };
 
+/**
+ * FR-SUM-11. Every investor's position added together, for the Summary
+ * Report's Investor block — the other side of what BR-25 nets out.
+ */
+export type InvestorPosition = {
+  investors: number;
+  /** Every Deposit ever recorded, whatever became of it. */
+  deposited: string;
+  withdrawn: string;
+  /** Deposits less withdrawals, adjustments and losses (BR-24). */
+  net_principal: string;
+  principal_deployed: string;
+  profit_deployed: string;
+  deployed: string;
+  /** Idle: deployable or withdrawable right now. */
+  available: string;
+  lifetime_profit: string;
+  /** What the business owes them all if everything stopped today. */
+  payable: string;
+};
+
 export type TransactionResponse = {
   id: number;
   investor_id: number;

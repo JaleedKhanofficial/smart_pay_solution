@@ -95,6 +95,11 @@ export default function SummaryManager({
     loadError,
 }: Props) {
     const { rows, totals, capital, expenses, deal_types, missing } = summary;
+    const investors = summary.investors;
+
+    // BR-25. Only worth distinguishing the house's figures from the
+    // portfolio's when somebody else's money is in the portfolio.
+    const funded = Number(investors?.deployed ?? 0) > 0;
     const [showMissing, setShowMissing] = useState(false);
     const [profile, setProfile] = useState<ClientProfile | null>(null);
     const [loadingProfile, setLoadingProfile] = useState<number | null>(null);
@@ -247,9 +252,80 @@ export default function SummaryManager({
                 <StatTile
                     label="Net balance"
                     value={pkr(totals.net_balance)}
-                    hint="Capital + unmatured − expenses − outstanding"
+                    hint={
+                        funded
+                            ? "Own capital + house unmatured − expenses − house outstanding"
+                            : "Capital + unmatured − expenses − outstanding"
+                    }
                 />
             </div>
+
+            {/* BR-25 / FR-SUM-11. Only shown once investors hold part of the
+                portfolio: with none, the house's figures are the portfolio's
+                and a second identical row would say nothing. */}
+            {funded ? (
+                <Card className="mb-6">
+                    <CardHeader
+                        title="The house's own position"
+                        description="BR-25. The counters above are the whole portfolio; these are the part of it the business owns."
+                    />
+
+                    <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
+                        <StatTile
+                            label="House outstanding"
+                            value={pkr(totals.house_outstanding)}
+                            hint={`of ${pkr(totals.total_outstanding)} owed by customers`}
+                        />
+                        <StatTile
+                            label="House unmatured profit"
+                            value={pkr(totals.house_unmatured_profit)}
+                            hint={`of ${pkr(totals.unmatured_profit)} still to be earned`}
+                        />
+                        <StatTile
+                            label="Investor capital deployed"
+                            value={pkr(investors.deployed)}
+                            hint={`${pkr(investors.available)} idle`}
+                        />
+                        <StatTile
+                            label="Owed to investors"
+                            value={pkr(investors.payable)}
+                            hint={`${investors.investors} investor${investors.investors === 1 ? "" : "s"} · ${pkr(investors.lifetime_profit)} profit earned`}
+                        />
+                    </div>
+
+                    <dl className="grid gap-4 border-t border-border px-4 py-4 text-sm sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
+                        <div>
+                            <dt className="text-xs text-muted">Deposited</dt>
+                            <dd className="tabular-nums text-foreground">
+                                {pkr(investors.deposited)}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs text-muted">Withdrawn</dt>
+                            <dd className="tabular-nums text-foreground">
+                                {pkr(investors.withdrawn)}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs text-muted">
+                                Principal in play
+                            </dt>
+                            <dd className="tabular-nums text-foreground">
+                                {pkr(investors.principal_deployed)}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs text-muted">
+                                Profit in play
+                            </dt>
+                            <dd className="tabular-nums text-foreground">
+                                {/* BR-23. Reinvested profit, working again. */}
+                                {pkr(investors.profit_deployed)}
+                            </dd>
+                        </div>
+                    </dl>
+                </Card>
+            ) : null}
 
             {/* FR-SUM-03. The Deal Counter banner. */}
             {deal_types.length > 0 ? (

@@ -15,5 +15,8 @@ import { InvestorsService } from './investors.service';
   ],
   controllers: [InvestorsController],
   providers: [InvestorsService],
+  // BR-25: the Summary Report nets investor participation out of the house's
+  // figures, and FR-SUM-11 reports the position that was netted out.
+  exports: [InvestorsService],
 })
 export class InvestorsModule {}

@@ -45,7 +45,26 @@ export type PortfolioTotals = {
     unmatured_profit: string;
     total_profit: string;
     average_markup_pct: string;
+    /** BR-25. Outstanding net of what is owed onward to the funders. */
+    house_outstanding: string;
+    /** BR-25. Unmatured profit the house itself stands to keep. */
+    house_unmatured_profit: string;
+    /** BR-25, replacing BR-10: own capital only, house figures only. */
     net_balance: string;
+};
+
+/** FR-SUM-11. Every investor's position added up — what BR-25 nets out. */
+export type InvestorPosition = {
+    investors: number;
+    deposited: string;
+    withdrawn: string;
+    net_principal: string;
+    principal_deployed: string;
+    profit_deployed: string;
+    deployed: string;
+    available: string;
+    lifetime_profit: string;
+    payable: string;
 };
 
 export type Entry = {
@@ -93,6 +112,8 @@ export type Summary = {
     rows: Paginated<SummaryRow>;
     /** Portfolio-wide, not the page — narrowing the table does not move these. */
     totals: PortfolioTotals;
+    /** FR-SUM-11. The investor side of BR-25. */
+    investors: InvestorPosition;
     capital: { total: string; entries: Entry[] };
     expenses: { total: string; entries: Entry[] };
     deal_types: DealTypeShare[];

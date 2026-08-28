@@ -34,6 +34,7 @@ import { UpdateInvestorDto } from './dto/update-investor.dto';
 import {
   toInvestorResponse,
   toTransactionResponse,
+  type InvestorPosition,
   type InvestorResponse,
   type InvestorRow,
   type TransactionResponse,
@@ -95,6 +96,83 @@ export class InvestorsService {
       query.page,
       query.page_size,
     );
+  }
+
+  /**
+   * FR-SUM-11. Every investor's position, added up.
+   *
+   * The other side of BR-25: the Summary Report nets investor participation
+   * out of the house's figures, and this says what was netted out. Derived the
+   * same way a single investor's strip is, so the report and the register
+   * cannot disagree.
+   *
+   * Inactive investors are included. Their capital is still deployed and still
+   * owed — FR-IVT-04 stops them taking on new deployments, not existing ones.
+   */
+  async portfolioPosition(): Promise<InvestorPosition> {
+    const rows = await this.investors.find({ select: { id: true } });
+    const ids = rows.map((row) => row.id);
+
+    const totals: InvestorPosition = {
+      investors: ids.length,
+      deposited: '0.00',
+      withdrawn: '0.00',
+      net_principal: '0.00',
+      principal_deployed: '0.00',
+      profit_deployed: '0.00',
+      deployed: '0.00',
+      available: '0.00',
+      lifetime_profit: '0.00',
+      payable: '0.00',
+    };
+
+    if (ids.length === 0) return totals;
+
+    const ledgers = await this.ledgersFor(ids);
+    const deployments = await this.funding.deploymentsFor(ids);
+
+    let deposited = 0;
+    let withdrawn = 0;
+    const sums = {
+      net_principal: 0,
+      principal_deployed: 0,
+      profit_deployed: 0,
+      deployed: 0,
+      available: 0,
+      lifetime_profit: 0,
+      payable: 0,
+    };
+
+    for (const id of ids) {
+      const ledger = ledgers.get(id) ?? [];
+
+      for (const txn of ledger) {
+        if (txn.type === 'Deposit') deposited += txn.amount;
+        if (txn.type === 'Withdrawal') withdrawn += txn.amount;
+      }
+
+      const balances = bucketBalances(
+        ledger,
+        deployments.get(id) ?? NO_DEPLOYMENTS,
+      );
+
+      for (const key of Object.keys(sums) as (keyof typeof sums)[]) {
+        sums[key] += balances[key];
+      }
+    }
+
+    return {
+      investors: ids.length,
+      deposited: toAmount(deposited),
+      withdrawn: toAmount(withdrawn),
+      net_principal: toAmount(sums.net_principal),
+      principal_deployed: toAmount(sums.principal_deployed),
+      profit_deployed: toAmount(sums.profit_deployed),
+      deployed: toAmount(sums.deployed),
+      available: toAmount(sums.available),
+      lifetime_profit: toAmount(sums.lifetime_profit),
+      payable: toAmount(sums.payable),
+    };
   }
 
   /** FR-IVT-09. The KPI strip: everything derived, nothing stored. */
