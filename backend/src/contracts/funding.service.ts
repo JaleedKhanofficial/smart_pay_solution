@@ -6,8 +6,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, IsNull, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/auth.types';
-import { InvestorStatus } from '../common/enums';
 import {
+  ContractStatus,
+  InvestorBucket,
+  InvestorStatus,
+  InvestorTxnType,
+} from '../common/enums';
+import {
+  Contract,
   ContractFunding,
   Investor,
   InvestorTransaction,
@@ -15,6 +21,7 @@ import {
 } from '../database/entities';
 import {
   bucketBalances,
+  allocateLoss,
   fundingShare,
   houseFunded,
   splitDeployment,
@@ -23,6 +30,7 @@ import {
   toPaisa,
   type FundingRow,
   type InvestorTxn,
+  type LossAllocation,
 } from '../formulas';
 import { SettingsService } from '../settings/settings.service';
 import type { FundingLineDto } from './dto/funding-line.dto';
@@ -41,6 +49,22 @@ export type FundingResponse = {
   reinvested: boolean;
   share_override_reason: string | null;
   funded_at: string;
+};
+
+/** BR-20 / FR-CON-16. What a write-off would cost, per investor. */
+export type LossPreview = {
+  investor_id: number;
+  investor_name: string;
+  /** Their whole stake in this contract. */
+  funded: string;
+  /** What came back before the stream stopped. */
+  recovered: string;
+  unrecovered: string;
+  from_principal: string;
+  from_profit: string;
+  extinguished_profit: string;
+  /** False: the house absorbs it and this investor loses nothing. */
+  participates: boolean;
 };
 
 /**
@@ -231,6 +255,27 @@ export class FundingService {
   }
 
   /**
+   * BR-20. What writing this contract off would cost each funder.
+   *
+   * Read-only, so a confirmation can name the investors and the amounts before
+   * anyone commits to it (FR-CON-16). Empty for a contract nobody funded,
+   * which is the common case.
+   */
+  previewLoss(contractId: number): Promise<LossPreview[]> {
+    return previewContractLoss(this.fundings.manager, contractId);
+  }
+
+  /** BR-20, inside the caller's transaction. See `settleContractLosses`. */
+  settleLosses(
+    manager: EntityManager,
+    contractId: number,
+    actor: AuthenticatedUser,
+    reason: string,
+  ): Promise<LossAllocation | null> {
+    return settleContractLosses(manager, contractId, actor, reason);
+  }
+
+  /**
    * BR-14. What the house itself put in: the cost, less every investor stake.
    *
    * Read from the stored rows rather than remembered, because the funding is
@@ -280,13 +325,25 @@ export class FundingService {
 
     const rows = await this.fundings.find({
       where: { investor_id: In(investorIds) },
-      relations: { contract: true },
     });
 
     if (rows.length === 0) return empty;
 
     // Every contract these investors touched, and what it has collected.
     const contractIds = [...new Set(rows.map((row) => row.contract_id))];
+
+    // `withDeleted` on purpose: a contract sitting in the Recycle Bin has not
+    // been settled, so the capital in it is still out. Dropping it here would
+    // quietly return that money to the investor's idle balance and let them
+    // deploy it twice.
+    const contracts = await this.fundings.manager.find(Contract, {
+      where: { id: In(contractIds) },
+      withDeleted: true,
+    });
+
+    const byContract = new Map(
+      contracts.map((contract) => [contract.id, contract]),
+    );
 
     const payments = await this.payments.find({
       where: { contract_id: In(contractIds), deleted_at: IsNull() },
@@ -318,9 +375,19 @@ export class FundingService {
     }
 
     for (const row of rows) {
-      const contract = row.contract;
+      const contract = byContract.get(row.contract_id);
 
       if (!contract) continue;
+
+      /**
+       * BR-20. A written-off contract is settled: whatever did not come back
+       * is a Loss on the ledger, so the deployment is over and the capital
+       * stops counting as out. Matured profit survives — it was earned before
+       * the stream stopped, and extinguishing it would take back money the
+       * investor is genuinely owed.
+       */
+      const settled =
+        contract.status === ContractStatus.cancelled && contract.write_off;
 
       const recovery = splitRecovery(
         {
@@ -344,12 +411,15 @@ export class FundingService {
         total_deployed: 0,
       };
 
-      current.funded_from_principal += toPaisa(row.funded_from_principal);
-      current.funded_from_profit += toPaisa(row.funded_from_profit);
-      current.recovered_to_principal += mine?.recovered_to_principal ?? 0;
-      current.recovered_to_profit += mine?.recovered_to_profit ?? 0;
+      if (!settled) {
+        current.funded_from_principal += toPaisa(row.funded_from_principal);
+        current.funded_from_profit += toPaisa(row.funded_from_profit);
+        current.recovered_to_principal += mine?.recovered_to_principal ?? 0;
+        current.recovered_to_profit += mine?.recovered_to_profit ?? 0;
+        current.total_deployed += toPaisa(row.amount);
+      }
+
       current.matured_profit += mine?.matured_profit ?? 0;
-      current.total_deployed += toPaisa(row.amount);
 
       empty.set(row.investor_id, current);
     }
@@ -410,4 +480,184 @@ export function toFundingRow(row: ContractFunding): FundingRow {
     funded_from_principal: toPaisa(row.funded_from_principal),
     funded_from_profit: toPaisa(row.funded_from_profit),
   };
+}
+
+/**
+ * Everything BR-20 needs about one contract, read once so the preview and the
+ * write cannot disagree about what is owed.
+ *
+ * A free function rather than a method because the Recycle Bin's registry is a
+ * plain object with no injector — the purge path and the cancel path have to
+ * reach the same code, and this is the only shape both can use.
+ */
+async function prepareLoss(manager: EntityManager, contractId: number) {
+  const fundings = await manager.find(ContractFunding, {
+    where: { contract_id: contractId },
+    order: { id: 'ASC' },
+  });
+
+  if (fundings.length === 0) return null;
+
+  const contract = await manager.findOne(Contract, {
+    where: { id: contractId },
+    withDeleted: true,
+  });
+
+  if (!contract) return null;
+
+  /**
+   * BR-20 happens once. A contract cancelled with `write_off` has already had
+   * its losses allocated, and reaching here again — by purging it out of the
+   * Recycle Bin afterwards — would write a second set of Loss rows and charge
+   * every funder twice for the same failure.
+   *
+   * The settled flag is the same one `deploymentsFor` reads to stop counting
+   * the capital as deployed, so the two cannot disagree about whether a
+   * contract is finished with.
+   */
+  if (contract.status === ContractStatus.cancelled && contract.write_off) {
+    return null;
+  }
+
+  const payments = await manager.find(Payment, {
+    where: { contract_id: contractId, deleted_at: IsNull() },
+    select: { id: true, amount: true },
+  });
+
+  const investors = await manager.find(Investor, {
+    where: { id: In(fundings.map((row) => row.investor_id)) },
+    withDeleted: true,
+  });
+
+  const allocation = allocateLoss(
+    {
+      down_payment: contract.down_payment,
+      paid: payments.reduce((total, row) => total + toPaisa(row.amount), 0),
+      markup_amount: contract.markup_amount,
+    },
+    fundings.map(toFundingRow),
+    new Map(
+      investors.map((investor) => [investor.id, investor.loss_participation]),
+    ),
+  );
+
+  return {
+    allocation,
+    fundings,
+    names: new Map(
+      investors.map((investor) => [investor.id, investor.full_name]),
+    ),
+  };
+}
+
+/** BR-20 / FR-CON-16. What a write-off would cost, per investor. */
+export async function previewContractLoss(
+  manager: EntityManager,
+  contractId: number,
+): Promise<LossPreview[]> {
+  const prepared = await prepareLoss(manager, contractId);
+
+  if (!prepared) return [];
+
+  const { allocation, fundings, names } = prepared;
+
+  return allocation.lines.map((line, index) => ({
+    investor_id: line.investor_id,
+    investor_name: names.get(line.investor_id) ?? '',
+    funded: fundings[index].amount,
+    recovered: toAmount(toPaisa(fundings[index].amount) - line.unrecovered),
+    unrecovered: toAmount(line.unrecovered),
+    from_principal: toAmount(line.from_principal),
+    from_profit: toAmount(line.from_profit),
+    extinguished_profit: toAmount(line.extinguished_profit),
+    participates: line.participates,
+  }));
+}
+
+/**
+ * BR-20. Writes the loss off, inside the caller's transaction.
+ *
+ * Reached two ways — a cancellation that writes off an outstanding balance,
+ * and a purge — because both destroy the stream the capital was coming back
+ * through. Nothing is written for a funder whose stake fully returned.
+ *
+ * **A non-participating investor gets two rows, not none.** BR-20 says the
+ * house absorbs their loss and an Adjustment credits them. Written on its own
+ * that Adjustment would *add* to their balance, because the deployment it
+ * compensates for stops counting the moment the contract is settled. The pair
+ * — the Loss that happened, and the credit that made them whole — nets to zero
+ * and says on the ledger what actually took place.
+ */
+export async function settleContractLosses(
+  manager: EntityManager,
+  contractId: number,
+  actor: AuthenticatedUser,
+  reason: string,
+  /**
+   * False when the contract is about to be destroyed. `contract_id` is a
+   * RESTRICT foreign key, so a Loss row pointing at a purged contract would
+   * block the very delete it was written for — and a link to a row that no
+   * longer exists tells a reader nothing anyway. The reason names the contract
+   * instead, which is what survives.
+   */
+  linkContract = true,
+): Promise<LossAllocation | null> {
+  const prepared = await prepareLoss(manager, contractId);
+
+  if (!prepared) return null;
+
+  const { allocation } = prepared;
+  const txn_date = new Date().toISOString().slice(0, 10);
+
+  for (const line of allocation.lines) {
+    if (line.unrecovered === 0) continue;
+
+    // A charge spanning both buckets is written as two rows (SRS §5.17).
+    const charges: [InvestorBucket, number][] = [
+      [InvestorBucket.principal, line.from_principal],
+      [InvestorBucket.profit, line.from_profit],
+    ];
+
+    for (const [bucket, amount] of charges) {
+      if (amount === 0) continue;
+
+      await manager.save(
+        manager.create(InvestorTransaction, {
+          investor_id: line.investor_id,
+          type: InvestorTxnType.Loss,
+          bucket,
+          amount: toAmount(amount),
+          txn_date,
+          method: null,
+          reference: null,
+          contract_id: linkContract ? contractId : null,
+          reason,
+          entered_by: actor.id,
+        }),
+      );
+    }
+
+    if (line.participates) continue;
+
+    await manager.save(
+      manager.create(InvestorTransaction, {
+        investor_id: line.investor_id,
+        type: InvestorTxnType.Adjustment,
+        // Credited back to whichever bucket carried the larger charge.
+        bucket:
+          line.from_principal >= line.from_profit
+            ? InvestorBucket.principal
+            : InvestorBucket.profit,
+        amount: toAmount(line.unrecovered),
+        txn_date,
+        method: null,
+        reference: null,
+        contract_id: linkContract ? contractId : null,
+        reason: `The business absorbed this loss: this investor does not participate in losses. ${reason}`,
+        entered_by: actor.id,
+      }),
+    );
+  }
+
+  return allocation;
 }

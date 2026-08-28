@@ -131,7 +131,7 @@ export class RecycleBinService {
 
       snapshot = { ...row, ...definition.describe(row) };
 
-      await definition.purge(row, manager);
+      await definition.purge(row, manager, actor);
     });
 
     await this.audit.record({

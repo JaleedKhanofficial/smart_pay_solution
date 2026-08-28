@@ -9,6 +9,7 @@ import type {
     ContractPreview,
     FormState,
 } from "@/types/contract";
+import type { LossPreview } from "@/types/investor";
 
 const CONTRACTS_PATH = "/contracts";
 
@@ -293,4 +294,22 @@ export async function cancelContract(
     revalidatePath("/contracts");
 
     return { ok: true, message: "Contract cancelled.", errors: [], attempt: 0 };
+}
+
+/**
+ * BR-20 / FR-CON-16. What a write-off or a purge would cost this contract's
+ * funders, so the confirmation can name them and the amounts.
+ *
+ * Admin-only on the API. An operator's 403 yields an empty list, which reads
+ * as "no funders to warn about" — and an operator cannot cancel a contract
+ * anyway, so the dialog they would see it in is out of reach.
+ */
+export async function loadLossPreview(id: number): Promise<LossPreview[]> {
+    try {
+        return await apiCallWithRefresh<LossPreview[]>(
+            `${CONTRACTS_PATH}/${id}/loss-preview`
+        );
+    } catch {
+        return [];
+    }
 }

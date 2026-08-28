@@ -257,10 +257,18 @@ export default async function InvestorPage({
                                         </td>
                                         <td
                                             className={`px-4 py-3 text-right font-medium tabular-nums ${
-                                                negative ? "text-negative" : ""
+                                                negative || txn.type === "Loss"
+                                                    ? "text-negative"
+                                                    : ""
                                             }`}
                                         >
-                                            {txn.type === "Withdrawal"
+                                            {/* A Loss is stored positive and
+                                                subtracted (BR-21), so it is
+                                                shown the way it reads on the
+                                                balance, not the way it is
+                                                stored. */}
+                                            {txn.type === "Withdrawal" ||
+                                            txn.type === "Loss"
                                                 ? `− ${pkr(txn.amount)}`
                                                 : pkr(txn.amount)}
                                         </td>
@@ -268,6 +276,22 @@ export default async function InvestorPage({
                                             {txn.method ?? "—"}
                                         </td>
                                         <td className="px-4 py-3 text-xs">
+                                            {/* A Loss names its contract; once
+                                                that contract is purged the
+                                                reference is gone and only the
+                                                reason survives (BR-20). */}
+                                            {txn.contract_id !== null ? (
+                                                <a
+                                                    href={`/contracts/${txn.contract_id}/ledger`}
+                                                    className="text-foreground hover:underline"
+                                                >
+                                                    Contract #{txn.contract_id}
+                                                </a>
+                                            ) : null}
+                                            {txn.contract_id !== null &&
+                                            (txn.reason ?? txn.reference)
+                                                ? " · "
+                                                : ""}
                                             {txn.reason ?? txn.reference ?? "—"}
                                         </td>
                                         <td className="px-4 py-3 text-xs text-muted">

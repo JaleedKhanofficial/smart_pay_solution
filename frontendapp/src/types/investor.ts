@@ -103,6 +103,23 @@ export type ContractFunding = {
     funded_at: string;
 };
 
+/**
+ * BR-20 / FR-CON-16. What writing a contract off would cost one funder, read
+ * before anyone commits to it.
+ */
+export type LossPreview = {
+    investor_id: number;
+    investor_name: string;
+    funded: string;
+    recovered: string;
+    unrecovered: string;
+    from_principal: string;
+    from_profit: string;
+    extinguished_profit: string;
+    /** False: the house absorbs it and this investor loses nothing. */
+    participates: boolean;
+};
+
 export type InvestorFilterValues = { search: string; status: string };
 export const EMPTY_FILTERS: InvestorFilterValues = { search: "", status: "" };
 

@@ -420,3 +420,103 @@ export function houseFunded(
       fundings.reduce((total, funding) => total + funding.amount, 0),
   );
 }
+
+/** BR-20. One investor's share of a contract that did not come back. */
+export type LossLine = {
+  investor_id: number;
+  /** `funding_amount − capitalRecovered`. Never negative. */
+  unrecovered: Paisa;
+  /** BR-20. Charged to the buckets the funding was drawn from. */
+  from_principal: Paisa;
+  from_profit: Paisa;
+  /**
+   * BR-20. Entitlement that will now never mature. Extinguished, not paid —
+   * carried here only so the confirmation can say what is being given up.
+   */
+  extinguished_profit: Paisa;
+  /**
+   * `investors.loss_participation`. False means the house absorbs the loss and
+   * the investor is made whole.
+   */
+  participates: boolean;
+};
+
+export type LossAllocation = {
+  lines: LossLine[];
+  /** What the investors bear between them. */
+  investor_borne: Paisa;
+  /** What the house absorbs on behalf of non-participating investors. */
+  house_absorbed: Paisa;
+  /** Profit nobody will ever receive, across all funders. */
+  extinguished_profit: Paisa;
+};
+
+/**
+ * BR-20. What a contract cost its funders when it stopped recovering.
+ *
+ * Reached two ways: a cancellation that writes off an outstanding balance, and
+ * a purge of a funded contract. Both destroy the stream the capital was going
+ * to come back through, so what has not returned by then never will.
+ *
+ * **Capital before profit, still.** BR-18 repays the whole stake before a
+ * paisa of profit exists, so `capitalRecovered` is simply what arrived, and
+ * the shortfall is the loss. Unmatured entitlement is extinguished rather than
+ * paid: profit is a share of a markup the customer never finished paying.
+ *
+ * **Buckets.** The charge falls on principal and profit in the proportion
+ * still outstanding in each, which is exact — the two are computed against
+ * what BR-19 already returned, so they sum to `unrecovered` with nothing left
+ * over to round (BR-26 has no residual to place).
+ */
+export function allocateLoss(
+  terms: {
+    down_payment: string | number;
+    paid: Paisa;
+    markup_amount: string | number;
+  },
+  fundings: FundingRow[],
+  /** `investor_id` to `loss_participation`. Absent reads as participating. */
+  participation: Map<number, boolean>,
+): LossAllocation {
+  const { shares } = splitRecovery(terms, fundings);
+
+  let investor_borne = 0;
+  let house_absorbed = 0;
+  let extinguished = 0;
+
+  const lines = fundings.map((funding, index) => {
+    const share = shares[index];
+    const unrecovered = Math.max(0, funding.amount - share.capital_recovered);
+
+    // Principal takes what is still out of principal; profit takes the rest.
+    // Derived from the remainder rather than re-split by ratio, so the two
+    // cannot sum to a paisa either side of the whole.
+    const from_principal = Math.min(
+      unrecovered,
+      Math.max(0, funding.funded_from_principal - share.recovered_to_principal),
+    );
+
+    const participates = participation.get(funding.investor_id) ?? true;
+
+    if (participates) investor_borne += unrecovered;
+    else house_absorbed += unrecovered;
+
+    extinguished += share.unmatured_profit;
+
+    return {
+      investor_id: funding.investor_id,
+      unrecovered,
+      from_principal,
+      from_profit: unrecovered - from_principal,
+      extinguished_profit: share.unmatured_profit,
+      participates,
+    };
+  });
+
+  return {
+    lines,
+    investor_borne,
+    house_absorbed,
+    extinguished_profit: extinguished,
+  };
+}

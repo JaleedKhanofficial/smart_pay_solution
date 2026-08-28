@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { purgeRecord } from "./actions";
+import { loadLossPreview } from "../../contracts/actions";
+import { LossWarning } from "../../contracts/loss-warning";
 import { fieldClass, labelClass } from "@/components/form-fields";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import type { LossPreview } from "@/types/investor";
 import type { BinRow } from "@/types/recycle-bin";
 
 type Props = {
@@ -30,6 +33,35 @@ export function PurgeDialog({ row, onClose, onDone }: Props) {
     const [pending, startTransition] = useTransition();
 
     const matches = typed.trim().toUpperCase() === PHRASE;
+
+    /**
+     * BR-20 / FR-CON-16. Purging a funded contract writes its funders' losses
+     * off, so they are named here before the phrase is typed.
+     *
+     * Keyed by row id so a result belonging to the previously-opened record is
+     * ignored rather than shown against this one — clearing it on open would
+     * mean a setState in the effect body, which the React Compiler rejects.
+     */
+    const [loss, setLoss] = useState<{
+        id: number;
+        lines: LossPreview[];
+    } | null>(null);
+
+    const [, startLoad] = useTransition();
+    const contractId = row?.kind === "contract" ? row.id : null;
+
+    useEffect(() => {
+        if (contractId === null) return;
+
+        startLoad(async () => {
+            setLoss({ id: contractId, lines: await loadLossPreview(contractId) });
+        });
+    }, [contractId]);
+
+    const lines =
+        loss !== null && contractId !== null && loss.id === contractId
+            ? loss.lines
+            : [];
 
     function submit(event: React.FormEvent) {
         event.preventDefault();
@@ -77,6 +109,8 @@ export function PurgeDialog({ row, onClose, onDone }: Props) {
                         </span>
                     </p>
                 </div>
+
+                <LossWarning lines={lines} verb="Purging" />
 
                 <div>
                     <label className={labelClass} htmlFor="purge_confirm">

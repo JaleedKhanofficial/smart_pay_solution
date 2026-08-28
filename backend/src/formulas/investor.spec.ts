@@ -6,6 +6,7 @@ import {
   lifetimeMetrics,
   profitEntitlement,
   splitDeployment,
+  allocateLoss,
   splitRecovery,
   type InvestorTxn,
 } from './investor';
@@ -346,5 +347,130 @@ describe('houseFunded (BR-14)', () => {
     expect(houseFunded(400_000, [funding(200_000)])).toBe(toPaisa(200_000));
     expect(houseFunded(400_000, [])).toBe(toPaisa(400_000));
     expect(houseFunded(400_000, [funding(400_000)])).toBe(0);
+  });
+});
+
+describe('allocateLoss (BR-20)', () => {
+  /** The §O deal again: 400,000 cost, 100,000 markup, 100,000 down. */
+  const TERMS = { down_payment: 100_000, markup_amount: 100_000 };
+
+  const half = {
+    investor_id: 1,
+    amount: toPaisa(200_000),
+    share_pct: '50.00',
+    profit_share_pct: '50.00',
+    funded_from_principal: toPaisa(200_000),
+    funded_from_profit: 0,
+  };
+
+  const participating = new Map([[1, true]]);
+
+  it('charges the whole stake when nothing but the down payment arrived', () => {
+    const result = allocateLoss({ ...TERMS, paid: 0 }, [half], participating);
+
+    // 50,000 of the 100,000 down payment was their half; 150,000 did not
+    // come back.
+    expect(result.lines[0].unrecovered).toBe(toPaisa(150_000));
+    expect(result.investor_borne).toBe(toPaisa(150_000));
+    expect(result.house_absorbed).toBe(0);
+  });
+
+  it('writes nothing off once the stake has fully returned', () => {
+    // 300,000 paid plus the 100,000 down is 400,000; their half is 200,000,
+    // which is the whole stake.
+    const result = allocateLoss(
+      { ...TERMS, paid: toPaisa(300_000) },
+      [half],
+      participating,
+    );
+
+    expect(result.lines[0].unrecovered).toBe(0);
+    expect(result.investor_borne).toBe(0);
+  });
+
+  it('charges the buckets the funding was drawn from', () => {
+    const mixed = {
+      ...half,
+      funded_from_principal: toPaisa(120_000),
+      funded_from_profit: toPaisa(80_000),
+    };
+
+    const result = allocateLoss({ ...TERMS, paid: 0 }, [mixed], participating);
+    const line = result.lines[0];
+
+    // BR-19 returned the 50,000 slice 60:40, so 30,000 of principal and
+    // 20,000 of profit are already home. What is left is charged as it lies.
+    expect(line.from_principal).toBe(toPaisa(90_000));
+    expect(line.from_profit).toBe(toPaisa(60_000));
+    expect(line.from_principal + line.from_profit).toBe(line.unrecovered);
+  });
+
+  it('puts the charge on the house where the investor does not participate', () => {
+    const result = allocateLoss(
+      { ...TERMS, paid: 0 },
+      [half],
+      new Map([[1, false]]),
+    );
+
+    expect(result.lines[0].participates).toBe(false);
+    expect(result.investor_borne).toBe(0);
+    expect(result.house_absorbed).toBe(toPaisa(150_000));
+  });
+
+  it('treats a missing participation flag as participating', () => {
+    const result = allocateLoss({ ...TERMS, paid: 0 }, [half], new Map());
+
+    expect(result.lines[0].participates).toBe(true);
+  });
+
+  it('extinguishes unmatured profit rather than paying it', () => {
+    const result = allocateLoss({ ...TERMS, paid: 0 }, [half], participating);
+
+    // 100,000 markup x 50% share x 50% profit share = 25,000, none of which
+    // matured, because capital never came home.
+    expect(result.lines[0].extinguished_profit).toBe(toPaisa(25_000));
+    expect(result.extinguished_profit).toBe(toPaisa(25_000));
+  });
+
+  it('splits a shortfall across two funders without losing a paisa', () => {
+    const a = { ...half, investor_id: 1, amount: toPaisa(200_000) };
+    const b = {
+      investor_id: 2,
+      amount: toPaisa(100_000),
+      share_pct: '25.00',
+      profit_share_pct: '40.00',
+      funded_from_principal: toPaisa(100_000),
+      funded_from_profit: 0,
+    };
+
+    // An odd figure, so the split cannot come out even.
+    const result = allocateLoss(
+      { ...TERMS, paid: toPaisa(33_333.33) },
+      [a, b],
+      new Map([
+        [1, true],
+        [2, true],
+      ]),
+    );
+
+    const recovered = splitRecovery({ ...TERMS, paid: toPaisa(33_333.33) }, [
+      a,
+      b,
+    ]);
+
+    for (const [index, line] of result.lines.entries()) {
+      expect(line.from_principal + line.from_profit).toBe(line.unrecovered);
+      expect(line.unrecovered).toBe(
+        [a, b][index].amount - recovered.shares[index].capital_recovered,
+      );
+    }
+  });
+
+  it('has nothing to allocate on a contract nobody funded', () => {
+    const result = allocateLoss({ ...TERMS, paid: 0 }, [], new Map());
+
+    expect(result.lines).toEqual([]);
+    expect(result.investor_borne).toBe(0);
+    expect(result.house_absorbed).toBe(0);
   });
 });

@@ -18,7 +18,13 @@ import {
   Payment,
   Product,
 } from '../database/entities';
-import { buildLedger, priceContract, toAmount, toPaisa } from '../formulas';
+import {
+  buildLedger,
+  priceContract,
+  toAmount,
+  toPaisa,
+  type LossAllocation,
+} from '../formulas';
 import { SettingsService } from '../settings/settings.service';
 import { FundingService } from './funding.service';
 import {
@@ -315,6 +321,7 @@ export class ContractsService {
     }
 
     let corrections: string[] = [];
+    let loss: LossAllocation | null = null;
 
     await this.dataSource.transaction(async (manager) => {
       if (wantsTermChange) {
@@ -358,6 +365,10 @@ export class ContractsService {
         await this.writeSchedule(manager, id, priced.schedule);
       }
 
+      const writesOff =
+        dto.status === ContractStatus.cancelled &&
+        (await this.outstandingPaisa(id, paid)) > 0;
+
       await manager.update(
         Contract,
         { id },
@@ -366,10 +377,24 @@ export class ContractsService {
           notes: dto.notes,
           status: dto.status,
           ...(dto.status === ContractStatus.cancelled
-            ? { write_off: (await this.outstandingPaisa(id, paid)) > 0 }
+            ? { write_off: writesOff }
             : {}),
         },
       );
+
+      // BR-20. Writing off the customer's balance ends the stream the funders'
+      // capital was coming back through, so what has not returned never will.
+      // Written in the same transaction as the cancellation: a cancelled
+      // contract whose losses were not allocated would leave every funder's
+      // balance overstated, with nothing on the ledger to explain it.
+      if (writesOff) {
+        loss = await this.funding.settleLosses(
+          manager,
+          id,
+          actor,
+          `Contract ${id} cancelled and written off: ${dto.cancel_reason ?? 'no reason recorded'}`,
+        );
+      }
     });
 
     const after = await this.findOne(id, actor);
@@ -380,7 +405,11 @@ export class ContractsService {
       entity_id: String(id),
       action: dto.status === ContractStatus.cancelled ? 'cancel' : 'update',
       before: toAuditSnapshot(toContractResponse(before)),
-      after: toAuditSnapshot(after),
+      // BR-20 requires an audit row for the allocation. It rides on the
+      // cancellation's own entry rather than a second one: they are one act,
+      // and splitting them would let a reader find a write-off with no
+      // cancellation next to it.
+      after: { ...toAuditSnapshot(after), ...(loss ? { loss } : {}) },
       ip,
     });
 

@@ -16,6 +16,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums';
 import type { Paginated } from '../common/pagination';
 import type {
   ContractDetailResponse,
@@ -30,7 +32,11 @@ import {
   PreviewContractDto,
 } from './dto/create-contract.dto';
 import { ListContractsDto } from './dto/list-contracts.dto';
-import { FundingService, type FundingResponse } from './funding.service';
+import {
+  FundingService,
+  type FundingResponse,
+  type LossPreview,
+} from './funding.service';
 import type { LedgerResponse } from './ledger.mapper';
 import type { InvoiceResponse } from './invoice.mapper';
 import { UpdateContractDto } from './dto/update-contract.dto';
@@ -73,6 +79,20 @@ export class ContractsController {
     @Query() query: ListContractsDto,
   ): Promise<Paginated<ContractResponse>> {
     return this.contracts.findAll(query);
+  }
+
+  /**
+   * BR-20 / FR-CON-16. What cancelling or purging this contract would cost its
+   * funders, so the confirmation can name them before anyone commits.
+   *
+   * Admin-only: it reads investor positions, which NFR-15 keeps off an
+   * operator's screen — and only an admin can cancel a contract anyway.
+   */
+  @Get(':id/loss-preview')
+  @Roles(Role.admin)
+  @ApiOperation({ summary: 'Per-investor write-off preview (BR-20)' })
+  lossPreview(@Param('id', ParseIntPipe) id: number): Promise<LossPreview[]> {
+    return this.funding.previewLoss(id);
   }
 
   /** FR-CON-11. Who funded this contract, and out of which bucket. */

@@ -1,4 +1,6 @@
 import { ConflictException } from '@nestjs/common';
+import type { AuthenticatedUser } from '../auth/auth.types';
+import { settleContractLosses } from '../contracts/funding.service';
 import { EntityManager, IsNull, Not } from 'typeorm';
 import { ContractStatus } from '../common/enums';
 import {
@@ -9,6 +11,7 @@ import {
   File,
   Guarantor,
   Installment,
+  InvestorTransaction,
   Payment,
   Product,
   User,
@@ -77,7 +80,11 @@ export type BinDefinition<T extends BinRecord> = {
    * a cascade is written out here rather than left to the database — which
    * means it is reviewable, and it cannot reach further than intended.
    */
-  purge: (row: T, manager: EntityManager) => Promise<void>;
+  purge: (
+    row: T,
+    manager: EntityManager,
+    actor: AuthenticatedUser,
+  ) => Promise<void>;
   /** Run inside the restore transaction, after `deleted_at` is cleared. */
   afterRestore?: (row: T, manager: EntityManager) => Promise<void>;
 };
@@ -191,26 +198,48 @@ export const CONTRACT_DEFINITION: BinDefinition<Contract> = {
   },
 
   /**
-   * BR-20 says purging a **funded** contract writes Loss rows against the
-   * investors whose capital did not come back. That allocation is not built
-   * yet, so the purge is refused rather than performed without it — deleting
-   * the funding rows would erase someone's stake and leave their balance
-   * quietly wrong, which is worse than refusing.
+   * A funded contract can be purged, but not silently: BR-20 turns whatever
+   * did not come back into Loss rows first. `purge` below does that, so there
+   * is nothing left to refuse here.
    */
-  purgeBlocker: async (row, manager) => {
-    const funders = await manager.count(ContractFunding, {
-      where: { contract_id: row.id },
-    });
+  purgeBlocker: never,
 
-    return funders > 0
-      ? `This contract was funded by ${funders} investor${funders === 1 ? '' : 's'}. Purging it has to write off their unrecovered capital (BR-20), which is not built yet — so it cannot be purged.`
-      : null;
-  },
+  purge: async (row, manager, actor) => {
+    // BR-20, before anything is deleted. Purging destroys the funding rows and
+    // with them the record of what was owed, so the write-off has to be taken
+    // from them while they are still there.
+    await settleContractLosses(
+      manager,
+      row.id,
+      actor,
+      `Contract ${row.id} was purged from the Recycle Bin, so its funding could not be recovered`,
+      // The contract is about to cease to exist, so the Loss cannot point at
+      // it. Its number is in the reason above, which outlives the row.
+      false,
+    );
 
-  purge: async (row, manager) => {
-    // The schedule and the payments are the contract; nothing else references
-    // them, and leaving either behind would orphan money. Funding rows are
-    // not deleted here — the blocker above means there are none.
+    /**
+     * Every investor line naming this contract loses the reference, and only
+     * the reference — the row itself is append-only and stays exactly where it
+     * is (FR-IVT-07).
+     *
+     * Both kinds land here: the Loss just written above, and any written
+     * earlier when the contract was cancelled and written off. `contract_id`
+     * is a RESTRICT key, so without this the contract's own loss record would
+     * block the purge it was written for. The contract number is already in
+     * each row's reason, which is what a reader needs once the contract is
+     * gone.
+     */
+    await manager.update(
+      InvestorTransaction,
+      { contract_id: row.id },
+      { contract_id: null },
+    );
+
+    // The schedule, the payments and the funding are the contract; nothing
+    // else references them, and leaving any behind would orphan money. The
+    // investors' side of the funding survives as the Loss rows.
+    await manager.delete(ContractFunding, { contract_id: row.id });
     await manager.delete(Payment, { contract_id: row.id });
     await manager.delete(Installment, { contract_id: row.id });
     await manager.delete(Contract, { id: row.id });
