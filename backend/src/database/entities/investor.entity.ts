@@ -14,8 +14,7 @@ import { ContractFunding } from './contract-funding.entity';
 import { InvestorTransaction } from './investor-transaction.entity';
 
 /**
- * SRS §5.16. A party who deposits capital for deployment into contracts against
- * a contracted share of profit.
+ * SRS §5.16. A party who deposits capital for deployment into contracts.
  *
  * No balance is stored here. Everything an investor is owed — principal, profit,
  * deployed, idle — derives from `investor_transactions` and `contract_fundings`
@@ -50,14 +49,6 @@ export class Investor {
 
   @Column({ type: 'varchar', length: 190, nullable: true })
   email: string | null;
-
-  /**
-   * The standing rate for *future* deployments only. A funded contract keeps
-   * the rate snapshotted on its funding row, so changing this never restates a
-   * deal already done (FR-IVT-03, BR-16).
-   */
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 50 })
-  profit_share_pct: string;
 
   /** False means the house absorbs an unrecovered loss instead (BR-20). */
   @Column({ type: 'boolean', default: true })

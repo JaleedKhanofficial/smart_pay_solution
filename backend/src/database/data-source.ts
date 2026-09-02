@@ -9,6 +9,7 @@ import { CustomerCnicFront1755800000000 } from './migrations/1755800000000-Custo
 import { GuarantorCnicSides1755900000000 } from './migrations/1755900000000-GuarantorCnicSides';
 import { FileIntegerIds1756000000000 } from './migrations/1756000000000-FileIntegerIds';
 import { InvestorCapital1756100000000 } from './migrations/1756100000000-InvestorCapital';
+import { RemoveProfitShare1756200000000 } from './migrations/1756200000000-RemoveProfitShare';
 
 /**
  * The one place the connection is described. Both the Nest application
@@ -38,6 +39,7 @@ export function buildDataSourceOptions(url: string): DataSourceOptions {
       GuarantorCnicSides1755900000000,
       FileIntegerIds1756000000000,
       InvestorCapital1756100000000,
+      RemoveProfitShare1756200000000,
     ],
     migrationsTableName: 'migrations',
     // Never true. The database is described by the entities and changed only by

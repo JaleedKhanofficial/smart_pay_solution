@@ -38,7 +38,6 @@ export type SettingValues = {
   punctuality_thresholds: PunctualityThresholds;
   loyalty: LoyaltyThresholds;
   recycle_bin_retention_days: number;
-  default_profit_share_pct: number;
   withdrawal_source: DrawSource;
   deployment_source: DrawSource;
 };
@@ -256,16 +255,6 @@ export const SETTING_DEFINITIONS: {
       silver_reduction_pct: 1,
     },
     parse: parseLoyalty,
-    in_effect: true,
-  },
-
-  default_profit_share_pct: {
-    group: 'investors',
-    label: 'Default profit share',
-    description:
-      'FR-IVT-02. Seeded onto a new investor and onto each funding row. Changing it affects future deployments only — a funded contract keeps the rate it was written with (BR-16).',
-    default: 50,
-    parse: parsePercent('The default profit share'),
     in_effect: true,
   },
 

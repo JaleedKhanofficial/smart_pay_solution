@@ -88,7 +88,7 @@ export default async function InvestorPage({
             <PageHeader
                 eyebrow="Module 13"
                 title={investor.full_name}
-                description={`${investor.cnic_number}  |  ${investor.mobile_number}  |  ${investor.profit_share_pct}% profit share${investor.agreement_date ? `  |  agreed ${formatDate(investor.agreement_date)}` : ""}`}
+                description={`${investor.cnic_number}  |  ${investor.mobile_number}${investor.agreement_date ? `  |  agreed ${formatDate(investor.agreement_date)}` : ""}`}
                 actions={
                     <div className="flex flex-col gap-2 sm:flex-row">
                         {investor.status === "inactive" ? (

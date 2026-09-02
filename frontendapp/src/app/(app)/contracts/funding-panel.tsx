@@ -4,8 +4,6 @@ import { useState } from "react";
 import {
     SelectField,
     TextField,
-    fieldClass,
-    labelClass,
 } from "@/components/form-fields";
 import { Icon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +16,6 @@ type Line = {
     key: number;
     investor_id: string;
     amount: string;
-    /** FR-CON-12. Blank means "use the investor's standing share". */
-    profit_share_pct: string;
-    share_override_reason: string;
 };
 
 const money = new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 });
@@ -76,8 +71,6 @@ export function FundingPanel({
                 key: nextKey,
                 investor_id: "",
                 amount: "",
-                profit_share_pct: "",
-                share_override_reason: "",
             },
         ]);
         setNextKey((key) => key + 1);
@@ -223,75 +216,9 @@ export function FundingPanel({
                                         </p>
                                     ) : null}
 
-                                    {/* FR-CON-12. The standing share is the
-                                        norm; a deal-specific one is an
-                                        exception, and has to be justified. */}
-                                    <details className="mt-3">
-                                        <summary className="cursor-pointer text-xs text-muted hover:text-foreground">
-                                            {line.profit_share_pct
-                                                ? `Profit share overridden to ${line.profit_share_pct}%`
-                                                : `Profit share: ${investor?.profit_share_pct ?? "—"}% (their standing rate)`}
-                                        </summary>
-
-                                        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_2fr]">
-                                            <div>
-                                                <label
-                                                    className={labelClass}
-                                                    htmlFor={`share-${line.key}`}
-                                                >
-                                                    Profit share %
-                                                </label>
-                                                <input
-                                                    id={`share-${line.key}`}
-                                                    className={fieldClass}
-                                                    type="number"
-                                                    min={0}
-                                                    max={100}
-                                                    step="0.01"
-                                                    placeholder={
-                                                        investor?.profit_share_pct ??
-                                                        ""
-                                                    }
-                                                    value={line.profit_share_pct}
-                                                    onChange={(event) =>
-                                                        update(
-                                                            line.key,
-                                                            "profit_share_pct",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                            <div>
-                                                <label
-                                                    className={labelClass}
-                                                    htmlFor={`reason-${line.key}`}
-                                                >
-                                                    Why this deal differs
-                                                </label>
-                                                <input
-                                                    id={`reason-${line.key}`}
-                                                    className={fieldClass}
-                                                    maxLength={500}
-                                                    placeholder="Required when the share is overridden"
-                                                    value={
-                                                        line.share_override_reason
-                                                    }
-                                                    onChange={(event) =>
-                                                        update(
-                                                            line.key,
-                                                            "share_override_reason",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-                                    </details>
-
-                                    {/* Index-aligned across the four lists, so
-                                        an omitted optional would misalign every
-                                        row after it — each posts all four. */}
+                                    {/* Index-aligned across the two lists, so an
+                                        omitted row would misalign every row
+                                        after it — each posts both fields. */}
                                     <input
                                         type="hidden"
                                         name="funding_investor_id"
@@ -301,16 +228,6 @@ export function FundingPanel({
                                         type="hidden"
                                         name="funding_amount"
                                         value={line.amount}
-                                    />
-                                    <input
-                                        type="hidden"
-                                        name="funding_profit_share_pct"
-                                        value={line.profit_share_pct}
-                                    />
-                                    <input
-                                        type="hidden"
-                                        name="funding_reason"
-                                        value={line.share_override_reason}
                                     />
                                 </div>
                             );

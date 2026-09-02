@@ -14,7 +14,6 @@ export type Investor = {
     mobile_number: string;
     address: string;
     email: string | null;
-    profit_share_pct: string;
     loss_participation: boolean;
     agreement_date: string | null;
     status: InvestorStatus;
@@ -83,7 +82,6 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
 export type FundableInvestor = {
     id: number;
     full_name: string;
-    profit_share_pct: string;
     available: string;
 };
 
@@ -94,12 +92,10 @@ export type ContractFunding = {
     investor_name: string;
     amount: string;
     share_pct: string;
-    profit_share_pct: string;
     funded_from_principal: string;
     funded_from_profit: string;
     /** BR-23. Recovered capital or matured profit paid for this. */
     reinvested: boolean;
-    share_override_reason: string | null;
     funded_at: string;
 };
 

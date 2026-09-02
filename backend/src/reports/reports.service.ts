@@ -203,7 +203,6 @@ export class ReportsService {
       current.investor_entitlement += profitEntitlement(
         markupBy.get(funding.contract_id) ?? 0,
         funding.share_pct,
-        funding.profit_share_pct,
       );
 
       participation.set(funding.contract_id, current);

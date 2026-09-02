@@ -15,7 +15,6 @@ export type InvestorResponse = {
   mobile_number: string;
   address: string;
   email: string | null;
-  profit_share_pct: string;
   loss_participation: boolean;
   agreement_date: string | null;
   status: InvestorStatus;
@@ -80,7 +79,6 @@ export function toInvestorResponse(investor: Investor): InvestorResponse {
     mobile_number: investor.mobile_number,
     address: investor.address,
     email: investor.email,
-    profit_share_pct: investor.profit_share_pct,
     loss_participation: investor.loss_participation,
     agreement_date: investor.agreement_date,
     status: investor.status,

@@ -169,11 +169,10 @@ export default function InvestorsManager({
             ) : null}
 
             <Card className="overflow-x-auto">
-                <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[800px] border-collapse text-left text-sm">
                     <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
                         <tr>
                             <th className="px-4 py-3 font-medium">Investor</th>
-                            <th className="px-4 py-3 font-medium">Profit share</th>
                             <th className="px-4 py-3 text-right font-medium">
                                 Net principal
                             </th>
@@ -197,7 +196,7 @@ export default function InvestorsManager({
                     <tbody className="divide-y divide-border">
                         {page.data.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-4 py-14 text-center">
+                                <td colSpan={7} className="px-4 py-14 text-center">
                                     <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
                                         <Icon name="users" className="size-5" />
                                     </span>
@@ -232,15 +231,12 @@ export default function InvestorsManager({
                                                     inactive
                                                 </Badge>
                                             ) : null}
+                                            {row.loss_participation ? null : (
+                                                <Badge tone="neutral">
+                                                    no loss share
+                                                </Badge>
+                                            )}
                                         </p>
-                                    </td>
-                                    <td className="px-4 py-3 tabular-nums">
-                                        {row.profit_share_pct}%
-                                        {row.loss_participation ? null : (
-                                            <p className="text-xs text-muted">
-                                                no loss share
-                                            </p>
-                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right tabular-nums">
                                         {pkr(row.net_principal)}

@@ -20,7 +20,6 @@ const FIELDS = [
     "mobile_number",
     "address",
     "email",
-    "profit_share_pct",
     "agreement_date",
     "status",
     "notes",
@@ -66,8 +65,6 @@ export async function saveInvestor(
     const attempt = prevState.attempt + 1;
     const text = (name: string) => String(formData.get(name) ?? "").trim();
 
-    const share = text("profit_share_pct");
-
     const body = {
         full_name: text("full_name"),
         father_husband_name: text("father_husband_name"),
@@ -75,8 +72,6 @@ export async function saveInvestor(
         mobile_number: text("mobile_number"),
         address: text("address"),
         email: text("email") || undefined,
-        // Omitted on create means "use the default_profit_share_pct setting".
-        profit_share_pct: share === "" ? undefined : Number(share),
         loss_participation: formData.get("loss_participation") === "on",
         agreement_date: text("agreement_date") || undefined,
         status: text("status") || "active",
@@ -98,7 +93,7 @@ export async function saveInvestor(
     return {
         ok: true,
         message: id
-            ? `${body.full_name} updated. The new profit share applies to future deployments only.`
+            ? `${body.full_name} updated.`
             : `${body.full_name} added.`,
         errors: [],
         attempt,

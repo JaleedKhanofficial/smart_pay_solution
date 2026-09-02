@@ -1,17 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
   IsEnum,
   IsISO8601,
-  IsNumber,
   IsOptional,
   IsString,
   Matches,
-  Max,
   MaxLength,
-  Min,
   MinLength,
 } from 'class-validator';
 import { InvestorStatus } from '../../common/enums';
@@ -64,17 +61,6 @@ export class CreateInvestorDto {
   @IsEmail({}, { message: 'email must be a valid address' })
   @MaxLength(160)
   email?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'BR-16. Seeded from the default_profit_share_pct setting when omitted.',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(100)
-  profit_share_pct?: number;
 
   @ApiPropertyOptional({
     default: true,

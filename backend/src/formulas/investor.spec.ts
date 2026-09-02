@@ -211,11 +211,11 @@ describe('per-deal rules', () => {
     expect(fundingShare(toPaisa(1), 0)).toBe('0.00');
   });
 
-  it('multiplies the two percentages for an entitlement (BR-17)', () => {
-    // Half the deal, half the profit on it: a quarter of a 100,000 markup.
-    expect(profitEntitlement(100_000, '50.00', '50.00')).toBe(toPaisa(25_000));
-    expect(profitEntitlement(100_000, '100.00', '50.00')).toBe(toPaisa(50_000));
-    expect(profitEntitlement(100_000, '0.00', '50.00')).toBe(0);
+  it('applies the funding share to the markup (BR-17)', () => {
+    // Half the deal takes half the markup.
+    expect(profitEntitlement(100_000, '50.00')).toBe(toPaisa(50_000));
+    expect(profitEntitlement(100_000, '100.00')).toBe(toPaisa(100_000));
+    expect(profitEntitlement(100_000, '0.00')).toBe(0);
   });
 
   it('reports what one deployment returned (BR-24a)', () => {
@@ -227,7 +227,7 @@ describe('per-deal rules', () => {
 describe('splitRecovery (BR-18, BR-19)', () => {
   /**
    * A 400,000 cost-price deal with a 100,000 markup, half funded by one
-   * investor who takes half the profit on their half.
+   * investor who takes half the markup on their half.
    */
   const TERMS = { down_payment: 100_000, markup_amount: 100_000 };
 
@@ -235,7 +235,6 @@ describe('splitRecovery (BR-18, BR-19)', () => {
     investor_id: 1,
     amount: toPaisa(200_000),
     share_pct: '50.00',
-    profit_share_pct: '50.00',
     funded_from_principal: toPaisa(200_000),
     funded_from_profit: 0,
   };
@@ -255,8 +254,8 @@ describe('splitRecovery (BR-18, BR-19)', () => {
     expect(result.shares[0].slice).toBe(toPaisa(150_000));
     expect(result.shares[0].capital_recovered).toBe(toPaisa(150_000));
     expect(result.shares[0].matured_profit).toBe(0);
-    expect(result.shares[0].entitlement).toBe(toPaisa(25_000));
-    expect(result.shares[0].unmatured_profit).toBe(toPaisa(25_000));
+    expect(result.shares[0].entitlement).toBe(toPaisa(50_000));
+    expect(result.shares[0].unmatured_profit).toBe(toPaisa(50_000));
   });
 
   it('starts maturing profit only once the whole stake is back', () => {
@@ -265,16 +264,16 @@ describe('splitRecovery (BR-18, BR-19)', () => {
 
     expect(result.shares[0].capital_recovered).toBe(toPaisa(200_000));
     expect(result.shares[0].matured_profit).toBe(toPaisa(10_000));
-    expect(result.shares[0].unmatured_profit).toBe(toPaisa(15_000));
+    expect(result.shares[0].unmatured_profit).toBe(toPaisa(40_000));
   });
 
   it('caps matured profit at the entitlement and gives the rest to the house', () => {
     const result = splitRecovery({ ...TERMS, paid: toPaisa(500_000) }, [half]);
 
-    expect(result.shares[0].matured_profit).toBe(toPaisa(25_000));
+    expect(result.shares[0].matured_profit).toBe(toPaisa(50_000));
     expect(result.shares[0].unmatured_profit).toBe(0);
-    // 600,000 recovered, of which the investor took 225,000.
-    expect(result.house_surplus).toBe(toPaisa(375_000));
+    // 600,000 recovered, of which the investor took 250,000.
+    expect(result.house_surplus).toBe(toPaisa(350_000));
   });
 
   it('returns capital to the buckets it came from (BR-19)', () => {
@@ -293,7 +292,7 @@ describe('splitRecovery (BR-18, BR-19)', () => {
     expect(share.recovered_to_profit).toBe(toPaisa(50_000));
   });
 
-  it('splits between two investors with different profit shares', () => {
+  it('splits the recovery stream between two investors equally', () => {
     const a = {
       ...half,
       investor_id: 1,
@@ -304,16 +303,13 @@ describe('splitRecovery (BR-18, BR-19)', () => {
       ...half,
       investor_id: 2,
       share_pct: '25.00',
-      profit_share_pct: '40.00',
       amount: toPaisa(100_000),
     };
 
     const result = splitRecovery({ ...TERMS, paid: toPaisa(500_000) }, [a, b]);
 
-    // BR-16 allows two investors on one contract to hold different rates.
-    expect(result.shares[0].entitlement).toBe(toPaisa(12_500));
-    expect(result.shares[1].entitlement).toBe(toPaisa(10_000));
-    // Equal shares of the stream.
+    expect(result.shares[0].entitlement).toBe(toPaisa(25_000));
+    expect(result.shares[1].entitlement).toBe(toPaisa(25_000));
     expect(result.shares[0].slice).toBe(result.shares[1].slice);
   });
 
@@ -338,7 +334,6 @@ describe('houseFunded (BR-14)', () => {
     investor_id: 1,
     amount: toPaisa(amount),
     share_pct: '50.00',
-    profit_share_pct: '50.00',
     funded_from_principal: toPaisa(amount),
     funded_from_profit: 0,
   });
@@ -358,7 +353,6 @@ describe('allocateLoss (BR-20)', () => {
     investor_id: 1,
     amount: toPaisa(200_000),
     share_pct: '50.00',
-    profit_share_pct: '50.00',
     funded_from_principal: toPaisa(200_000),
     funded_from_profit: 0,
   };
@@ -426,10 +420,10 @@ describe('allocateLoss (BR-20)', () => {
   it('extinguishes unmatured profit rather than paying it', () => {
     const result = allocateLoss({ ...TERMS, paid: 0 }, [half], participating);
 
-    // 100,000 markup x 50% share x 50% profit share = 25,000, none of which
-    // matured, because capital never came home.
-    expect(result.lines[0].extinguished_profit).toBe(toPaisa(25_000));
-    expect(result.extinguished_profit).toBe(toPaisa(25_000));
+    // 100,000 markup x 50% share = 50,000, none of which matured because
+    // capital never came home.
+    expect(result.lines[0].extinguished_profit).toBe(toPaisa(50_000));
+    expect(result.extinguished_profit).toBe(toPaisa(50_000));
   });
 
   it('splits a shortfall across two funders without losing a paisa', () => {
@@ -438,7 +432,6 @@ describe('allocateLoss (BR-20)', () => {
       investor_id: 2,
       amount: toPaisa(100_000),
       share_pct: '25.00',
-      profit_share_pct: '40.00',
       funded_from_principal: toPaisa(100_000),
       funded_from_profit: 0,
     };

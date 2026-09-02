@@ -48,9 +48,6 @@ export function FundingCard({ fundings }: { fundings: ContractFunding[] }) {
                         <th className="px-4 py-3 text-right font-medium">
                             Share
                         </th>
-                        <th className="px-4 py-3 text-right font-medium">
-                            Profit share
-                        </th>
                         <th className="px-4 py-3 font-medium">Funded from</th>
                         <th className="px-4 py-3 font-medium">On</th>
                     </tr>
@@ -65,20 +62,12 @@ export function FundingCard({ fundings }: { fundings: ContractFunding[] }) {
                                 >
                                     {row.investor_name}
                                 </a>
-                                {row.share_override_reason ? (
-                                    <p className="text-[11px] text-muted">
-                                        {row.share_override_reason}
-                                    </p>
-                                ) : null}
                             </td>
                             <td className="px-4 py-3 text-right tabular-nums">
                                 {pkr(row.amount)}
                             </td>
                             <td className="px-4 py-3 text-right tabular-nums text-muted">
                                 {row.share_pct}%
-                            </td>
-                            <td className="px-4 py-3 text-right tabular-nums text-muted">
-                                {row.profit_share_pct}%
                             </td>
                             <td className="px-4 py-3 text-xs text-muted">
                                 {/* BR-23. Reinvestment is not a separate act —

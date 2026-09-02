@@ -16,10 +16,6 @@ import { User } from './user.entity';
  * SRS §5.18. One investor's stake in one contract, written inside the
  * activation transaction (FR-CON-14) and immutable afterwards (FR-CON-15).
  *
- * `profit_share_pct` is a **snapshot**, not a lookup: changing an investor's
- * standing rate must never restate a deal already funded (BR-16). Two investors
- * on the same contract may hold different rates for the same reason.
- *
  * The bucket split is what BR-19 reverses on recovery — capital returns to the
  * bucket it came from — so it has to account for the whole deployment, which
  * the database checks.
@@ -51,20 +47,12 @@ export class ContractFunding {
   @Column({ type: 'decimal', precision: 5, scale: 2 })
   share_pct: string;
 
-  /** BR-16. Seeded from the investor, overridable per deal, then immutable. */
-  @Column({ type: 'decimal', precision: 5, scale: 2 })
-  profit_share_pct: string;
-
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   funded_from_principal: string;
 
   /** Non-zero marks this deployment as reinvestment (BR-23, BR-24a). */
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   funded_from_profit: string;
-
-  /** Required when an admin departs from the investor's standing rate. */
-  @Column({ type: 'text', nullable: true })
-  share_override_reason: string | null;
 
   @Column({ type: 'timestamptz' })
   funded_at: Date;

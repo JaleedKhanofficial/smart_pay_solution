@@ -42,8 +42,6 @@ type PreviewTerms = {
 type FundingLine = {
     investor_id: number;
     amount: number;
-    profit_share_pct?: number;
-    share_override_reason?: string;
 };
 
 /** The full create/update payload: the terms, plus who the deal is with. */
@@ -128,8 +126,6 @@ function toTerms(formData: FormData): Terms {
 function toFundings(formData: FormData): FundingLine[] {
     const ids = formData.getAll("funding_investor_id");
     const amounts = formData.getAll("funding_amount");
-    const shares = formData.getAll("funding_profit_share_pct");
-    const reasons = formData.getAll("funding_reason");
 
     const lines: FundingLine[] = [];
 
@@ -140,17 +136,7 @@ function toFundings(formData: FormData): FundingLine[] {
         if (!Number.isFinite(investor_id) || investor_id < 1) return;
         if (!Number.isFinite(amount) || amount <= 0) return;
 
-        const share = String(shares[index] ?? "").trim();
-        const reason = String(reasons[index] ?? "").trim();
-
-        lines.push({
-            investor_id,
-            amount,
-            // Omitted, not zeroed: absence is what tells the server to use the
-            // investor's standing share (BR-16).
-            ...(share === "" ? {} : { profit_share_pct: Number(share) }),
-            ...(reason === "" ? {} : { share_override_reason: reason }),
-        });
+        lines.push({ investor_id, amount });
     });
 
     return lines;

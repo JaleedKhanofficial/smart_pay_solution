@@ -213,7 +213,6 @@ export class InvestorsService {
     {
       id: number;
       full_name: string;
-      profit_share_pct: string;
       available: string;
     }[]
   > {
@@ -232,7 +231,6 @@ export class InvestorsService {
       .map((row) => ({
         id: row.id,
         full_name: row.full_name,
-        profit_share_pct: row.profit_share_pct,
         available: bucketBalances(
           ledgers.get(row.id) ?? [],
           deployments.get(row.id) ?? NO_DEPLOYMENTS,
@@ -250,8 +248,6 @@ export class InvestorsService {
   ): Promise<InvestorResponse> {
     await this.assertCnicFree(dto.cnic_number);
 
-    const fallback = await this.settings.get('default_profit_share_pct');
-
     const saved = await this.investors.save(
       this.investors.create({
         full_name: dto.full_name,
@@ -260,7 +256,6 @@ export class InvestorsService {
         mobile_number: dto.mobile_number,
         address: dto.address,
         email: dto.email ?? null,
-        profit_share_pct: (dto.profit_share_pct ?? fallback).toFixed(2),
         loss_participation: dto.loss_participation ?? true,
         agreement_date: dto.agreement_date?.slice(0, 10) ?? null,
         status: dto.status ?? InvestorStatus.active,
@@ -305,9 +300,6 @@ export class InvestorsService {
         mobile_number: dto.mobile_number,
         address: dto.address,
         email: dto.email,
-        // BR-16: this is the rate for **future** deployments. Funding rows
-        // already written keep their own copy and are not touched here.
-        profit_share_pct: dto.profit_share_pct?.toFixed(2),
         loss_participation: dto.loss_participation,
         agreement_date: dto.agreement_date?.slice(0, 10),
         status: dto.status,

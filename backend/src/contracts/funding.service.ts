@@ -42,12 +42,10 @@ export type FundingResponse = {
   investor_name: string;
   amount: string;
   share_pct: string;
-  profit_share_pct: string;
   funded_from_principal: string;
   funded_from_profit: string;
   /** BR-23. True where recovered capital or matured profit paid for this. */
   reinvested: boolean;
-  share_override_reason: string | null;
   funded_at: string;
 };
 
@@ -116,18 +114,6 @@ export class FundingService {
       }
 
       seen.add(line.investor_id);
-
-      if (line.profit_share_pct !== undefined && !line.share_override_reason) {
-        throw new BadRequestException({
-          statusCode: 400,
-          error: 'Bad Request',
-          message:
-            'Overriding an investor’s profit share needs a reason (FR-CON-12).',
-          field_errors: {
-            share_override_reason: 'Say why this deal differs',
-          },
-        });
-      }
     }
 
     const cost = toPaisa(costPrice);
@@ -200,13 +186,8 @@ export class FundingService {
         investor_id: line.investor_id,
         amount: toAmount(amount),
         share_pct: fundingShare(amount, costPrice),
-        // BR-16. Seeded from the investor and frozen here.
-        profit_share_pct: (
-          line.profit_share_pct ?? Number(investor.profit_share_pct)
-        ).toFixed(2),
         funded_from_principal: toAmount(split.from_principal),
         funded_from_profit: toAmount(split.from_profit),
-        share_override_reason: line.share_override_reason ?? null,
         funded_at: new Date(),
         created_by: 0, // set by the caller
       } as Omit<ContractFunding, 'id' | 'contract' | 'investor' | 'createdBy'>;
@@ -245,11 +226,9 @@ export class FundingService {
       investor_name: row.investor?.full_name ?? '',
       amount: row.amount,
       share_pct: row.share_pct,
-      profit_share_pct: row.profit_share_pct,
       funded_from_principal: row.funded_from_principal,
       funded_from_profit: row.funded_from_profit,
       reinvested: toPaisa(row.funded_from_profit) > 0,
-      share_override_reason: row.share_override_reason,
       funded_at: row.funded_at.toISOString(),
     }));
   }
@@ -476,7 +455,6 @@ export function toFundingRow(row: ContractFunding): FundingRow {
     investor_id: row.investor_id,
     amount: toPaisa(row.amount),
     share_pct: row.share_pct,
-    profit_share_pct: row.profit_share_pct,
     funded_from_principal: toPaisa(row.funded_from_principal),
     funded_from_profit: toPaisa(row.funded_from_profit),
   };

@@ -268,22 +268,16 @@ export function fundingShare(
 }
 
 /**
- * BR-17. What one investor is owed from a contract's markup.
- *
- * Two percentages multiply: how much of the deal they funded, and what share
- * of the profit on their part they take. The house keeps the remainder of the
- * markup and the whole of the retail margin (BR-14).
+ * BR-17. What one investor is owed from a contract's markup: their funding
+ * share of the markup amount. The house keeps the remainder, plus retail margin.
  */
 export function profitEntitlement(
   markupAmount: string | number,
   sharePct: string | number,
-  profitSharePct: string | number,
 ): Paisa {
   const markup = toPaisa(markupAmount);
 
-  return Math.round(
-    (markup * Number(sharePct) * Number(profitSharePct)) / 10_000,
-  );
+  return Math.round((markup * Number(sharePct)) / 100);
 }
 
 /** One investor's stake in a contract, as `contract_fundings` stores it. */
@@ -292,8 +286,6 @@ export type FundingRow = {
   amount: Paisa;
   /** BR-15. Of the contract's cost price. */
   share_pct: string | number;
-  /** BR-16. Fixed when the row was written; may differ per investor. */
-  profit_share_pct: string | number;
   funded_from_principal: Paisa;
   funded_from_profit: Paisa;
 };
@@ -373,7 +365,6 @@ export function splitRecovery(
     const entitlement = profitEntitlement(
       terms.markup_amount,
       funding.share_pct,
-      funding.profit_share_pct,
     );
 
     const capital_recovered = Math.min(slice, funding.amount);

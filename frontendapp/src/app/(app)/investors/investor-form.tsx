@@ -104,24 +104,6 @@ export function InvestorForm({ investor, onSaved, onCancel }: Props) {
                         investor?.agreement_date
                     )}
                 />
-                <TextField
-                    label="Profit share %"
-                    name="profit_share_pct"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    defaultValue={initial(
-                        "profit_share_pct",
-                        investor?.profit_share_pct
-                    )}
-                    placeholder={isEditing ? undefined : "Leave blank for the default"}
-                    hint={
-                        isEditing
-                            ? "Applies to future deployments only — a funded contract keeps the rate it was written with (BR-16)."
-                            : "Blank uses the default set in System settings."
-                    }
-                />
                 <SelectField
                     label="Status"
                     name="status"
