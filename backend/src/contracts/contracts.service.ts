@@ -273,6 +273,30 @@ export class ContractsService {
       );
     }
 
+    // BR-13. The same allocation the recovery ledger runs, so the printed
+    // agreement and the ledger screen cannot disagree about what was received.
+    // Only rows with money against them are carried: an untouched installment
+    // leaves the column blank to be signed by hand.
+    const payments = await this.payments.find({
+      where: { contract_id: id },
+      select: { id: true, amount: true, payment_date: true },
+    });
+
+    const received =
+      payments.length === 0
+        ? []
+        : buildLedger(contract.installments ?? [], payments, {
+            net_amount: contract.net_amount,
+            down_payment: contract.down_payment,
+            financed_amount: contract.financed_amount,
+          })
+            .rows.filter((row) => row.applied > 0)
+            .map((row) => ({
+              seq: row.seq,
+              amount: toAmount(row.applied),
+              completed_on: row.completed_on,
+            }));
+
     return {
       // NFR-15 does not apply to the operator printing this: cost equals the
       // sale price now (§2.7 item 15). The document itself prints neither.
@@ -285,6 +309,7 @@ export class ContractsService {
       }),
       customer: toCustomerResponse(customer),
       business: await this.settingsService.get('business_identity'),
+      received,
       issued_at: new Date().toISOString(),
     };
   }

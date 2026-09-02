@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { deleteContract } from "./actions";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { deleteContract, loadInvoice } from "./actions";
 import { CancelContractDialog } from "./cancel-contract-dialog";
 import { ContractFilters } from "./contract-filters";
 import { FlashAlert } from "@/components/flash-alert";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { downloadInvoicePdf } from "@/lib/invoice-pdf";
 import {
     DEFAULT_SORT,
     type Contract,
@@ -164,8 +165,53 @@ export default function ContractsManager({
     const { confirm, alert } = useAlert();
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [cancelling, setCancelling] = useState<Contract | null>(null);
+    /** The contract whose PDF is being fetched, so its button can say so. */
+    const [buildingPdf, setBuildingPdf] = useState<number | null>(null);
     const [, startTransition] = useTransition();
     const router = useRouter();
+
+    /**
+     * FR-INV-06. The agreement as a PDF, built from its data rather than
+     * captured from the screen — the same way the recovery ledger is.
+     *
+     * The payload is fetched here because the register does not carry it: a
+     * list of forty contracts has no business holding forty agreements, and
+     * the file is only ever wanted for one of them at a time.
+     */
+    const downloadAgreement = useCallback(async (id: number) => {
+        setBuildingPdf(id);
+
+        const result = await loadInvoice(id);
+
+        setBuildingPdf(null);
+
+        if (!result.ok) {
+            void alert({
+                title: "Could not build the agreement",
+                text: result.message,
+                tone: "error",
+            });
+
+            return;
+        }
+
+        try {
+            downloadInvoicePdf(result.invoice);
+        } catch (error) {
+            // A failed save is silent otherwise: the file simply never appears
+            // and the operator is left wondering whether they missed it.
+            void alert({
+                title: "Could not build the agreement",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "The PDF could not be generated.",
+                tone: "error",
+            });
+        }
+        // Memoised because the just-created effect calls it: recreated each
+        // render, it would re-run that effect and ask to download twice.
+    }, [alert]);
 
     /**
      * FR-INV-06. A new contract is worth printing straight away — that is when
@@ -173,8 +219,9 @@ export default function ContractsManager({
      * serves as the write's acknowledgement (NFR-14.6), which is why a create
      * carries `?created=` instead of a flash message.
      *
-     * The `?created=` parameter is cleared either way, so a refresh or a back
-     * button does not ask twice.
+     * It hands over the PDF rather than opening the printed page: at the
+     * counter the operator wants the file, not a browser print dialog to
+     * configure. The page is still there for anyone who wants to read it.
      */
     useEffect(() => {
         if (createdId === null) return;
@@ -182,25 +229,28 @@ export default function ContractsManager({
         let abandoned = false;
 
         void (async () => {
-            const print = await confirm({
+            const wanted = await confirm({
                 title: `Contract #${createdId} created`,
-                text: "The installment schedule has been generated. Print the agreement for the customer to sign now?",
+                text: "The installment schedule has been generated. Download the agreement PDF for the customer to sign now?",
                 tone: "success",
-                confirmLabel: "Print agreement",
+                confirmLabel: "Download agreement",
                 cancelLabel: "Not now",
             });
 
             if (abandoned) return;
 
-            router.replace(
-                print ? `/contracts/${createdId}/invoice` : "/contracts"
-            );
+            // The parameter is cleared either way, so a refresh or a back
+            // button does not ask twice. Cleared *before* the download so the
+            // question cannot reappear behind a slow save dialog.
+            router.replace("/contracts");
+
+            if (wanted) await downloadAgreement(createdId);
         })();
 
         return () => {
             abandoned = true;
         };
-    }, [createdId, confirm, router]);
+    }, [createdId, confirm, router, downloadAgreement]);
 
     async function handleDelete(contract: Contract) {
         const confirmed = await confirm({
@@ -400,11 +450,24 @@ export default function ContractsManager({
                                     variant="secondary"
                                     size="sm"
                                     iconOnly
-                                    aria-label={`Print contract ${contract.id}`}
-                                    title="Invoice / agreement"
+                                    aria-label={`View agreement for contract ${contract.id}`}
+                                    title="View agreement"
                                 >
                                     <Icon name="fileText" className="size-4" />
                                 </ButtonLink>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    iconOnly
+                                    disabled={buildingPdf === contract.id}
+                                    onClick={() =>
+                                        void downloadAgreement(contract.id)
+                                    }
+                                    aria-label={`Download agreement PDF for contract ${contract.id}`}
+                                    title="Download agreement PDF"
+                                >
+                                    <Icon name="download" className="size-4" />
+                                </Button>
                                 <ButtonLink
                                     href={`/contracts/${contract.id}/edit`}
                                     variant="secondary"
@@ -588,14 +651,34 @@ export default function ContractsManager({
                                                 variant="secondary"
                                                 size="sm"
                                                 iconOnly
-                                                aria-label={`Print contract ${contract.id}`}
-                                                title="Invoice / agreement"
+                                                aria-label={`View agreement for contract ${contract.id}`}
+                                                title="View agreement"
                                             >
                                                 <Icon
                                                     name="fileText"
                                                     className="size-4"
                                                 />
                                             </ButtonLink>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                iconOnly
+                                                disabled={
+                                                    buildingPdf === contract.id
+                                                }
+                                                onClick={() =>
+                                                    void downloadAgreement(
+                                                        contract.id
+                                                    )
+                                                }
+                                                aria-label={`Download agreement PDF for contract ${contract.id}`}
+                                                title="Download agreement PDF"
+                                            >
+                                                <Icon
+                                                    name="download"
+                                                    className="size-4"
+                                                />
+                                            </Button>
                                             <ButtonLink
                                                 href={`/contracts/${contract.id}/edit`}
                                                 variant="secondary"

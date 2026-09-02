@@ -112,6 +112,18 @@ export default async function InvoicePage({
     const { contract, customer, business } = invoice;
     const guarantors = customer.guarantors ?? [];
 
+    /**
+     * FR-INV-03. What has been collected against each installment, by seq.
+     *
+     * Empty on a freshly written agreement — which is the case the Received
+     * columns were drawn for, to be filled in by hand as each payment is
+     * taken. On a contract that has been running, the figures are printed
+     * instead and the same document doubles as a statement.
+     */
+    const received = new Map(
+        (invoice.received ?? []).map((row) => [row.seq, row])
+    );
+
     // The schedule reads down two columns rather than one long strip, so a
     // twenty-month plan still fits the page it started on.
     const half = Math.ceil(contract.installments.length / 2);
@@ -135,7 +147,7 @@ export default async function InvoicePage({
 
     return (
         <div className="min-h-screen bg-slate-100 print:bg-white">
-            <InvoiceActions contractId={contract.id} />
+            <InvoiceActions invoice={invoice} />
 
             {/* The sheet. Fixed colours, not theme tokens: a document must look
                 the same on every machine and in every appearance (NFR-03). */}
@@ -303,28 +315,58 @@ export default async function InvoicePage({
                                             <th className="border border-slate-700 px-2 py-1 text-right font-semibold">
                                                 Amount
                                             </th>
-                                            <th className="border border-slate-700 px-2 py-1 text-left font-semibold">
+                                            <th className="border border-slate-700 px-1.5 py-1 text-right font-semibold">
                                                 Received
+                                            </th>
+                                            <th className="border border-slate-700 px-1.5 py-1 text-left font-semibold">
+                                                Paid on
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {column.map((row) => (
-                                            <tr key={row.seq}>
-                                                <td className="border border-slate-700 px-2 py-[3px] tabular-nums">
-                                                    {row.seq}
-                                                </td>
-                                                <td className="border border-slate-700 px-2 py-[3px] tabular-nums">
-                                                    {formatDate(row.due_date)}
-                                                </td>
-                                                <td className="border border-slate-700 px-2 py-[3px] text-right font-medium tabular-nums">
-                                                    {pkr(row.amount)}
-                                                </td>
-                                                {/* Signed by hand as each
-                                                    installment is collected. */}
-                                                <td className="border border-slate-700 px-2 py-[3px]" />
-                                            </tr>
-                                        ))}
+                                        {column.map((row) => {
+                                            const paid = received.get(row.seq);
+
+                                            return (
+                                                <tr key={row.seq}>
+                                                    <td className="border border-slate-700 px-2 py-[3px] tabular-nums">
+                                                        {row.seq}
+                                                    </td>
+                                                    <td className="border border-slate-700 px-2 py-[3px] tabular-nums">
+                                                        {formatDate(
+                                                            row.due_date
+                                                        )}
+                                                    </td>
+                                                    <td className="border border-slate-700 px-2 py-[3px] text-right font-medium tabular-nums">
+                                                        {pkr(row.amount)}
+                                                    </td>
+                                                    {/* Both cells stay empty
+                                                        until money is applied,
+                                                        so a fresh agreement
+                                                        still prints a grid to
+                                                        fill in by hand. */}
+                                                    <td className="border border-slate-700 px-1.5 py-[3px] text-right tabular-nums">
+                                                        {paid
+                                                            ? pkr(paid.amount)
+                                                            : null}
+                                                    </td>
+                                                    <td className="border border-slate-700 px-1.5 py-[3px] tabular-nums">
+                                                        {/* The day the row was
+                                                            cleared, not the day
+                                                            a payment arrived:
+                                                            one payment can
+                                                            settle several rows
+                                                            (BR-13). Blank while
+                                                            it is still short. */}
+                                                        {paid?.completed_on
+                                                            ? formatDate(
+                                                                  paid.completed_on
+                                                              )
+                                                            : null}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )

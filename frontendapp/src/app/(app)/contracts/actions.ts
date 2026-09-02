@@ -9,6 +9,7 @@ import type {
     ContractPreview,
     FormState,
 } from "@/types/contract";
+import type { Invoice } from "@/types/invoice";
 import type { LossPreview } from "@/types/investor";
 
 const CONTRACTS_PATH = "/contracts";
@@ -311,5 +312,33 @@ export async function loadLossPreview(id: number): Promise<LossPreview[]> {
         );
     } catch {
         return [];
+    }
+}
+
+/**
+ * FR-INV-06. The agreement payload, for building the PDF without opening the
+ * printed page.
+ *
+ * The register and the just-created prompt both offer the download, and
+ * neither has the invoice to hand — this is the one read they need.
+ */
+export async function loadInvoice(
+    id: number
+): Promise<{ ok: true; invoice: Invoice } | { ok: false; message: string }> {
+    try {
+        return {
+            ok: true,
+            invoice: await apiCallWithRefresh<Invoice>(
+                `${CONTRACTS_PATH}/${id}/invoice`
+            ),
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            message:
+                error instanceof ApiError
+                    ? error.message
+                    : "Could not load the agreement.",
+        };
     }
 }
