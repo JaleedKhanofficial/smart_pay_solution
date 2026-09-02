@@ -53,7 +53,7 @@ export async function loginAction(
     await writeSession(auth);
 
     // redirect() throws a control-flow signal, so it must sit outside the try.
-    redirect("/customers");
+    redirect("/dashboard");
 }
 
 export async function logoutAction(): Promise<void> {
