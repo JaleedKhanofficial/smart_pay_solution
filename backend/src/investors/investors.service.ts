@@ -546,7 +546,7 @@ export class InvestorsService {
   private async ledgerFor(investorId: number): Promise<InvestorTxn[]> {
     const rows = await this.transactions.find({
       where: { investor_id: investorId },
-      select: { type: true, bucket: true, amount: true },
+      select: { type: true, bucket: true, amount: true, reason: true },
     });
 
     return rows.map(toLedgerLine);
@@ -557,7 +557,13 @@ export class InvestorsService {
 
     const rows = await this.transactions.find({
       where: { investor_id: In(ids) },
-      select: { investor_id: true, type: true, bucket: true, amount: true },
+      select: {
+        investor_id: true,
+        type: true,
+        bucket: true,
+        amount: true,
+        reason: true,
+      },
     });
 
     const grouped = new Map<number, InvestorTxn[]>();
@@ -605,10 +611,12 @@ function toLedgerLine(row: {
   type: InvestorTxnType;
   bucket: InvestorBucket;
   amount: string;
+  reason?: string | null;
 }): InvestorTxn {
   return {
     type: row.type,
     bucket: row.bucket,
     amount: toPaisa(row.amount),
+    reason: row.reason ?? null,
   };
 }

@@ -291,10 +291,15 @@ export async function cancelContract(
  * as "no funders to warn about" — and an operator cannot cancel a contract
  * anyway, so the dialog they would see it in is out of reach.
  */
-export async function loadLossPreview(id: number): Promise<LossPreview[]> {
+export async function loadLossPreview(
+    id: number,
+    options?: { includeVoided?: boolean }
+): Promise<LossPreview[]> {
     try {
+        const query = options?.includeVoided ? "?include_voided=1" : "";
+
         return await apiCallWithRefresh<LossPreview[]>(
-            `${CONTRACTS_PATH}/${id}/loss-preview`
+            `${CONTRACTS_PATH}/${id}/loss-preview${query}`
         );
     } catch {
         return [];

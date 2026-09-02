@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   Contract,
   ContractFunding,
+  ContractRecycleSnapshot,
   Customer,
   Installment,
   Investor,
@@ -24,6 +25,7 @@ import { FundingService } from './funding.service';
       Product,
       Payment,
       ContractFunding,
+      ContractRecycleSnapshot,
       Investor,
       InvestorTransaction,
     ]),

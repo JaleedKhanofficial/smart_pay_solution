@@ -1,5 +1,6 @@
 import {
   bucketBalances,
+  PURGE_PROFIT_MATERIALIZED_PREFIX,
   cycleGrowth,
   fundingShare,
   houseFunded,
@@ -9,6 +10,7 @@ import {
   allocateLoss,
   splitRecovery,
   type InvestorTxn,
+  NO_DEPLOYMENTS,
 } from './investor';
 import { toPaisa } from './money';
 
@@ -105,6 +107,25 @@ describe('bucketBalances (BR-21)', () => {
 
     expect(balances.lifetime_profit).toBe(toPaisa(50_000));
     expect(balances.profit_available).toBe(toPaisa(30_000));
+  });
+
+  it('keeps profit earned after a funded contract is purged from the bin', () => {
+    const balances = bucketBalances(
+      [
+        deposit(200_000),
+        {
+          type: 'Adjustment',
+          bucket: 'profit',
+          amount: toPaisa(70_000),
+          reason: `${PURGE_PROFIT_MATERIALIZED_PREFIX} Contract 1 was purged`,
+        },
+      ],
+      NO_DEPLOYMENTS,
+    );
+
+    expect(balances.lifetime_profit).toBe(toPaisa(70_000));
+    expect(balances.profit_available).toBe(toPaisa(70_000));
+    expect(balances.payable).toBe(toPaisa(270_000));
   });
 });
 

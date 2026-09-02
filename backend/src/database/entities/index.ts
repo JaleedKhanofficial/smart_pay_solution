@@ -1,5 +1,6 @@
 import { AuditLog } from './audit-log.entity';
 import { CapitalEntry } from './capital-entry.entity';
+import { ContractRecycleSnapshot } from './contract-recycle-snapshot.entity';
 import { Contract } from './contract.entity';
 import { ContractFunding } from './contract-funding.entity';
 import { Customer } from './customer.entity';
@@ -23,6 +24,7 @@ export {
   CapitalEntry,
   Contract,
   ContractFunding,
+  ContractRecycleSnapshot,
   Customer,
   ExpenseEntry,
   File,
@@ -50,6 +52,7 @@ export const ENTITIES = [
   CapitalEntry,
   Contract,
   ContractFunding,
+  ContractRecycleSnapshot,
   Customer,
   ExpenseEntry,
   File,

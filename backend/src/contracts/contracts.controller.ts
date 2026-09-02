@@ -91,8 +91,14 @@ export class ContractsController {
   @Get(':id/loss-preview')
   @Roles(Role.admin)
   @ApiOperation({ summary: 'Per-investor write-off preview (BR-20)' })
-  lossPreview(@Param('id', ParseIntPipe) id: number): Promise<LossPreview[]> {
-    return this.funding.previewLoss(id);
+  lossPreview(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('include_voided') includeVoided?: string,
+  ): Promise<LossPreview[]> {
+    return this.funding.previewLoss(
+      id,
+      includeVoided === '1' || includeVoided === 'true',
+    );
   }
 
   /** FR-CON-11. Who funded this contract, and out of which bucket. */

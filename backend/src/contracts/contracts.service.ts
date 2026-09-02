@@ -461,6 +461,8 @@ export class ContractsService {
     }
 
     await this.dataSource.transaction(async (manager) => {
+      await this.funding.captureRecycleSnapshot(manager, id);
+
       // The plan has no meaning without the contract, and nothing references
       // an installment, so it goes rather than lingering as an orphan.
       await manager.delete(Installment, { contract_id: id });

@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { ApiError } from "@/api/api.repository";
 import { apiCallWithRefresh } from "@/lib/api";
-import type { BinKind, FormState } from "@/types/recycle-bin";
+import type {
+    BinKind,
+    ContractRestorePreview,
+    FormState,
+    RestoreContractBody,
+} from "@/types/recycle-bin";
+import type { PurgeReturnPreview } from "@/types/investor";
 
 const BIN_PATH = "/recycle-bin";
 
@@ -17,6 +23,7 @@ function revalidateEverything(): void {
         "/payments",
         "/settings/users",
         "/dashboard",
+        "/investors",
     ]) {
         revalidatePath(path);
     }
@@ -41,15 +48,43 @@ function toFailure(error: unknown): FormState {
     };
 }
 
+/** FR-BIN-02. Funding lines frozen at delete, for the restore dialog. */
+export async function loadContractRestorePreview(
+    contractId: number
+): Promise<ContractRestorePreview | null> {
+    try {
+        return await apiCallWithRefresh<ContractRestorePreview | null>(
+            `${BIN_PATH}/contract/${contractId}/restore-preview`
+        );
+    } catch {
+        return null;
+    }
+}
+
+/** FR-BIN-03. Capital returning to each funder when a contract is purged. */
+export async function loadPurgePreview(
+    contractId: number
+): Promise<PurgeReturnPreview[]> {
+    try {
+        return await apiCallWithRefresh<PurgeReturnPreview[]>(
+            `${BIN_PATH}/contract/${contractId}/purge-preview`
+        );
+    } catch {
+        return [];
+    }
+}
+
 /** FR-BIN-02 */
 export async function restoreRecord(
     kind: BinKind,
-    id: number
+    id: number,
+    body?: RestoreContractBody
 ): Promise<FormState> {
     try {
         await apiCallWithRefresh<void>(
             `${BIN_PATH}/${kind}/${id}/restore`,
-            "POST"
+            "POST",
+            body ?? {}
         );
     } catch (error) {
         return toFailure(error);

@@ -116,6 +116,16 @@ export type LossPreview = {
     participates: boolean;
 };
 
+/** FR-BIN-03. Capital returning to each funder on a Recycle Bin purge. */
+export type PurgeReturnPreview = {
+    investor_id: number;
+    investor_name: string;
+    funded: string;
+    recovered: string;
+    returning: string;
+    matured_profit: string;
+};
+
 export type InvestorFilterValues = { search: string; status: string };
 export const EMPTY_FILTERS: InvestorFilterValues = { search: "", status: "" };
 

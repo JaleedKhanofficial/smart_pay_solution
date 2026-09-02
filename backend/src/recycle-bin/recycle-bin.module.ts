@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ContractsModule } from '../contracts/contracts.module';
 import { RecycleBinController } from './recycle-bin.controller';
 import { RecycleBinService } from './recycle-bin.service';
 
@@ -8,6 +9,7 @@ import { RecycleBinService } from './recycle-bin.service';
  * from the registry, not injected per kind.
  */
 @Module({
+  imports: [ContractsModule],
   controllers: [RecycleBinController],
   providers: [RecycleBinService],
 })

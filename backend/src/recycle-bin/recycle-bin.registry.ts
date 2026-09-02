@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../auth/auth.types';
-import { settleContractLosses } from '../contracts/funding.service';
+import { settleContractPurge } from '../contracts/funding.service';
 import { EntityManager, IsNull, Not } from 'typeorm';
 import { ContractStatus } from '../common/enums';
 import {
@@ -85,8 +85,19 @@ export type BinDefinition<T extends BinRecord> = {
     manager: EntityManager,
     actor: AuthenticatedUser,
   ) => Promise<void>;
+  /** Run inside the restore transaction, before `deleted_at` is cleared. */
+  beforeRestore?: (
+    row: T,
+    manager: EntityManager,
+    actor: AuthenticatedUser,
+    options?: RestoreBinOptions,
+  ) => Promise<void>;
   /** Run inside the restore transaction, after `deleted_at` is cleared. */
   afterRestore?: (row: T, manager: EntityManager) => Promise<void>;
+};
+
+export type RestoreBinOptions = {
+  fundings?: Array<{ investor_id: number }>;
 };
 
 /** Nothing ever blocks this operation for this kind. */
@@ -198,37 +209,24 @@ export const CONTRACT_DEFINITION: BinDefinition<Contract> = {
   },
 
   /**
-   * A funded contract can be purged, but not silently: BR-20 turns whatever
-   * did not come back into Loss rows first. `purge` below does that, so there
-   * is nothing left to refuse here.
+   * FR-BIN-03. Matured profit is locked in; deployed capital returns to idle
+   * when the funding rows are deleted — no Loss rows are written.
    */
   purgeBlocker: never,
 
   purge: async (row, manager, actor) => {
-    // BR-20, before anything is deleted. Purging destroys the funding rows and
-    // with them the record of what was owed, so the write-off has to be taken
-    // from them while they are still there.
-    await settleContractLosses(
+    await settleContractPurge(
       manager,
       row.id,
       actor,
-      `Contract ${row.id} was purged from the Recycle Bin, so its funding could not be recovered`,
-      // The contract is about to cease to exist, so the Loss cannot point at
-      // it. Its number is in the reason above, which outlives the row.
-      false,
+      `Contract ${row.id} was purged from the Recycle Bin`,
     );
 
     /**
-     * Every investor line naming this contract loses the reference, and only
-     * the reference — the row itself is append-only and stays exactly where it
-     * is (FR-IVT-07).
-     *
-     * Both kinds land here: the Loss just written above, and any written
-     * earlier when the contract was cancelled and written off. `contract_id`
-     * is a RESTRICT key, so without this the contract's own loss record would
-     * block the purge it was written for. The contract number is already in
-     * each row's reason, which is what a reader needs once the contract is
-     * gone.
+     * Any investor line still pointing at this contract loses the reference.
+     * The row itself is append-only and stays exactly where it is (FR-IVT-07).
+     * `contract_id` is RESTRICT, so without this a prior write-off row would
+     * block the delete.
      */
     await manager.update(
       InvestorTransaction,
@@ -237,8 +235,8 @@ export const CONTRACT_DEFINITION: BinDefinition<Contract> = {
     );
 
     // The schedule, the payments and the funding are the contract; nothing
-    // else references them, and leaving any behind would orphan money. The
-    // investors' side of the funding survives as the Loss rows.
+    // else references them. Removing the funding rows releases any capital
+    // still deployed back to each investor's idle balance.
     await manager.delete(ContractFunding, { contract_id: row.id });
     await manager.delete(Payment, { contract_id: row.id });
     await manager.delete(Installment, { contract_id: row.id });

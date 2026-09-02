@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import {
   And,
   DataSource,
@@ -9,7 +9,9 @@ import {
 } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { FundingService } from '../contracts/funding.service';
 import { ListBinDto } from './dto/list-bin.dto';
+import type { RestoreBinDto } from './dto/restore-bin.dto';
 import {
   BIN_DEFINITIONS,
   BIN_KINDS,
@@ -28,6 +30,7 @@ export class RecycleBinService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly audit: AuditService,
+    private readonly funding: FundingService,
   ) {}
 
   /**
@@ -77,6 +80,7 @@ export class RecycleBinService {
     kind: BinKind,
     id: number,
     actor: AuthenticatedUser,
+    body?: RestoreBinDto,
     ip?: string,
   ): Promise<void> {
     const definition = BIN_DEFINITIONS[kind];
@@ -87,10 +91,33 @@ export class RecycleBinService {
       const blocked = await definition.restoreBlocker(row, manager);
       if (blocked) refuse(blocked);
 
+      if (kind === 'contract') {
+        const preview = await this.funding.contractRestorePreview(id);
+
+        if (preview) {
+          if (
+            !body?.fundings ||
+            body.fundings.length !== preview.fundings.length
+          ) {
+            throw new BadRequestException({
+              statusCode: 400,
+              error: 'Bad Request',
+              message:
+                'This contract was investor-funded when it was deleted. Choose who should carry each stake before restoring it.',
+            });
+          }
+
+          await this.funding.reassignFundingsOnRestore(
+            manager,
+            id,
+            body.fundings,
+            actor,
+          );
+        }
+      }
+
       await manager.restore(definition.entity, { id });
 
-      // A payment coming back changes a contract's balance, so the entity gets
-      // a say in what else must happen — inside the same transaction.
       await definition.afterRestore?.(row, manager);
     });
 
@@ -99,8 +126,19 @@ export class RecycleBinService {
       entity: kind,
       entity_id: String(id),
       action: 'restore',
+      after: body?.fundings ? { fundings: body.fundings } : undefined,
       ip,
     });
+  }
+
+  /** FR-BIN-02. Funding lines frozen at delete, for the restore dialog. */
+  contractRestorePreview(contractId: number) {
+    return this.funding.contractRestorePreview(contractId);
+  }
+
+  /** FR-BIN-03. Capital returning to each funder on a Recycle Bin purge. */
+  contractPurgePreview(contractId: number) {
+    return this.funding.previewPurgeReturn(contractId);
   }
 
   /**

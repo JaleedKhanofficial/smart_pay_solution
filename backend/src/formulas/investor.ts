@@ -23,7 +23,28 @@ export type InvestorTxn = {
   bucket: Bucket;
   /** Signed for an Adjustment; positive for everything else. */
   amount: Paisa;
+  /** Used to recognise profit locked in when a funded contract is purged. */
+  reason?: string | null;
 };
+
+/**
+ * Profit-bucket adjustments written when a funded contract is purged after it
+ * had already matured. Without this prefix they would vanish when the funding
+ * rows are deleted.
+ */
+export const PURGE_PROFIT_MATERIALIZED_PREFIX =
+  'Profit matured before contract was purged:';
+
+function materializedProfit(txns: InvestorTxn[]): Paisa {
+  return sum(
+    txns,
+    (txn) =>
+      txn.type === 'Adjustment' &&
+      txn.bucket === 'profit' &&
+      txn.amount > 0 &&
+      (txn.reason?.startsWith(PURGE_PROFIT_MATERIALIZED_PREFIX) ?? false),
+  );
+}
 
 /**
  * BR-21's deployment and recovery terms. Zero in pass one, because funding is
@@ -96,13 +117,15 @@ export function bucketBalances(
   const lost = (bucket: Bucket) =>
     sum(txns, (txn) => txn.type === 'Loss' && inBucket(bucket)(txn));
 
+  const lockedProfit = materializedProfit(txns);
+
   const net_principal =
     deposits -
     withdrawn('principal') +
     adjusted('principal') -
     lost('principal');
 
-  const lifetime_profit = deployments.matured_profit;
+  const lifetime_profit = deployments.matured_profit + lockedProfit;
 
   const principal_available =
     net_principal -
@@ -113,6 +136,7 @@ export function bucketBalances(
     lifetime_profit -
     withdrawn('profit') +
     adjusted('profit') -
+    lockedProfit -
     lost('profit') -
     deployments.funded_from_profit +
     deployments.recovered_to_profit;

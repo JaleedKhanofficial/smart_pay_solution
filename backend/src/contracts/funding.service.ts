@@ -15,10 +15,12 @@ import {
 import {
   Contract,
   ContractFunding,
+  ContractRecycleSnapshot,
   Investor,
   InvestorTransaction,
   Payment,
 } from '../database/entities';
+import type { ContractRecycleSnapshotData } from '../database/entities/contract-recycle-snapshot.entity';
 import {
   bucketBalances,
   allocateLoss,
@@ -28,6 +30,7 @@ import {
   splitRecovery,
   toAmount,
   toPaisa,
+  PURGE_PROFIT_MATERIALIZED_PREFIX,
   type FundingRow,
   type InvestorTxn,
   type LossAllocation,
@@ -49,6 +52,18 @@ export type FundingResponse = {
   funded_at: string;
 };
 
+/** FR-BIN-03. What each funder gets back when a contract is purged. */
+export type PurgeReturnPreview = {
+  investor_id: number;
+  investor_name: string;
+  funded: string;
+  recovered: string;
+  /** Capital that will return to idle when the deal is destroyed. */
+  returning: string;
+  /** Profit locked in before the funding rows are removed. */
+  matured_profit: string;
+};
+
 /** BR-20 / FR-CON-16. What a write-off would cost, per investor. */
 export type LossPreview = {
   investor_id: number;
@@ -63,6 +78,14 @@ export type LossPreview = {
   extinguished_profit: string;
   /** False: the house absorbs it and this investor loses nothing. */
   participates: boolean;
+};
+
+/** FR-BIN-02. What the restore dialog needs for a funded contract. */
+export type ContractRestorePreview = {
+  contract_id: number;
+  captured_at: string | null;
+  fundings: ContractRecycleSnapshotData['fundings'];
+  investors: Array<{ id: number; full_name: string; available: string }>;
 };
 
 /**
@@ -240,8 +263,192 @@ export class FundingService {
    * anyone commits to it (FR-CON-16). Empty for a contract nobody funded,
    * which is the common case.
    */
-  previewLoss(contractId: number): Promise<LossPreview[]> {
-    return previewContractLoss(this.fundings.manager, contractId);
+  previewLoss(
+    contractId: number,
+    includeVoidedPayments = false,
+  ): Promise<LossPreview[]> {
+    return previewContractLoss(
+      this.fundings.manager,
+      contractId,
+      includeVoidedPayments,
+    );
+  }
+
+  /** FR-BIN-03. Capital returning to each funder on a Recycle Bin purge. */
+  previewPurgeReturn(contractId: number): Promise<PurgeReturnPreview[]> {
+    return previewContractPurge(this.fundings.manager, contractId);
+  }
+
+  /** FR-BIN-02. Funded contracts need an investor picker before they return. */
+  async contractRestorePreview(
+    contractId: number,
+  ): Promise<ContractRestorePreview | null> {
+    const manager = this.fundings.manager;
+
+    const contract = await manager.findOne(Contract, {
+      where: { id: contractId },
+      withDeleted: true,
+    });
+
+    if (!contract?.deleted_at) return null;
+
+    const stored = await manager.findOne(ContractRecycleSnapshot, {
+      where: { contract_id: contractId },
+    });
+
+    let lines = stored?.snapshot.fundings ?? [];
+
+    if (lines.length === 0) {
+      const rows = await manager.find(ContractFunding, {
+        where: { contract_id: contractId },
+        relations: { investor: true },
+        order: { id: 'ASC' },
+      });
+
+      lines = rows.map((row) => ({
+        investor_id: row.investor_id,
+        investor_name: row.investor?.full_name ?? '',
+        amount: row.amount,
+        share_pct: row.share_pct,
+        funded_from_principal: row.funded_from_principal,
+        funded_from_profit: row.funded_from_profit,
+      }));
+    }
+
+    if (lines.length === 0) return null;
+
+    const investors = await this.listInvestorsForRestore();
+
+    return {
+      contract_id: contractId,
+      captured_at: stored?.snapshot.captured_at ?? null,
+      fundings: lines,
+      investors,
+    };
+  }
+
+  /** FR-CON-09. Freeze investor stakes the moment a contract enters the bin. */
+  async captureRecycleSnapshot(
+    manager: EntityManager,
+    contractId: number,
+  ): Promise<void> {
+    const fundings = await manager.find(ContractFunding, {
+      where: { contract_id: contractId },
+      relations: { investor: true },
+      order: { id: 'ASC' },
+    });
+
+    if (fundings.length === 0) {
+      await manager.delete(ContractRecycleSnapshot, { contract_id: contractId });
+
+      return;
+    }
+
+    const contract = await manager.findOne(Contract, {
+      where: { id: contractId },
+    });
+
+    if (!contract) return;
+
+    const payments = await manager.find(Payment, {
+      where: { contract_id: contractId },
+      withDeleted: true,
+      select: { amount: true },
+    });
+
+    const snapshot: ContractRecycleSnapshotData = {
+      captured_at: new Date().toISOString(),
+      fundings: fundings.map((row) => ({
+        investor_id: row.investor_id,
+        investor_name: row.investor?.full_name ?? '',
+        amount: row.amount,
+        share_pct: row.share_pct,
+        funded_from_principal: row.funded_from_principal,
+        funded_from_profit: row.funded_from_profit,
+      })),
+      recovery: {
+        down_payment: contract.down_payment,
+        paid: toAmount(
+          payments.reduce((total, row) => total + toPaisa(row.amount), 0),
+        ),
+        markup_amount: contract.markup_amount,
+      },
+    };
+
+    await manager.save(
+      manager.create(ContractRecycleSnapshot, {
+        contract_id: contractId,
+        snapshot,
+        captured_at: new Date(),
+      }),
+    );
+  }
+
+  /**
+   * FR-BIN-02. Reassign funders when a deleted contract is restored — the
+   * admin chooses who carries each stake going forward.
+   */
+  async reassignFundingsOnRestore(
+    manager: EntityManager,
+    contractId: number,
+    assignments: Array<{ investor_id: number }>,
+    actor: AuthenticatedUser,
+  ): Promise<void> {
+    const fundings = await manager.find(ContractFunding, {
+      where: { contract_id: contractId },
+      order: { id: 'ASC' },
+    });
+
+    if (fundings.length === 0) return;
+
+    if (assignments.length !== fundings.length) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        message:
+          'Choose an investor for every funding line before restoring this contract.',
+      });
+    }
+
+    const balances = await this.balancesForManager(manager, [
+      ...new Set(assignments.map((line) => line.investor_id)),
+    ]);
+
+    for (let index = 0; index < fundings.length; index++) {
+      const row = fundings[index];
+      const targetId = assignments[index].investor_id;
+
+      if (targetId === row.investor_id) continue;
+
+      const investor = await manager.findOne(Investor, {
+        where: { id: targetId },
+      });
+
+      if (!investor || investor.status !== InvestorStatus.active) {
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'Conflict',
+          message: `Investor ${targetId} is not available to take this stake.`,
+        });
+      }
+
+      const available = balances.get(targetId)?.available ?? 0;
+      const amount = toPaisa(row.amount);
+
+      if (amount > available) {
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'Conflict',
+          message: `${investor.full_name} has only ${toAmount(available)} available — ${toAmount(amount - available)} short for this stake.`,
+        });
+      }
+
+      await manager.update(
+        ContractFunding,
+        { id: row.id },
+        { investor_id: targetId, created_by: actor.id },
+      );
+    }
   }
 
   /** BR-20, inside the caller's transaction. See `settleContractLosses`. */
@@ -408,10 +615,36 @@ export class FundingService {
 
   // --------------------------------------------------------- internals --
 
+  /** Active investors for the restore picker — includes fully deployed ones. */
+  private async listInvestorsForRestore(): Promise<
+    ContractRestorePreview['investors']
+  > {
+    const rows = await this.investors.find({
+      where: { status: InvestorStatus.active },
+      order: { full_name: 'ASC' },
+    });
+
+    if (rows.length === 0) return [];
+
+    const balances = await this.balancesFor(rows.map((row) => row.id));
+
+    return rows.map((row) => ({
+      id: row.id,
+      full_name: row.full_name,
+      available: toAmount(balances.get(row.id)?.available ?? 0),
+    }));
+  }
+
   private async balancesFor(ids: number[]) {
     const txns = await this.transactions.find({
       where: { investor_id: In(ids) },
-      select: { investor_id: true, type: true, bucket: true, amount: true },
+      select: {
+        investor_id: true,
+        type: true,
+        bucket: true,
+        amount: true,
+        reason: true,
+      },
     });
 
     const grouped = new Map<number, InvestorTxn[]>();
@@ -423,6 +656,56 @@ export class FundingService {
           type: txn.type,
           bucket: txn.bucket,
           amount: toPaisa(txn.amount),
+          reason: txn.reason,
+        },
+      ]);
+    }
+
+    const deployments = await this.deploymentsFor(ids);
+    const balances = new Map<number, ReturnType<typeof bucketBalances>>();
+
+    for (const id of ids) {
+      balances.set(
+        id,
+        bucketBalances(grouped.get(id) ?? [], {
+          ...(deployments.get(id) ?? {
+            funded_from_principal: 0,
+            funded_from_profit: 0,
+            recovered_to_principal: 0,
+            recovered_to_profit: 0,
+            matured_profit: 0,
+          }),
+        }),
+      );
+    }
+
+    return balances;
+  }
+
+  private async balancesForManager(manager: EntityManager, ids: number[]) {
+    if (ids.length === 0) return new Map();
+
+    const txns = await manager.find(InvestorTransaction, {
+      where: { investor_id: In(ids) },
+      select: {
+        investor_id: true,
+        type: true,
+        bucket: true,
+        amount: true,
+        reason: true,
+      },
+    });
+
+    const grouped = new Map<number, InvestorTxn[]>();
+
+    for (const txn of txns) {
+      grouped.set(txn.investor_id, [
+        ...(grouped.get(txn.investor_id) ?? []),
+        {
+          type: txn.type,
+          bucket: txn.bucket,
+          amount: toPaisa(txn.amount),
+          reason: txn.reason,
         },
       ]);
     }
@@ -468,7 +751,11 @@ export function toFundingRow(row: ContractFunding): FundingRow {
  * plain object with no injector — the purge path and the cancel path have to
  * reach the same code, and this is the only shape both can use.
  */
-async function prepareLoss(manager: EntityManager, contractId: number) {
+async function prepareLoss(
+  manager: EntityManager,
+  contractId: number,
+  options?: { includeVoidedPayments?: boolean },
+) {
   const fundings = await manager.find(ContractFunding, {
     where: { contract_id: contractId },
     order: { id: 'ASC' },
@@ -498,7 +785,10 @@ async function prepareLoss(manager: EntityManager, contractId: number) {
   }
 
   const payments = await manager.find(Payment, {
-    where: { contract_id: contractId, deleted_at: IsNull() },
+    where: options?.includeVoidedPayments
+      ? { contract_id: contractId }
+      : { contract_id: contractId, deleted_at: IsNull() },
+    ...(options?.includeVoidedPayments ? { withDeleted: true } : {}),
     select: { id: true, amount: true },
   });
 
@@ -532,8 +822,11 @@ async function prepareLoss(manager: EntityManager, contractId: number) {
 export async function previewContractLoss(
   manager: EntityManager,
   contractId: number,
+  includeVoidedPayments = false,
 ): Promise<LossPreview[]> {
-  const prepared = await prepareLoss(manager, contractId);
+  const prepared = await prepareLoss(manager, contractId, {
+    includeVoidedPayments,
+  });
 
   if (!prepared) return [];
 
@@ -579,8 +872,9 @@ export async function settleContractLosses(
    * instead, which is what survives.
    */
   linkContract = true,
+  options?: { includeVoidedPayments?: boolean },
 ): Promise<LossAllocation | null> {
-  const prepared = await prepareLoss(manager, contractId);
+  const prepared = await prepareLoss(manager, contractId, options);
 
   if (!prepared) return null;
 
@@ -638,4 +932,137 @@ export async function settleContractLosses(
   }
 
   return allocation;
+}
+
+/**
+ * Recycle Bin purge for a funded contract. Voided payments still count as
+ * recovery when deciding matured profit. Capital that has not come back is
+ * released to idle when the funding rows are deleted — it is not written off
+ * as a Loss (that path is for cancellation with write-off, BR-20).
+ */
+export async function settleContractPurge(
+  manager: EntityManager,
+  contractId: number,
+  actor: AuthenticatedUser,
+  reason: string,
+): Promise<void> {
+  const fundings = await manager.find(ContractFunding, {
+    where: { contract_id: contractId },
+    order: { id: 'ASC' },
+  });
+
+  if (fundings.length === 0) return;
+
+  const contract = await manager.findOne(Contract, {
+    where: { id: contractId },
+    withDeleted: true,
+  });
+
+  if (!contract) return;
+
+  if (contract.status === ContractStatus.cancelled && contract.write_off) {
+    return;
+  }
+
+  const payments = await manager.find(Payment, {
+    where: { contract_id: contractId },
+    withDeleted: true,
+    select: { amount: true },
+  });
+
+  const paid = payments.reduce((total, row) => total + toPaisa(row.amount), 0);
+
+  const recovery = splitRecovery(
+    {
+      down_payment: contract.down_payment,
+      paid,
+      markup_amount: contract.markup_amount,
+    },
+    fundings.map(toFundingRow),
+  );
+
+  const txn_date = new Date().toISOString().slice(0, 10);
+
+  for (const share of recovery.shares) {
+    if (share.matured_profit <= 0) continue;
+
+    await manager.save(
+      manager.create(InvestorTransaction, {
+        investor_id: share.investor_id,
+        type: InvestorTxnType.Adjustment,
+        bucket: InvestorBucket.profit,
+        amount: toAmount(share.matured_profit),
+        txn_date,
+        method: null,
+        reference: null,
+        contract_id: null,
+        reason: `${PURGE_PROFIT_MATERIALIZED_PREFIX} ${reason}`,
+        entered_by: actor.id,
+      }),
+    );
+  }
+}
+
+/** FR-BIN-03. What each funder gets back when a contract is purged. */
+export async function previewContractPurge(
+  manager: EntityManager,
+  contractId: number,
+): Promise<PurgeReturnPreview[]> {
+  const fundings = await manager.find(ContractFunding, {
+    where: { contract_id: contractId },
+    relations: { investor: true },
+    order: { id: 'ASC' },
+  });
+
+  if (fundings.length === 0) return [];
+
+  const contract = await manager.findOne(Contract, {
+    where: { id: contractId },
+    withDeleted: true,
+  });
+
+  if (!contract) return [];
+
+  if (contract.status === ContractStatus.cancelled && contract.write_off) {
+    return [];
+  }
+
+  const payments = await manager.find(Payment, {
+    where: { contract_id: contractId },
+    withDeleted: true,
+    select: { amount: true },
+  });
+
+  const paid = payments.reduce((total, row) => total + toPaisa(row.amount), 0);
+
+  const recovery = splitRecovery(
+    {
+      down_payment: contract.down_payment,
+      paid,
+      markup_amount: contract.markup_amount,
+    },
+    fundings.map(toFundingRow),
+  );
+
+  return fundings
+    .map((row, index) => {
+      const share = recovery.shares[index];
+      const returning = Math.max(
+        0,
+        toPaisa(row.amount) - share.capital_recovered,
+      );
+
+      return {
+        investor_id: row.investor_id,
+        investor_name: row.investor?.full_name ?? '',
+        funded: row.amount,
+        recovered: toAmount(toPaisa(row.amount) - returning),
+        returning: toAmount(returning),
+        matured_profit: toAmount(share.matured_profit),
+      };
+    })
+    .filter(
+      (line) =>
+        toPaisa(line.returning) > 0 || toPaisa(line.matured_profit) > 0,
+    );
 }

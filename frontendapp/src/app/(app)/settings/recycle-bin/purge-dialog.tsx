@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { purgeRecord } from "./actions";
-import { loadLossPreview } from "../../contracts/actions";
-import { LossWarning } from "../../contracts/loss-warning";
+import { purgeRecord, loadPurgePreview } from "./actions";
+import { PurgeReturnWarning } from "./purge-return-warning";
 import { fieldClass, labelClass } from "@/components/form-fields";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import type { LossPreview } from "@/types/investor";
+import type { PurgeReturnPreview } from "@/types/investor";
 import type { BinRow } from "@/types/recycle-bin";
 
 type Props = {
@@ -35,16 +34,12 @@ export function PurgeDialog({ row, onClose, onDone }: Props) {
     const matches = typed.trim().toUpperCase() === PHRASE;
 
     /**
-     * BR-20 / FR-CON-16. Purging a funded contract writes its funders' losses
-     * off, so they are named here before the phrase is typed.
-     *
-     * Keyed by row id so a result belonging to the previously-opened record is
-     * ignored rather than shown against this one — clearing it on open would
-     * mean a setState in the effect body, which the React Compiler rejects.
+     * FR-BIN-03. Purging returns deployed capital to idle — name the amounts
+     * before the phrase is typed.
      */
-    const [loss, setLoss] = useState<{
+    const [returns, setReturns] = useState<{
         id: number;
-        lines: LossPreview[];
+        lines: PurgeReturnPreview[];
     } | null>(null);
 
     const [, startLoad] = useTransition();
@@ -54,13 +49,16 @@ export function PurgeDialog({ row, onClose, onDone }: Props) {
         if (contractId === null) return;
 
         startLoad(async () => {
-            setLoss({ id: contractId, lines: await loadLossPreview(contractId) });
+            setReturns({
+                id: contractId,
+                lines: await loadPurgePreview(contractId),
+            });
         });
     }, [contractId]);
 
     const lines =
-        loss !== null && contractId !== null && loss.id === contractId
-            ? loss.lines
+        returns !== null && contractId !== null && returns.id === contractId
+            ? returns.lines
             : [];
 
     function submit(event: React.FormEvent) {
@@ -110,7 +108,7 @@ export function PurgeDialog({ row, onClose, onDone }: Props) {
                     </p>
                 </div>
 
-                <LossWarning lines={lines} verb="Purging" />
+                <PurgeReturnWarning lines={lines} />
 
                 <div>
                     <label className={labelClass} htmlFor="purge_confirm">

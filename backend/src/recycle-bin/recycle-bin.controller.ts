@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -18,7 +19,12 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Role } from '../common/enums';
+import type {
+  ContractRestorePreview,
+  PurgeReturnPreview,
+} from '../contracts/funding.service';
 import { ListBinDto } from './dto/list-bin.dto';
+import { RestoreBinDto } from './dto/restore-bin.dto';
 import type { BinKind, BinRow } from './recycle-bin.registry';
 import { RecycleBinService, type BinSummary } from './recycle-bin.service';
 
@@ -43,16 +49,39 @@ export class RecycleBinController {
     return this.bin.summary();
   }
 
+  @Get('contract/:id/purge-preview')
+  @ApiOperation({
+    summary:
+      'Capital returning to investors when a contract is purged (FR-BIN-03)',
+  })
+  contractPurgePreview(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<PurgeReturnPreview[]> {
+    return this.bin.contractPurgePreview(id);
+  }
+
+  @Get('contract/:id/restore-preview')
+  @ApiOperation({
+    summary:
+      'Funding frozen at delete, for choosing investors on restore (FR-BIN-02)',
+  })
+  contractRestorePreview(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ContractRestorePreview | null> {
+    return this.bin.contractRestorePreview(id);
+  }
+
   @Post(':kind/:id/restore')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Return a record to service (FR-BIN-02)' })
   restore(
     @Param('kind') kind: BinKind,
     @Param('id', ParseIntPipe) id: number,
+    @Body() body: RestoreBinDto,
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ): Promise<void> {
-    return this.bin.restore(kind, id, user, req.ip);
+    return this.bin.restore(kind, id, user, body, req.ip);
   }
 
   /**

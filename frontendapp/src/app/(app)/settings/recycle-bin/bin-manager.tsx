@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { restoreRecord } from "./actions";
 import { PurgeDialog } from "./purge-dialog";
+import { RestoreContractDialog } from "./restore-dialog";
 import { Icon } from "@/components/icons";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
@@ -48,11 +49,17 @@ export default function BinManager({
     const { alert } = useAlert();
     const [busy, setBusy] = useState<string | null>(null);
     const [purging, setPurging] = useState<BinRow | null>(null);
+    const [restoring, setRestoring] = useState<BinRow | null>(null);
     const [, startTransition] = useTransition();
 
     const total = summary.reduce((sum, entry) => sum + entry.count, 0);
 
     function restore(row: BinRow) {
+        if (row.kind === "contract") {
+            setRestoring(row);
+            return;
+        }
+
         setBusy(`${row.kind}-${row.id}`);
 
         startTransition(async () => {
@@ -263,6 +270,15 @@ export default function BinManager({
                 onClose={() => setPurging(null)}
                 onDone={(message) => {
                     setPurging(null);
+                    void alert({ title: message, tone: "success" });
+                }}
+            />
+
+            <RestoreContractDialog
+                row={restoring}
+                onClose={() => setRestoring(null)}
+                onDone={(message) => {
+                    setRestoring(null);
                     void alert({ title: message, tone: "success" });
                 }}
             />

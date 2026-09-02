@@ -36,3 +36,24 @@ export type BinFilterValues = {
 export const EMPTY_FILTERS: BinFilterValues = { kind: "", from: "" };
 
 export type { FormState };
+
+/** FR-BIN-02. Funding frozen when a contract was deleted. */
+export type ContractRestoreFunding = {
+    investor_id: number;
+    investor_name: string;
+    amount: string;
+    share_pct: string;
+    funded_from_principal: string;
+    funded_from_profit: string;
+};
+
+export type ContractRestorePreview = {
+    contract_id: number;
+    captured_at: string | null;
+    fundings: ContractRestoreFunding[];
+    investors: Array<{ id: number; full_name: string; available: string }>;
+};
+
+export type RestoreContractBody = {
+    fundings: Array<{ investor_id: number }>;
+};
