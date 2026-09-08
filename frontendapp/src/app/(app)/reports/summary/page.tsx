@@ -29,8 +29,6 @@ const EMPTY: Summary = {
         unmatured_profit: "0.00",
         total_profit: "0.00",
         average_markup_pct: "0.00",
-        house_outstanding: "0.00",
-        house_unmatured_profit: "0.00",
         net_balance: "0.00",
     },
     investors: {

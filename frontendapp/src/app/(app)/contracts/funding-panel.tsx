@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useImperativeHandle, useState, type RefObject } from "react";
 import {
     SelectField,
     TextField,
@@ -31,6 +32,12 @@ function toPaisa(value: string | number): number {
     return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
 }
 
+/** What the form can ask the panel to do from a submit handler. */
+export type FundingPanelHandle = {
+    /** Opens one empty row, unless rows are already open. */
+    openRow: () => void;
+};
+
 /**
  * FR-CON-11. Which investors are putting money into this deal, and how much.
  *
@@ -38,8 +45,11 @@ function toPaisa(value: string | number): number {
  * immutable, so there is no edit form — a contract's funders are decided once,
  * because the shares they imply are what every later recovery is split by.
  *
- * **Admin only.** The whole of Module 13 is (NFR-15); an operator writing a
- * contract never sees this card, and the API refuses the field regardless.
+ * **Required, and to the full purchase price.** The investors buy the unit
+ * outright — the business puts none of its own capital in — so the amounts
+ * here have to come to the cost price exactly. One investor who cannot cover
+ * it is a deal waiting for a second, not a deal the house tops up. The API
+ * applies the same rule; the form is the courtesy, not the rule.
  *
  * The arithmetic here is a *preview*, in the same spirit as the plan panel
  * above it: the server recomputes every share from the cost price it priced
@@ -48,13 +58,39 @@ function toPaisa(value: string | number): number {
 export function FundingPanel({
     investors,
     costPrice,
+    error,
+    ref,
 }: {
     investors: FundableInvestor[];
     /** The live purchase price from the terms above, in rupees. */
     costPrice: string;
+    /** Set by the form when a save was refused for want of an investor. */
+    error?: string | null;
+    ref?: RefObject<FundingPanelHandle | null>;
 }) {
     const [lines, setLines] = useState<Line[]>([]);
     const [nextKey, setNextKey] = useState(1);
+
+    /**
+     * Driven from the form's submit handler rather than by an effect watching a
+     * prop: opening a row is something that *happens* when someone presses
+     * Create, not a state the panel has to stay in sync with. Reacting to a
+     * flag would mean a setState in an effect body, which the React Compiler
+     * rejects, and would need a second round trip to clear the flag again.
+     */
+    useImperativeHandle(
+        ref,
+        () => ({
+            openRow() {
+                setLines((current) =>
+                    current.length > 0
+                        ? current
+                        : [{ key: 0, investor_id: "", amount: "" }],
+                );
+            },
+        }),
+        [],
+    );
 
     const cost = toPaisa(costPrice);
     const byId = new Map(
@@ -62,7 +98,13 @@ export function FundingPanel({
     );
 
     const funded = lines.reduce((sum, line) => sum + toPaisa(line.amount), 0);
-    const house = cost - funded;
+    /**
+     * What still has to be found before the deal can be written. The business
+     * puts none of its own money in, so this has to reach zero exactly — a
+     * shortfall is a contract waiting for another investor, not a contract the
+     * house tops up.
+     */
+    const remaining = cost - funded;
 
     const add = () => {
         setLines((current) => [
@@ -111,10 +153,10 @@ export function FundingPanel({
         <Card>
             <CardHeader
                 title="Funding"
-                description="Whose money is buying this unit. Leave it empty and the house funds the whole deal."
+                description="Investors cover the whole purchase price. Add as many as it takes for the amounts to come to the cost exactly."
                 actions={
                     lines.length > 0 ? (
-                        <Badge tone={house < 0 ? "negative" : "accent"}>
+                        <Badge tone={remaining === 0 ? "positive" : "negative"}>
                             {lines.length} investor
                             {lines.length === 1 ? "" : "s"}
                         </Badge>
@@ -123,14 +165,29 @@ export function FundingPanel({
             />
 
             <div className="flex flex-col gap-4 px-4 py-4 sm:px-5">
+                {error ? (
+                    <p className="rounded-md border border-negative/40 bg-negative/8 px-3 py-2 text-sm text-negative">
+                        {error}
+                    </p>
+                ) : null}
+
                 {investors.length === 0 ? (
+                    // No capital, no contract — so this says what to do about
+                    // it rather than leaving an empty dropdown to be puzzled
+                    // over. The Create button is disabled to match.
                     <p className="text-sm text-muted">
-                        No investor has capital available to deploy. Record a
-                        deposit on the{" "}
                         <span className="font-medium text-foreground">
-                            Investors
+                            No investor has capital available to deploy.
                         </span>{" "}
-                        page first — until then this contract is house-funded.
+                        A contract cannot be written until one does. Record a
+                        deposit on the{" "}
+                        <Link
+                            href="/investors"
+                            className="font-medium text-foreground underline"
+                        >
+                            Investors
+                        </Link>{" "}
+                        page, then come back to this form.
                     </p>
                 ) : (
                     <>
@@ -254,29 +311,42 @@ export function FundingPanel({
                                         </dd>
                                     </div>
                                     <div className="flex gap-2">
-                                        {/* BR-14. Whatever is not funded is the
-                                            house's own capital, by definition. */}
-                                        <dt className="text-muted">House</dt>
+                                        <dt className="text-muted">
+                                            {remaining < 0
+                                                ? "Over by"
+                                                : "Still to fund"}
+                                        </dt>
                                         <dd
                                             className={`font-medium tabular-nums ${
-                                                house < 0
-                                                    ? "text-negative"
-                                                    : "text-foreground"
+                                                remaining === 0
+                                                    ? "text-positive"
+                                                    : "text-negative"
                                             }`}
                                         >
-                                            {pkr(house)}
+                                            {pkr(Math.abs(remaining))}
                                         </dd>
                                     </div>
                                 </dl>
                             ) : null}
                         </div>
 
-                        {house < 0 ? (
+                        {cost > 0 && lines.length > 0 && remaining !== 0 ? (
                             <p className="text-sm text-negative">
-                                {pkr(funded)} has been allocated against a
-                                purchase price of {pkr(cost)}. The house cannot
-                                be funded below zero — reduce the allocations by{" "}
-                                {pkr(-house)}.
+                                {remaining > 0 ? (
+                                    <>
+                                        {pkr(funded)} of the {pkr(cost)}{" "}
+                                        purchase price is covered. Add another
+                                        investor for the remaining{" "}
+                                        {pkr(remaining)} — the business does not
+                                        fund deals from its own capital.
+                                    </>
+                                ) : (
+                                    <>
+                                        {pkr(funded)} has been allocated against
+                                        a purchase price of {pkr(cost)}. Reduce
+                                        the allocations by {pkr(-remaining)}.
+                                    </>
+                                )}
                             </p>
                         ) : null}
                     </>

@@ -69,8 +69,15 @@ export class InvestorsController {
   /**
    * FR-CON-11. Investors with money to deploy, for the contract funding panel.
    * Declared before ':id' so the literal path is matched first.
+   *
+   * **Open to operators**, unlike everything else on this controller. Every
+   * contract must name a funder, and an operator writes contracts — so refusing
+   * them this list would refuse them their job. It is the narrowest possible
+   * opening: active investors, their name and what they have free, and nothing
+   * else. No ledger, no lifetime figures, no way to reach `:id`.
    */
   @Get('fundable')
+  @Roles(Role.admin, Role.operator)
   @ApiOperation({ summary: 'Active investors with an available balance' })
   fundable() {
     return this.investors.fundable();

@@ -25,7 +25,6 @@ import {
   bucketBalances,
   allocateLoss,
   fundingShare,
-  houseFunded,
   splitDeployment,
   splitRecovery,
   toAmount,
@@ -142,13 +141,27 @@ export class FundingService {
     const cost = toPaisa(costPrice);
     const total = lines.reduce((sum, line) => sum + toPaisa(line.amount), 0);
 
-    if (total > cost) {
+    /**
+     * FR-CON-13 as built. The investors buy the unit outright: their funding
+     * has to come to the cost price exactly, no more and no less.
+     *
+     * The business puts none of its own capital into a deal, so there is no
+     * remainder for it to cover — a contract short of its cost is not a
+     * part-funded contract, it is one still waiting for another investor.
+     */
+    if (total !== cost) {
+      const short = cost - total;
+
       throw new ConflictException({
         statusCode: 409,
         error: 'Conflict',
-        message: `Funding of ${toAmount(total)} exceeds the ${toAmount(cost)} this contract costs. The house cannot be funded below zero.`,
+        message:
+          short > 0
+            ? `This contract costs ${toAmount(cost)} and only ${toAmount(total)} has been allocated. Add another investor for the remaining ${toAmount(short)}.`
+            : `Funding of ${toAmount(total)} is ${toAmount(-short)} more than the ${toAmount(cost)} this contract costs.`,
         cost_price: toAmount(cost),
         funded: toAmount(total),
+        shortfall: toAmount(Math.abs(short)),
       });
     }
 
@@ -339,7 +352,9 @@ export class FundingService {
     });
 
     if (fundings.length === 0) {
-      await manager.delete(ContractRecycleSnapshot, { contract_id: contractId });
+      await manager.delete(ContractRecycleSnapshot, {
+        contract_id: contractId,
+      });
 
       return;
     }
@@ -459,32 +474,6 @@ export class FundingService {
     reason: string,
   ): Promise<LossAllocation | null> {
     return settleContractLosses(manager, contractId, actor, reason);
-  }
-
-  /**
-   * BR-14. What the house itself put in: the cost, less every investor stake.
-   *
-   * Read from the stored rows rather than remembered, because the funding is
-   * the authority — the contract carries no column for it, precisely so the
-   * two cannot drift apart.
-   */
-  async houseFundedFor(
-    contractId: number,
-    costPrice: string | number,
-  ): Promise<string> {
-    const rows = await this.fundings.find({
-      where: { contract_id: contractId },
-      select: { investor_id: true, amount: true },
-    });
-
-    // Only the amount matters to BR-14, so the row is narrowed to it rather
-    // than selecting six columns to satisfy a shape nothing here reads.
-    return toAmount(
-      houseFunded(
-        costPrice,
-        rows.map((row) => ({ amount: toPaisa(row.amount) }) as FundingRow),
-      ),
-    );
   }
 
   /**
@@ -682,8 +671,15 @@ export class FundingService {
     return balances;
   }
 
-  private async balancesForManager(manager: EntityManager, ids: number[]) {
-    if (ids.length === 0) return new Map();
+  private async balancesForManager(
+    manager: EntityManager,
+    ids: number[],
+  ): Promise<Map<number, ReturnType<typeof bucketBalances>>> {
+    // Typed rather than a bare `new Map()`: an untyped empty map widened the
+    // whole reading to `any`, so every balance read off it was unchecked.
+    if (ids.length === 0) {
+      return new Map<number, ReturnType<typeof bucketBalances>>();
+    }
 
     const txns = await manager.find(InvestorTransaction, {
       where: { investor_id: In(ids) },
@@ -1062,7 +1058,6 @@ export async function previewContractPurge(
       };
     })
     .filter(
-      (line) =>
-        toPaisa(line.returning) > 0 || toPaisa(line.matured_profit) > 0,
+      (line) => toPaisa(line.returning) > 0 || toPaisa(line.matured_profit) > 0,
     );
 }

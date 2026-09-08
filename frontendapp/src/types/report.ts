@@ -45,11 +45,13 @@ export type PortfolioTotals = {
     unmatured_profit: string;
     total_profit: string;
     average_markup_pct: string;
-    /** BR-25. Outstanding net of what is owed onward to the funders. */
-    house_outstanding: string;
-    /** BR-25. Unmatured profit the house itself stands to keep. */
-    house_unmatured_profit: string;
-    /** BR-25, replacing BR-10: own capital only, house figures only. */
+    /**
+     * The business's own capital, less its own expenses.
+     *
+     * No part of a contract is counted: every deal is bought outright with
+     * investor capital, so the outstanding balance is owed onward and the
+     * markup is theirs to share.
+     */
     net_balance: string;
 };
 

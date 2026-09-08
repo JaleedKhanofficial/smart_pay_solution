@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { previewContract, saveContract } from "./actions";
-import { FundingPanel } from "./funding-panel";
+import { FundingPanel, type FundingPanelHandle } from "./funding-panel";
+import { fundedTotal, hasInvestorFunding } from "./funding-form";
 import { SelectField, TextAreaField, TextField } from "@/components/form-fields";
 import { Icon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
@@ -23,9 +24,12 @@ type Props = {
     /** FR-CON-07-v2: set once a payment exists, which locks the terms. */
     termsLocked: boolean;
     /**
-     * FR-CON-11. Investors with capital to deploy. Empty for an operator and
-     * on the edit path, and the funding card is then absent entirely — BR-19
-     * fixes funding at activation, so there is nothing to edit later.
+     * FR-CON-11. Investors with capital to deploy. Empty on the edit path,
+     * where the card is absent entirely — BR-19 fixes funding at activation,
+     * so there is nothing to edit later.
+     *
+     * Every role sees this on create: a contract must name a funder, and an
+     * operator writes contracts.
      */
     fundableInvestors: FundableInvestor[];
 };
@@ -82,6 +86,19 @@ export function ContractForm({
         saveContract.bind(null, contract?.id ?? null),
         EMPTY_FORM_STATE
     );
+
+    const funding = useRef<FundingPanelHandle>(null);
+
+    /**
+     * Set when a save is refused for want of a funder, and cleared the moment
+     * one is present. There is no way to dismiss it, because there is nothing
+     * to dismiss it *to*: this business does not fund deals from its own
+     * capital, so an unfunded contract is not an option the form can offer.
+     */
+    const [fundingError, setFundingError] = useState<string | null>(null);
+
+    /** Nothing to fund on an edit — BR-19 fixed it at activation. */
+    const needsFunding = !isEditing;
 
     const initial = (name: string, stored?: string | number | null) =>
         state.values?.[name] ?? (stored === null || stored === undefined ? "" : String(stored));
@@ -160,10 +177,67 @@ export function ContractForm({
         event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => setTerms((current) => ({ ...current, [field]: event.target.value }));
 
+    /**
+     * Investors buy the unit outright, so their funding has to come to the
+     * purchase price exactly before the deal can be written.
+     *
+     * Refusing here rather than letting the save fail is only a courtesy — the
+     * API applies the same rule, so a browser that skips this still cannot
+     * write an underfunded contract.
+     *
+     * `preventDefault` on the submit event is what stops the Server Action:
+     * the form keeps its `action`, the event simply never reaches it.
+     */
+    function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+        if (!needsFunding) return;
+
+        const formData = new FormData(event.currentTarget);
+        const cost = Math.round(Number(terms.cost_price || 0) * 100);
+        const funded = fundedTotal(formData);
+
+        if (cost > 0 && funded === cost) {
+            setFundingError(null);
+
+            return;
+        }
+
+        event.preventDefault();
+
+        setFundingError(refusal(cost, funded));
+
+        // Opened from here rather than by an effect watching a flag: this is
+        // something that happens on a click, not a state to stay in sync with.
+        if (!hasInvestorFunding(formData)) funding.current?.openRow();
+
+        document
+            .getElementById("contract-funding")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    /** Says which way the funding is wrong, in the words for that case. */
+    function refusal(cost: number, funded: number): string {
+        if (fundableInvestors.length === 0) {
+            return "No investor has capital available, so this contract cannot be written yet. Record a deposit on the Investors page first.";
+        }
+
+        if (cost === 0) {
+            return "Enter the purchase price above before allocating investor money to this deal.";
+        }
+
+        if (funded === 0) {
+            return `Choose an investor and the amount they are putting in. This deal needs ${pkr(String(cost / 100))} of investor capital.`;
+        }
+
+        return funded < cost
+            ? `Only ${pkr(String(funded / 100))} of the ${pkr(String(cost / 100))} purchase price is covered. Add another investor for the remaining ${pkr(String((cost - funded) / 100))} — the business does not fund deals from its own capital.`
+            : `${pkr(String(funded / 100))} has been allocated against a purchase price of ${pkr(String(cost / 100))}. Reduce it by ${pkr(String((funded - cost) / 100))}.`;
+    }
+
     return (
         <form
             key={state.attempt}
             action={formAction}
+            onSubmit={handleSubmit}
             className="flex flex-col gap-6"
         >
             {termsLocked ? (
@@ -302,13 +376,17 @@ export function ContractForm({
                 </CardFields>
             </Card>
 
-            {/* Create only. Funding is fixed at activation (FR-CON-15), so an
-                edit has nothing to offer here. */}
-            {!isEditing && fundableInvestors.length > 0 ? (
-                <FundingPanel
-                    investors={fundableInvestors}
-                    costPrice={terms.cost_price}
-                />
+            {/* Create only, every role. Funding is fixed at activation
+                (FR-CON-15), so an edit has nothing to offer here. */}
+            {needsFunding ? (
+                <div id="contract-funding">
+                    <FundingPanel
+                        ref={funding}
+                        investors={fundableInvestors}
+                        costPrice={terms.cost_price}
+                        error={fundingError}
+                    />
+                </div>
             ) : null}
 
             <Card>
@@ -423,7 +501,16 @@ export function ContractForm({
             ) : null}
 
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-                <Button type="submit" disabled={pending} stackOnMobile>
+                <Button
+                    type="submit"
+                    // Disabled outright when no investor has capital: the save
+                    // could not succeed, and a button that only ever produces
+                    // the same refusal is worse than one that says so.
+                    disabled={
+                        pending || (needsFunding && fundableInvestors.length === 0)
+                    }
+                    stackOnMobile
+                >
                     {pending
                         ? "Saving…"
                         : isEditing
@@ -433,6 +520,13 @@ export function ContractForm({
                 <ButtonLink href="/contracts" variant="secondary" stackOnMobile>
                     Cancel
                 </ButtonLink>
+
+                {needsFunding && fundableInvestors.length === 0 ? (
+                    <p className="text-sm text-muted">
+                        Waiting on investor capital — see the Funding section
+                        above.
+                    </p>
+                ) : null}
             </div>
         </form>
     );

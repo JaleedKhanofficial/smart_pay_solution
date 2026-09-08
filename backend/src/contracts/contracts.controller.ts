@@ -130,9 +130,8 @@ export class ContractsController {
   @ApiOperation({ summary: 'A contract with its installment schedule' })
   findOne(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<ContractDetailResponse> {
-    return this.contracts.findOne(id, user);
+    return this.contracts.findOne(id);
   }
 
   @Patch(':id')

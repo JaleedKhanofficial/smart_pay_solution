@@ -11,6 +11,7 @@ import type {
 } from "@/types/contract";
 import type { Invoice } from "@/types/invoice";
 import type { LossPreview } from "@/types/investor";
+import { readFundings, type FundingLine } from "./funding-form";
 
 const CONTRACTS_PATH = "/contracts";
 
@@ -36,12 +37,6 @@ type PreviewTerms = {
     plan_months: number;
     product_condition: string;
     start_date: string;
-};
-
-/** FR-CON-11. One investor's stake, as the API validates it. */
-type FundingLine = {
-    investor_id: number;
-    amount: number;
 };
 
 /** The full create/update payload: the terms, plus who the deal is with. */
@@ -110,36 +105,6 @@ function toTerms(formData: FormData): Terms {
     if (notes !== "") terms.notes = notes;
 
     return terms;
-}
-
-/**
- * FR-CON-11. The funding rows, read from four index-aligned lists.
- *
- * The panel posts every field on every row, blanks included, precisely so the
- * indices line up — an omitted optional would shift each later row's reason
- * onto the wrong investor, which is exactly the sort of silent mismatch this
- * form must not produce.
- *
- * A row with no investor or no amount is a half-filled line the operator left
- * behind, not an instruction; it is dropped rather than sent as a zero.
- */
-function toFundings(formData: FormData): FundingLine[] {
-    const ids = formData.getAll("funding_investor_id");
-    const amounts = formData.getAll("funding_amount");
-
-    const lines: FundingLine[] = [];
-
-    ids.forEach((raw, index) => {
-        const investor_id = Number(raw);
-        const amount = Number(amounts[index] ?? "");
-
-        if (!Number.isFinite(investor_id) || investor_id < 1) return;
-        if (!Number.isFinite(amount) || amount <= 0) return;
-
-        lines.push({ investor_id, amount });
-    });
-
-    return lines;
 }
 
 function submittedValues(formData: FormData): Record<string, string> {
@@ -215,7 +180,7 @@ export async function saveContract(
     // Create only: the API refuses fundings on a PATCH (FR-CON-15), and the
     // form does not render the panel on the edit path either.
     if (id === null) {
-        const fundings = toFundings(formData);
+        const fundings = readFundings(formData);
 
         if (fundings.length > 0) terms.fundings = fundings;
     }

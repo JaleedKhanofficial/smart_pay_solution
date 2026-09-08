@@ -1,8 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class ContractRecycleSnapshot1756300000000
-  implements MigrationInterface
-{
+export class ContractRecycleSnapshot1756300000000 implements MigrationInterface {
   name = 'ContractRecycleSnapshot1756300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

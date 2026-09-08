@@ -122,9 +122,8 @@ export function buildSummaryPdf(summary: Summary, rows: SummaryRow[]): jsPDF {
         margin: { left: MARGIN, right: MARGIN },
     });
 
-    // BR-25. Printed only when investors hold part of the portfolio: with
-    // none, the house's figures are the portfolio's, and a second table
-    // repeating them would invite the reader to add them together.
+    // Printed once any capital is deployed. With none there is nothing to
+    // say, and an all-zero row would read as a claim rather than an absence.
     if (Number(investors?.deployed ?? 0) > 0) {
         autoTable(doc, {
             startY: (doc.lastAutoTable?.finalY ?? 40) + 4,
@@ -137,20 +136,18 @@ export function buildSummaryPdf(summary: Summary, rows: SummaryRow[]): jsPDF {
             styles: { fontSize: 7, textColor: INK, cellPadding: 1.5 },
             head: [
                 [
-                    "House outstanding",
-                    "House unmatured",
                     "Investor capital deployed",
                     "Investor idle",
                     "Owed to investors",
+                    "Profit earned by investors",
                 ],
             ],
             body: [
                 [
-                    pkr(totals.house_outstanding),
-                    pkr(totals.house_unmatured_profit),
                     pkr(investors.deployed),
                     pkr(investors.available),
                     pkr(investors.payable),
+                    pkr(investors.lifetime_profit),
                 ],
             ],
             margin: { left: MARGIN, right: MARGIN },

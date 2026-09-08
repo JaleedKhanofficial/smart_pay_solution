@@ -15,8 +15,9 @@ export type Installment = {
  * SRS §5.7. Money is a string end to end so no figure is rounded through a
  * float. `cost_price` equals `sale_price` — the business applies its markup to
  * what it paid — and both columns are kept because Module 13 measures investor
- * capital against cost (BR-15). `house_funded_amount` on the detail response is
- * the admin-only figure (NFR-15).
+ * capital against cost (BR-15). Nothing here is role-gated: the house figure
+ * that NFR-15 once withheld is gone, because a contract is bought outright
+ * with investor capital and the house holds no share of one.
  */
 export type Contract = {
     id: number;
@@ -48,7 +49,6 @@ export type Contract = {
 
 export type ContractDetail = Contract & {
     installments: Installment[];
-    house_funded_amount: string | null;
 };
 
 /** What POST /contracts/preview returns: the plan, priced but not saved. */

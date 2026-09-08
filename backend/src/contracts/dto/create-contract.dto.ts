@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
-  IsArray,
+  ArrayMinSize,
   IsEnum,
   IsInt,
   IsISO8601,
@@ -20,6 +20,13 @@ import { FundingLineDto } from './funding-line.dto';
 /** Money arrives as a number and is validated to the column's precision. */
 const MONEY = { maxDecimalPlaces: 2 } as const;
 const MAX_MONEY = 9_999_999_999;
+
+/**
+ * One sentence for both the missing case and the empty case, so the form has a
+ * single message to show whichever way the field arrives wrong.
+ */
+const NEEDS_AN_INVESTOR =
+  'A contract needs at least one investor. The business does not fund deals from its own capital.';
 
 /**
  * FR-CON-04-v2. The pricing terms alone — everything `POST /contracts/preview`
@@ -124,19 +131,29 @@ export class CreateContractDto extends PreviewContractDto {
   notes?: string;
 
   /**
-   * FR-CON-11. Who funded this deal, if anyone. Omitted or empty means the
-   * contract is entirely house-funded, which FR-CON-13 allows explicitly.
+   * FR-CON-11. Who funded this deal — **required**, and at least one line.
+   *
+   * This business does not put its own capital into a deal: every contract is
+   * backed by an investor, so a create with nothing here is rejected rather
+   * than quietly stored as house-funded. That is a deliberate departure from
+   * FR-CON-13, which allows a wholly house-funded activation; the rule lives
+   * here as well as in the form because a rule that only exists in a browser
+   * is not a rule.
+   *
+   * The remainder above the funded amount is still the house's own money
+   * (BR-14) — what is refused is a contract with *no* investor at all.
    *
    * Fixed at activation and immutable thereafter (FR-CON-15), so this is
-   * accepted on create only — `UpdateContractDto` inherits it but the service
-   * refuses it.
+   * accepted on create only. `UpdateContractDto` makes every field optional
+   * again through `PartialType`, and the service refuses it on a PATCH.
    */
-  @ApiPropertyOptional({ type: [FundingLineDto] })
-  @IsOptional()
-  @IsArray()
+  // `ArrayMinSize` alone: it already fails a missing or non-array value, and
+  // pairing it with `IsArray` reported the same sentence twice.
+  @ApiProperty({ type: [FundingLineDto] })
+  @ArrayMinSize(1, { message: NEEDS_AN_INVESTOR })
   @ValidateNested({ each: true })
   @Type(() => FundingLineDto)
-  fundings?: FundingLineDto[];
+  fundings: FundingLineDto[];
 
   /**
    * FR-CON-04-v2. What the browser calculated, sent so the server can say

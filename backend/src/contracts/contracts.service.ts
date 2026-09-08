@@ -147,7 +147,7 @@ export class ContractsService {
       return saved.id;
     });
 
-    const created = await this.findOne(id, actor);
+    const created = await this.findOne(id);
 
     await this.audit.record({
       actor_id: actor.id,
@@ -175,8 +175,7 @@ export class ContractsService {
 
   /**
    * FR-CON-01. No actor needed: the register carries no admin-only figure now
-   * that cost and sale are the same number (SRS §2.7 item 15). `findOne` still
-   * takes one, because the detail response gates `house_funded_amount`.
+   * that cost and sale are the same number (SRS §2.7 item 15).
    */
   async findAll(query: ListContractsDto): Promise<Paginated<ContractResponse>> {
     const qb = this.contracts
@@ -200,22 +199,13 @@ export class ContractsService {
     );
   }
 
-  async findOne(
-    id: number,
-    actor: AuthenticatedUser,
-  ): Promise<ContractDetailResponse> {
-    const contract = await this.loadOrFail(id);
-
-    const include_cost = this.maySeeCost(actor);
-
-    return toContractDetailResponse(contract, {
-      include_cost,
-      // BR-14. Only read where it will be shown — an operator's response
-      // carries no cost figure at all, so there is nothing to compute.
-      house_funded: include_cost
-        ? await this.funding.houseFundedFor(contract.id, contract.cost_price)
-        : null,
-    });
+  /**
+   * No actor: nothing in the detail response is role-gated any more. Cost is
+   * shown to everyone (SRS §2.7 item 15) and the house figure that NFR-15 did
+   * gate no longer exists — every contract is funded by investors outright.
+   */
+  async findOne(id: number): Promise<ContractDetailResponse> {
+    return toContractDetailResponse(await this.loadOrFail(id));
   }
 
   /**
@@ -300,13 +290,7 @@ export class ContractsService {
     return {
       // NFR-15 does not apply to the operator printing this: cost equals the
       // sale price now (§2.7 item 15). The document itself prints neither.
-      contract: toContractDetailResponse(contract, {
-        include_cost: true,
-        house_funded: await this.funding.houseFundedFor(
-          contract.id,
-          contract.cost_price,
-        ),
-      }),
+      contract: toContractDetailResponse(contract),
       customer: toCustomerResponse(customer),
       business: await this.settingsService.get('business_identity'),
       received,
@@ -422,7 +406,7 @@ export class ContractsService {
       }
     });
 
-    const after = await this.findOne(id, actor);
+    const after = await this.findOne(id);
 
     await this.audit.record({
       actor_id: actor.id,
@@ -711,10 +695,5 @@ export class ContractsService {
     });
 
     return contract ? toPaisa(contract.financed_amount) - paid : 0;
-  }
-
-  /** NFR-15: cost price is the basis for investor capital, so admin-only. */
-  private maySeeCost(actor: AuthenticatedUser): boolean {
-    return actor.role === Role.admin;
   }
 }

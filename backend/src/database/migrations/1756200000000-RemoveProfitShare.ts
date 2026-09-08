@@ -33,9 +33,13 @@ export class RemoveProfitShare1756200000000 implements MigrationInterface {
     await run(
       `ALTER TABLE "investors" DROP CONSTRAINT IF EXISTS "investors_profit_share_pct_check"`,
     );
-    await run(`ALTER TABLE "investors" DROP COLUMN IF EXISTS "profit_share_pct"`);
+    await run(
+      `ALTER TABLE "investors" DROP COLUMN IF EXISTS "profit_share_pct"`,
+    );
 
-    await run(`DELETE FROM "settings" WHERE "key" = 'default_profit_share_pct'`);
+    await run(
+      `DELETE FROM "settings" WHERE "key" = 'default_profit_share_pct'`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

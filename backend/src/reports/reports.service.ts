@@ -13,7 +13,6 @@ import {
   Payment,
 } from '../database/entities';
 import {
-  profitEntitlement,
   scoreDeal,
   summariseClient,
   summariseDeal,
@@ -23,7 +22,6 @@ import {
   type ClientSummary,
   type DealScore,
   type DealSummary,
-  type HouseShare,
   type PortfolioTotals,
 } from '../formulas';
 import type { InvestorPosition } from '../investors/investor.mapper';
@@ -139,26 +137,11 @@ export class ReportsService {
 
     const matching = this.applySearch(rows, query);
 
-    // BR-25. Read once for the whole portfolio rather than per deal: an
-    // unfunded business does one extra query and gets an empty map back.
-    const participation = await this.participationFor(rows);
-
     return {
       rows: this.paginate(this.applySort(matching, query), query),
-      totals: totalPortfolio(
-        rows,
-        capitalTotal,
-        expenseTotal,
-        rows.map(
-          (row) =>
-            participation.get(row.contract_id) ?? {
-              investor_share_pct: 0,
-              investor_entitlement: 0,
-            },
-        ),
-      ),
-      // FR-SUM-11. The other side of BR-25: what the house nets out is what
-      // the investors hold, so the report says who holds it.
+      totals: totalPortfolio(rows, capitalTotal, expenseTotal),
+      // FR-SUM-11. Every deal is bought with investor capital, so this block
+      // is not a footnote to the portfolio — it is whose money it all is.
       investors: await this.investors.portfolioPosition(),
       capital: { total: toAmount(capitalTotal), entries: capital },
       expenses: { total: toAmount(expenseTotal), entries: expenses },
@@ -167,48 +150,6 @@ export class ReportsService {
       top_performer: this.topPerformer(rows),
       generated_at: new Date().toISOString(),
     };
-  }
-
-  /**
-   * BR-25. Each contract's investor participation: the share of its cost they
-   * hold between them, and the profit they are entitled to out of its markup.
-   *
-   * Keyed by contract id rather than index so a change to how the rows are
-   * ordered or filtered cannot silently shift one deal's funding onto another.
-   */
-  private async participationFor(
-    rows: SummaryRow[],
-  ): Promise<Map<number, HouseShare>> {
-    const participation = new Map<number, HouseShare>();
-
-    if (rows.length === 0) return participation;
-
-    const fundings = await this.fundings.find({
-      where: { contract_id: In(rows.map((row) => row.contract_id)) },
-    });
-
-    if (fundings.length === 0) return participation;
-
-    const markupBy = new Map(
-      rows.map((row) => [row.contract_id, row.markup_amount]),
-    );
-
-    for (const funding of fundings) {
-      const current = participation.get(funding.contract_id) ?? {
-        investor_share_pct: 0,
-        investor_entitlement: 0,
-      };
-
-      current.investor_share_pct += Number(funding.share_pct);
-      current.investor_entitlement += profitEntitlement(
-        markupBy.get(funding.contract_id) ?? 0,
-        funding.share_pct,
-      );
-
-      participation.set(funding.contract_id, current);
-    }
-
-    return participation;
   }
 
   /**

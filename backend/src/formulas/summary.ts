@@ -132,65 +132,34 @@ export type PortfolioTotals = {
   unmatured_profit: string;
   total_profit: string;
   average_markup_pct: string;
-  /** BR-25. Outstanding net of what the investors are owed out of it. */
-  house_outstanding: string;
-  /** BR-25. Unmatured profit the house itself stands to keep. */
-  house_unmatured_profit: string;
   /**
-   * BR-25 (replacing BR-10). Own capital and expenses from the persisted
-   * entries; investor money never appears here (FR-SUM-10).
+   * What the business itself is worth: its own capital, less expenses.
+   *
+   * No part of a contract appears here. Every deal is bought outright with
+   * investor capital, so the outstanding balance is owed onward and the
+   * markup is theirs to share — none of it is the business's to count. That
+   * is the whole of what replaced BR-10 and BR-25's house figures.
    */
   net_balance: string;
 };
 
 /**
- * BR-25. One deal's investor participation, as the portfolio reads it.
+ * The portfolio's totals, and what the business itself is worth.
  *
- * Both figures are sums across that contract's funders: the shares they hold
- * of its cost, and the profit they are entitled to out of its markup.
- */
-export type HouseShare = {
-  /** Σ `share_pct` across the funders, 0 to 100. */
-  investor_share_pct: number;
-  /** Σ entitlement per BR-17, in paisa. */
-  investor_entitlement: Paisa;
-};
-
-const WHOLLY_HOUSE: HouseShare = {
-  investor_share_pct: 0,
-  investor_entitlement: 0,
-};
-
-/**
- * BR-25, which replaces BR-10.
+ * BR-10 read `capital + unmaturedProfit − expenses − totalOutstanding`, and
+ * BR-25 refined it by netting out investor participation. Neither applies now:
+ * a contract is funded to its cost price by investors alone, so the house
+ * holds no share of any deal — no outstanding balance to carry, and no slice
+ * of a markup to keep. What is left is the business's own capital against its
+ * own expenses.
  *
- * `netBalance = ownCapital + houseUnmaturedProfit − expenses − houseOutstanding`
- *
- * The difference from BR-10 is whose money is being counted. A contract funded
- * by investors still shows its whole outstanding balance in the register — the
- * customer owes all of it — but the business does not stand to keep all of it,
- * and it did not put all of it in. Netting out the investors' participation is
- * what makes this figure the *house's* position rather than the portfolio's.
- *
- * Unmatured profit is added rather than mature: mature profit has already
- * arrived as cash and is inside the capital figure, so counting it again would
- * double it. What the balance asks is what the business is worth once
- * everything still owed has been collected.
- *
- * BR-25 also adds `unmaturedRetailMargin`, the part of the sale price above
- * cost. This build has no such margin to add: one purchase price replaced the
- * cost/sale pair (SRS §2.7 item 15), so sale equals cost and the term is
- * structurally zero rather than merely unimplemented.
+ * The money columns above are still the whole portfolio, because the customer
+ * genuinely owes all of it — they are just not the house's to bank.
  */
 export function totalPortfolio(
   deals: DealSummary[],
   capital: Paisa,
   expenses: Paisa,
-  /**
-   * BR-25. Investor participation, index-aligned with `deals`. A deal with no
-   * entry is wholly house-funded, which is the common case and the default.
-   */
-  participation: HouseShare[] = [],
 ): PortfolioTotals {
   const sum = (pick: (deal: DealSummary) => string): Paisa =>
     deals.reduce((total, deal) => total + toPaisa(pick(deal)), 0);
@@ -202,35 +171,6 @@ export function totalPortfolio(
   const completed = deals.filter((deal) => deal.matured).length;
 
   const markupPcts = deals.map((deal) => Number(deal.actual_markup_pct));
-
-  let houseOutstanding = 0;
-  let houseUnmatured = 0;
-
-  deals.forEach((deal, index) => {
-    const share = participation[index] ?? WHOLLY_HOUSE;
-
-    // A funded contract cannot be more than fully funded (FR-CON-13 rejects
-    // it), but clamping means a bad row cannot turn the house's share
-    // negative and quietly credit the business for someone else's money.
-    const houseFraction = Math.max(
-      0,
-      1 - Math.min(100, share.investor_share_pct) / 100,
-    );
-
-    houseOutstanding += Math.round(toPaisa(deal.outstanding) * houseFraction);
-
-    const markup = toPaisa(deal.markup_amount);
-
-    if (markup === 0) return;
-
-    // The house's slice of the markup, times the part of it still to mature.
-    // Taking the fraction rather than the rupees keeps this consistent with
-    // BR-09: profit matures with the deal, not with each payment.
-    const houseMarkup = Math.max(0, markup - share.investor_entitlement);
-    const unmaturedFraction = toPaisa(deal.unmatured_profit) / markup;
-
-    houseUnmatured += Math.round(houseMarkup * unmaturedFraction);
-  });
 
   return {
     deals: deals.length,
@@ -249,11 +189,7 @@ export function totalPortfolio(
             markupPcts.reduce((total, value) => total + value, 0) /
               markupPcts.length,
           ),
-    house_outstanding: toAmount(houseOutstanding),
-    house_unmatured_profit: toAmount(houseUnmatured),
-    net_balance: toAmount(
-      capital + houseUnmatured - expenses - houseOutstanding,
-    ),
+    net_balance: toAmount(capital - expenses),
   };
 }
 

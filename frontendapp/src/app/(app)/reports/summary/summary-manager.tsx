@@ -252,37 +252,23 @@ export default function SummaryManager({
                 <StatTile
                     label="Net balance"
                     value={pkr(totals.net_balance)}
-                    hint={
-                        funded
-                            ? "Own capital + house unmatured − expenses − house outstanding"
-                            : "Capital + unmatured − expenses − outstanding"
-                    }
+                    hint="Own capital − expenses. No part of a deal is the house's."
                 />
             </div>
 
-            {/* BR-25 / FR-SUM-11. Only shown once investors hold part of the
-                portfolio: with none, the house's figures are the portfolio's
-                and a second identical row would say nothing. */}
+            {/* FR-SUM-11. Every deal is bought outright with investor
+                capital, so this is not a footnote to the portfolio above —
+                it is whose money all of it is. */}
             {funded ? (
                 <Card className="mb-6">
                     <CardHeader
-                        title="The house's own position"
-                        description="BR-25. The counters above are the whole portfolio; these are the part of it the business owns."
+                        title="Investor position"
+                        description="Every contract is funded by investors, so the outstanding balance above is owed onward and the markup is theirs to share."
                     />
 
                     <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
                         <StatTile
-                            label="House outstanding"
-                            value={pkr(totals.house_outstanding)}
-                            hint={`of ${pkr(totals.total_outstanding)} owed by customers`}
-                        />
-                        <StatTile
-                            label="House unmatured profit"
-                            value={pkr(totals.house_unmatured_profit)}
-                            hint={`of ${pkr(totals.unmatured_profit)} still to be earned`}
-                        />
-                        <StatTile
-                            label="Investor capital deployed"
+                            label="Capital deployed"
                             value={pkr(investors.deployed)}
                             hint={`${pkr(investors.available)} idle`}
                         />
@@ -290,6 +276,16 @@ export default function SummaryManager({
                             label="Owed to investors"
                             value={pkr(investors.payable)}
                             hint={`${investors.investors} investor${investors.investors === 1 ? "" : "s"} · ${pkr(investors.lifetime_profit)} profit earned`}
+                        />
+                        <StatTile
+                            label="Outstanding, owed onward"
+                            value={pkr(totals.total_outstanding)}
+                            hint="Collected for the investors, not for the house"
+                        />
+                        <StatTile
+                            label="Profit still to mature"
+                            value={pkr(totals.unmatured_profit)}
+                            hint="Shared out as each plan completes"
                         />
                     </div>
 

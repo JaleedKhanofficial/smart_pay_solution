@@ -108,13 +108,6 @@ function parseDrawSource(label: string) {
       : fail(`${label} must be one of ${DRAW_SOURCES.join(', ')}`);
 }
 
-function parsePercent(label: string) {
-  return (value: unknown): number =>
-    typeof value === 'number' && value >= 0 && value <= 100
-      ? Math.round(value * 100) / 100
-      : fail(`${label} must be a percentage between 0 and 100`);
-}
-
 function parseText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
