@@ -178,6 +178,7 @@ Nothing in group 2 or 3 is stored. That is the guarantee that the statement and 
 | FR-IVT-13 | `GET /reports/investor-summary`, admin-only, returning the whole flow in one payload: per investor and in total, deposited, withdrawn, net principal, profit matured lifetime, profit withdrawn, deployed now, idle now, payable, capital turnover, return on net principal, active cycles, completed cycles, losses. |
 | FR-IVT-14 | The same report carries a **house column**: house-funded capital, house profit from markup, retail margin, and total business profit, so the split between what the business earned on its own money and what it earned on investor money is visible on one screen. |
 | FR-IVT-15 | A **flow strip** at the top of the report: money in (deposits) → deployed → recovered → profit earned → redeployed → withdrawn, each with a running total for the selected period. |
+| FR-IVT-16 | `GET /reports/funding`, admin-only, and the **Funding Register** screen behind it: every funded contract with the investors behind it, each classified `sole` (one investor bought the unit) or `joint` (several between them). Per contract — reference, customer, product, status, cost price, what has been collected, and per investor their stake, share %, capital recovered, capital still out, matured and unmatured profit. Rolled up per investor across the deals shown: contracts, sole and joint counts, funded, recovered, still out, profit. Filterable by arrangement, investor, contract status and a search across customer, product, reference and investor name; sortable by contract, customer, amount funded, amount recovered and start date. Every figure derived through `splitRecovery`, so it cannot disagree with an investor's own balance page. |
 | FR-IVT-16 | Every investor route enforces `admin` at the API guard. An operator token receives 403, not a filtered payload. |
 | FR-IVT-17 | Every investor write is audit-logged per FR-AUD-01 with actor, before/after, and the affected contract where applicable. |
 
@@ -297,6 +298,7 @@ At full recovery: capital 550,000 returns, split back 500,000 to principal and 5
 | GET `/contracts/{id}/funding` | Funding table for a contract | admin |
 | POST `/contracts/{id}/funding` | Allocate at activation only; 409 once locked | admin |
 | GET `/reports/investor-summary` | Whole-portfolio investor flow (FR-IVT-13 to 15) | admin |
+| GET `/reports/funding` | Funding register: who bought which contract, sole or joint (FR-IVT-16) | admin |
 
 `GET /contracts/{id}/ledger` gains a `funding` block, present only for admin tokens.
 

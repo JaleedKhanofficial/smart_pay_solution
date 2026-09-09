@@ -293,15 +293,24 @@ export function fundingShare(
 
 /**
  * BR-17. What one investor is owed from a contract's markup: their funding
- * share of the markup amount. The house keeps the remainder, plus retail margin.
+ * share of it.
+ *
+ * Weighted by the **amount they put in against the cost price**, never by the
+ * stored `share_pct`. That column is rounded to two decimals for display — a
+ * 90,000 stake in a 140,000 unit is 64.285714…% and stores as 64.29 — and
+ * splitting money by a rounded percentage loses a few rupees against the
+ * amounts it came from. The amounts are exact, so they are what is used.
  */
 export function profitEntitlement(
   markupAmount: string | number,
-  sharePct: string | number,
+  fundingAmount: Paisa,
+  costPrice: string | number,
 ): Paisa {
-  const markup = toPaisa(markupAmount);
+  const cost = toPaisa(costPrice);
 
-  return Math.round((markup * Number(sharePct)) / 100);
+  return cost === 0
+    ? 0
+    : Math.round((toPaisa(markupAmount) * fundingAmount) / cost);
 }
 
 /** One investor's stake in a contract, as `contract_fundings` stores it. */
@@ -354,6 +363,8 @@ export function splitRecovery(
     down_payment: string | number;
     paid: Paisa;
     markup_amount: string | number;
+    /** BR-15. The base every share is a fraction of. */
+    cost_price: string | number;
   },
   fundings: FundingRow[],
 ): ContractRecovery {
@@ -363,33 +374,38 @@ export function splitRecovery(
     return { recovered, shares: [], house_surplus: recovered };
   }
 
-  // The slices are a pro-rata split of the recovered stream by share, so they
-  // go through `allocate` rather than being rounded one at a time.
-  const slices = allocate(
-    Math.min(
-      recovered,
-      // A slice cannot exceed the share of the stream the investors hold
-      // between them; the rest is the house's from the start.
-      Math.round(
-        (recovered *
-          fundings.reduce(
-            (total, funding) => total + Number(funding.share_pct),
-            0,
-          )) /
-          100,
-      ),
-    ),
-    fundings.map((funding) => Number(funding.share_pct)),
-  );
+  const cost = toPaisa(terms.cost_price);
+  const amounts = fundings.map((funding) => funding.amount);
+  const funded = amounts.reduce((total, amount) => total + amount, 0);
+
+  /**
+   * BR-26. Both splits below are weighted by the **amounts put in**, not by
+   * the stored `share_pct`.
+   *
+   * `share_pct` is rounded to two decimals for display: a 90,000 stake in a
+   * 140,000 unit is 64.285714…% and stores as 64.29. Splitting by that loses a
+   * few rupees against the amounts it came from — and on a contract paid to
+   * the last rupee those rupees would sit unmatured for ever, credited to a
+   * house that funded none of it. The amounts are exact, so they are the
+   * weights; `allocate` puts the residual on the largest, so the parts sum to
+   * the whole exactly.
+   */
+  const claim = (whole: Paisa): Paisa =>
+    cost === 0 ? whole : Math.min(whole, Math.round((whole * funded) / cost));
+
+  // A slice cannot exceed the share of the stream the investors hold between
+  // them; on a wholly investor-funded deal that is all of it.
+  const slices = allocate(claim(recovered), amounts);
+
+  // BR-17, for the set: the investors' collective share of the markup, split
+  // between them the same way.
+  const entitlements = allocate(claim(toPaisa(terms.markup_amount)), amounts);
 
   let houseSurplus = recovered;
 
   const shares = fundings.map((funding, index) => {
     const slice = slices[index];
-    const entitlement = profitEntitlement(
-      terms.markup_amount,
-      funding.share_pct,
-    );
+    const entitlement = entitlements[index];
 
     const capital_recovered = Math.min(slice, funding.amount);
     const surplus = Math.max(0, slice - funding.amount);
@@ -488,6 +504,8 @@ export function allocateLoss(
     down_payment: string | number;
     paid: Paisa;
     markup_amount: string | number;
+    /** BR-15. The base every share is a fraction of. */
+    cost_price: string | number;
   },
   fundings: FundingRow[],
   /** `investor_id` to `loss_participation`. Absent reads as participating. */

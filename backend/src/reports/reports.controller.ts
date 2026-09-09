@@ -20,7 +20,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Role } from '../common/enums';
 import { EntryDto } from './dto/entry.dto';
+import { FundingReportQueryDto } from './dto/funding-report-query.dto';
 import { SummaryQueryDto } from './dto/summary-query.dto';
+import {
+  FundingReportService,
+  type FundingReportResponse,
+} from './funding-report.service';
 import {
   ReportsService,
   type ClientProfile,
@@ -43,7 +48,10 @@ import {
 @Roles(Role.admin)
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reports: ReportsService) {}
+  constructor(
+    private readonly reports: ReportsService,
+    private readonly fundingReport: FundingReportService,
+  ) {}
 
   @Get('summary')
   @ApiOperation({
@@ -51,6 +59,21 @@ export class ReportsController {
   })
   summary(@Query() query: SummaryQueryDto): Promise<SummaryResponse> {
     return this.reports.summary(query);
+  }
+
+  /**
+   * FR-IVT-16. The funding register: which contracts investor money bought,
+   * and whether each was bought by one investor alone or several between them.
+   *
+   * Separate from the summary workbook on purpose — that report answers how
+   * the business is doing, this one answers whose money is in what.
+   */
+  @Get('funding')
+  @ApiOperation({ summary: 'Investor funding register (FR-IVT-16)' })
+  funding(
+    @Query() query: FundingReportQueryDto,
+  ): Promise<FundingReportResponse> {
+    return this.fundingReport.report(query);
   }
 
   /** FR-SUM-07. One client's position across every deal they hold. */

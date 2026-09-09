@@ -234,9 +234,25 @@ describe('per-deal rules', () => {
 
   it('applies the funding share to the markup (BR-17)', () => {
     // Half the deal takes half the markup.
-    expect(profitEntitlement(100_000, '50.00')).toBe(toPaisa(50_000));
-    expect(profitEntitlement(100_000, '100.00')).toBe(toPaisa(100_000));
-    expect(profitEntitlement(100_000, '0.00')).toBe(0);
+    expect(profitEntitlement(100_000, toPaisa(200_000), 400_000)).toBe(
+      toPaisa(50_000),
+    );
+    expect(profitEntitlement(100_000, toPaisa(400_000), 400_000)).toBe(
+      toPaisa(100_000),
+    );
+    expect(profitEntitlement(100_000, 0, 400_000)).toBe(0);
+    expect(profitEntitlement(100_000, toPaisa(1), 0)).toBe(0);
+  });
+
+  it('weighs the markup by the amount, not the rounded percentage', () => {
+    // 90,000 of a 140,000 unit stores as 64.29%, which is not what it is.
+    // 49,000 x 90/140 is 31,500 exactly; 49,000 x 64.29% is 31,502.10.
+    expect(profitEntitlement(49_000, toPaisa(90_000), 140_000)).toBe(
+      toPaisa(31_500),
+    );
+    expect(profitEntitlement(49_000, toPaisa(50_000), 140_000)).toBe(
+      toPaisa(17_500),
+    );
   });
 
   it('reports what one deployment returned (BR-24a)', () => {
@@ -250,7 +266,11 @@ describe('splitRecovery (BR-18, BR-19)', () => {
    * A 400,000 cost-price deal with a 100,000 markup, half funded by one
    * investor who takes half the markup on their half.
    */
-  const TERMS = { down_payment: 100_000, markup_amount: 100_000 };
+  const TERMS = {
+    down_payment: 100_000,
+    markup_amount: 100_000,
+    cost_price: 400_000,
+  };
 
   const half = {
     investor_id: 1,
@@ -368,7 +388,11 @@ describe('houseFunded (BR-14)', () => {
 
 describe('allocateLoss (BR-20)', () => {
   /** The §O deal again: 400,000 cost, 100,000 markup, 100,000 down. */
-  const TERMS = { down_payment: 100_000, markup_amount: 100_000 };
+  const TERMS = {
+    down_payment: 100_000,
+    markup_amount: 100_000,
+    cost_price: 400_000,
+  };
 
   const half = {
     investor_id: 1,
@@ -486,5 +510,75 @@ describe('allocateLoss (BR-20)', () => {
     expect(result.lines).toEqual([]);
     expect(result.investor_borne).toBe(0);
     expect(result.house_absorbed).toBe(0);
+  });
+});
+
+describe('splitRecovery rounding (BR-26)', () => {
+  /**
+   * SPS-0006 as written: a 140,000 unit funded 90,000 / 50,000, marked up 35%
+   * to a 49,000 profit, and collected in full.
+   *
+   * The shares are 64.285714…% and 35.714285…%, which the contract stores
+   * rounded to 64.29 and 35.71. Splitting by those stored percentages loses
+   * money against the amounts they came from — and on a contract that has
+   * been paid to the last rupee, every rupee of markup must have matured.
+   */
+  const JOINT = {
+    down_payment: 0,
+    markup_amount: 49_000,
+    cost_price: 140_000,
+  };
+
+  const funders = [
+    {
+      investor_id: 1,
+      amount: toPaisa(90_000),
+      share_pct: '64.29',
+      funded_from_principal: toPaisa(90_000),
+      funded_from_profit: 0,
+    },
+    {
+      investor_id: 2,
+      amount: toPaisa(50_000),
+      share_pct: '35.71',
+      funded_from_principal: toPaisa(50_000),
+      funded_from_profit: 0,
+    },
+  ];
+
+  it('matures the whole markup once the plan is paid off', () => {
+    // 140,000 cost + 49,000 markup = 189,000, collected to the last rupee.
+    const result = splitRecovery({ ...JOINT, paid: toPaisa(189_000) }, funders);
+
+    const matured = result.shares.reduce(
+      (total, share) => total + share.matured_profit,
+      0,
+    );
+
+    expect(matured).toBe(toPaisa(49_000));
+    expect(
+      result.shares.reduce((total, share) => total + share.unmatured_profit, 0),
+    ).toBe(0);
+  });
+
+  it('returns every rupee of capital before any profit', () => {
+    const result = splitRecovery({ ...JOINT, paid: toPaisa(189_000) }, funders);
+
+    expect(result.shares[0].capital_recovered).toBe(toPaisa(90_000));
+    expect(result.shares[1].capital_recovered).toBe(toPaisa(50_000));
+  });
+
+  it('splits the markup by the amounts put in, not the rounded percentage', () => {
+    const result = splitRecovery({ ...JOINT, paid: toPaisa(189_000) }, funders);
+
+    // 49,000 x 90/140 = 31,500 exactly, and 49,000 x 50/140 = 17,500.
+    expect(result.shares[0].matured_profit).toBe(toPaisa(31_500));
+    expect(result.shares[1].matured_profit).toBe(toPaisa(17_500));
+  });
+
+  it('leaves the house nothing on a wholly investor-funded deal', () => {
+    const result = splitRecovery({ ...JOINT, paid: toPaisa(189_000) }, funders);
+
+    expect(result.house_surplus).toBe(0);
   });
 });

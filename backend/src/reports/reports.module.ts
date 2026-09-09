@@ -5,9 +5,11 @@ import {
   Contract,
   ContractFunding,
   ExpenseEntry,
+  Investor,
   Payment,
 } from '../database/entities';
 import { InvestorsModule } from '../investors/investors.module';
+import { FundingReportService } from './funding-report.service';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 
@@ -20,12 +22,12 @@ import { ReportsService } from './reports.service';
       CapitalEntry,
       ExpenseEntry,
       ContractFunding,
+      Investor,
     ]),
-    // BR-25 nets investor participation out of the house's figures, and
-    // FR-SUM-11 reports what was netted out.
+    // FR-SUM-11 reports the investor position beside the portfolio.
     InvestorsModule,
   ],
   controllers: [ReportsController],
-  providers: [ReportsService],
+  providers: [ReportsService, FundingReportService],
 })
 export class ReportsModule {}

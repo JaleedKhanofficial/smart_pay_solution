@@ -100,6 +100,17 @@ export const NAVIGATION: NavSection[] = [
                 summary: "Portfolio workbook with profit maturity and capital.",
                 capabilities: [],
             },
+            {
+                module: 13,
+                label: "Funding Register",
+                href: "/reports/funding",
+                icon: "users",
+                roles: ["admin"],
+                built: true,
+                summary:
+                    "Whose capital bought which contract, sole or joint.",
+                capabilities: [],
+            },
         ],
     },
     {

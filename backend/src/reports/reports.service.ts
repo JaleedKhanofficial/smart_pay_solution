@@ -7,7 +7,6 @@ import { CapitalSource } from '../common/enums';
 import { paginate, type Paginated } from '../common/pagination';
 import {
   CapitalEntry,
-  ContractFunding,
   Contract,
   ExpenseEntry,
   Payment,
@@ -109,8 +108,6 @@ export class ReportsService {
     private readonly capital: Repository<CapitalEntry>,
     @InjectRepository(ExpenseEntry)
     private readonly expenses: Repository<ExpenseEntry>,
-    @InjectRepository(ContractFunding)
-    private readonly fundings: Repository<ContractFunding>,
     private readonly audit: AuditService,
     private readonly investors: InvestorsService,
   ) {}

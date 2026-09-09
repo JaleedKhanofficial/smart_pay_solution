@@ -569,6 +569,7 @@ export class FundingService {
           down_payment: contract.down_payment,
           paid: paidBy.get(row.contract_id) ?? 0,
           markup_amount: contract.markup_amount,
+          cost_price: contract.cost_price,
         },
         (fundingsBy.get(row.contract_id) ?? []).map(toFundingRow),
       );
@@ -798,6 +799,7 @@ async function prepareLoss(
       down_payment: contract.down_payment,
       paid: payments.reduce((total, row) => total + toPaisa(row.amount), 0),
       markup_amount: contract.markup_amount,
+      cost_price: contract.cost_price,
     },
     fundings.map(toFundingRow),
     new Map(
@@ -973,6 +975,7 @@ export async function settleContractPurge(
       down_payment: contract.down_payment,
       paid,
       markup_amount: contract.markup_amount,
+      cost_price: contract.cost_price,
     },
     fundings.map(toFundingRow),
   );
@@ -1036,6 +1039,7 @@ export async function previewContractPurge(
       down_payment: contract.down_payment,
       paid,
       markup_amount: contract.markup_amount,
+      cost_price: contract.cost_price,
     },
     fundings.map(toFundingRow),
   );
