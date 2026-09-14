@@ -169,9 +169,12 @@ export default function InvestorsManager({
             ) : null}
 
             <Card className="overflow-x-auto">
-                <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
                     <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
                         <tr>
+                            <th className="w-16 px-4 py-3 font-medium">
+                                Sr. No.
+                            </th>
                             <th className="px-4 py-3 font-medium">Investor</th>
                             <th className="px-4 py-3 text-right font-medium">
                                 Net capital
@@ -196,7 +199,7 @@ export default function InvestorsManager({
                     <tbody className="divide-y divide-border">
                         {page.data.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-14 text-center">
+                                <td colSpan={8} className="px-4 py-14 text-center">
                                     <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
                                         <Icon name="users" className="size-5" />
                                     </span>
@@ -212,11 +215,18 @@ export default function InvestorsManager({
                                 </td>
                             </tr>
                         ) : (
-                            page.data.map((row) => (
+                            page.data.map((row, index) => (
                                 <tr
                                     key={row.id}
                                     className="align-middle text-foreground transition-colors hover:bg-surface-muted"
                                 >
+                                    {/* Counts on through the register rather
+                                        than restarting at 1 on page two, so a
+                                        serial number means the same thing
+                                        whichever page it is read from. */}
+                                    <td className="px-4 py-3 tabular-nums">
+                                        {(page.page - 1) * page.page_size + index + 1}
+                                    </td>
                                     <td className="px-4 py-3">
                                         <Link
                                             href={`/investors/${row.id}`}
