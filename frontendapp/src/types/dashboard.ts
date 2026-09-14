@@ -23,9 +23,11 @@ export type Dashboard = {
     unmatured_profit: string;
     counts: {
         active_plans: number;
-        active_products: number;
         customers: number;
         contracts: number;
+        /** Module 13. Whose capital is buying the stock. */
+        investors: number;
+        active_investors: number;
     };
     recent_payments: RecentPayment[];
     past_due_contracts: number;

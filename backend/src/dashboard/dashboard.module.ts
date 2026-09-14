@@ -4,8 +4,8 @@ import {
   Contract,
   Customer,
   Installment,
+  Investor,
   Payment,
-  Product,
 } from '../database/entities';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
@@ -16,9 +16,9 @@ import { DashboardService } from './dashboard.service';
     TypeOrmModule.forFeature([
       Contract,
       Payment,
-      Product,
       Customer,
       Installment,
+      Investor,
     ]),
   ],
   controllers: [DashboardController],

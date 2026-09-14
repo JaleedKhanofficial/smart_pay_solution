@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon, type IconName } from "./icons";
 import { Badge } from "./ui/badge";
 import { CARD_CLASS } from "./ui/card";
@@ -76,6 +77,12 @@ type Props = {
     pending?: boolean;
     tone?: StatTone;
     icon?: IconName;
+    /**
+     * Where the figure came from. Given one, the whole tile becomes the link —
+     * a number on a dashboard invites a click, and a small link tucked in a
+     * corner is a worse target than the card already sitting under the cursor.
+     */
+    href?: string;
 };
 
 export function StatTile({
@@ -85,11 +92,21 @@ export function StatTile({
     pending,
     tone = "neutral",
     icon,
+    href,
 }: Props) {
     const { card, bar, chip, ink } = TONES[tone];
 
-    return (
-        <div className={`relative flex flex-col overflow-hidden p-4 ${card}`}>
+    // Lifts on hover and takes a focus ring, so it reads as something to press
+    // and can be reached from the keyboard. Without a href nothing is added,
+    // and every tile that had none looks exactly as it did.
+    const interactive = href
+        ? " transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chrome-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        : "";
+
+    const className = `relative flex flex-col overflow-hidden p-4 ${card}${interactive}`;
+
+    const body = (
+        <>
             {bar ? (
                 <span
                     aria-hidden
@@ -123,6 +140,17 @@ export function StatTile({
                 {value}
             </p>
             {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
-        </div>
+        </>
+    );
+
+    // Branched rather than picking the element into a variable: a component
+    // type that is `Link | "div"` cannot narrow `href`, and TypeScript is
+    // right to object — a div has no href to give.
+    return href ? (
+        <Link href={href} className={className}>
+            {body}
+        </Link>
+    ) : (
+        <div className={className}>{body}</div>
     );
 }

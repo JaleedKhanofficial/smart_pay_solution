@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ContractStatus, ProductStatus } from '../common/enums';
+import { ContractStatus, InvestorStatus } from '../common/enums';
 import {
   Contract,
   Customer,
   Installment,
+  Investor,
   Payment,
-  Product,
 } from '../database/entities';
 import { matureProfit, outstandingOf, toAmount, toPaisa } from '../formulas';
 
@@ -32,9 +32,11 @@ export type DashboardResponse = {
   unmatured_profit: string;
   counts: {
     active_plans: number;
-    active_products: number;
     customers: number;
     contracts: number;
+    /** Module 13. Whose capital is buying the stock. */
+    investors: number;
+    active_investors: number;
   };
   recent_payments: RecentPayment[];
   /** FR-DSH-12. Contracts carrying an unpaid installment past its due date. */
@@ -57,10 +59,10 @@ export class DashboardService {
     private readonly contracts: Repository<Contract>,
     @InjectRepository(Payment)
     private readonly payments: Repository<Payment>,
-    @InjectRepository(Product)
-    private readonly products: Repository<Product>,
     @InjectRepository(Customer)
     private readonly customers: Repository<Customer>,
+    @InjectRepository(Investor)
+    private readonly investors: Repository<Investor>,
   ) {}
 
   async summary(): Promise<DashboardResponse> {
@@ -185,15 +187,22 @@ export class DashboardService {
 
   /** FR-DSH-05..08. Soft-deleted rows are excluded by TypeORM throughout. */
   private async counts(): Promise<DashboardResponse['counts']> {
-    const [active_plans, active_products, customers, contracts] =
+    const [active_plans, customers, contracts, investors, active_investors] =
       await Promise.all([
         this.contracts.countBy({ status: ContractStatus.active }),
-        this.products.countBy({ status: ProductStatus.Active }),
         this.customers.count(),
         this.contracts.count(),
+        this.investors.count(),
+        this.investors.countBy({ status: InvestorStatus.active }),
       ]);
 
-    return { active_plans, active_products, customers, contracts };
+    return {
+      active_plans,
+      customers,
+      contracts,
+      investors,
+      active_investors,
+    };
   }
 
   /** FR-DSH-09 */

@@ -175,12 +175,15 @@ export default async function DashboardPage() {
                     value={String(counts.customers)}
                     tone="brand"
                     icon="users"
+                    href="/customers"
                 />
                 <StatTile
-                    label="Active products"
-                    value={String(counts.active_products)}
+                    label="Investors"
+                    value={String(counts.active_investors)}
+                    hint={`of ${counts.investors} on the register`}
                     tone="violet"
-                    icon="box"
+                    icon="users"
+                    href="/investors"
                 />
                 <StatTile
                     label="Contracts"
