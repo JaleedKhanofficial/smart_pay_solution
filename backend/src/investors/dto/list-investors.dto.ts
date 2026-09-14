@@ -42,6 +42,15 @@ export class ListInvestorsDto {
   @MaxLength(150)
   search?: string;
 
+  /** FR-IVT-01. Narrow to one investor, chosen by name from the picker. */
+  @ApiPropertyOptional()
+  @Transform(blankToUndefined)
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  investor_id?: number;
+
   @ApiPropertyOptional({ enum: InvestorStatus })
   @Transform(blankToUndefined)
   @IsOptional()

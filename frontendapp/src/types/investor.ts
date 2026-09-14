@@ -139,7 +139,20 @@ export type PurgeReturnPreview = {
     matured_profit: string;
 };
 
-export type InvestorFilterValues = { search: string; status: string };
-export const EMPTY_FILTERS: InvestorFilterValues = { search: "", status: "" };
+export type InvestorFilterValues = {
+    search: string;
+    status: string;
+    /** FR-IVT-01. Narrowed to one investor, chosen by name from the picker. */
+    investor_id: string;
+};
+
+export const EMPTY_FILTERS: InvestorFilterValues = {
+    search: "",
+    status: "",
+    investor_id: "",
+};
+
+/** An investor as the register's picker offers them. */
+export type InvestorOption = { id: number; label: string };
 
 export type { FormState, Paginated };

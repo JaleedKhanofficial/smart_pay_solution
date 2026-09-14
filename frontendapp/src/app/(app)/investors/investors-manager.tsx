@@ -13,9 +13,12 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { CARD_CLASS, Card } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { StatTile } from "@/components/stat-tile";
+import { ComboboxField } from "@/components/ui/combobox";
+import { downloadInvestorRegisterPdf } from "@/lib/investor-register-pdf";
 import type {
     Investor,
     InvestorFilterValues,
+    InvestorOption,
     InvestorRow,
     Paginated,
 } from "@/types/investor";
@@ -24,6 +27,13 @@ type Props = {
     page: Paginated<InvestorRow>;
     filters: InvestorFilterValues;
     loadError: string | null;
+    /** Every investor, so the picker is not limited to the page in view. */
+    options: InvestorOption[];
+    /** The whole filtered set for the PDF, not just the page on screen. */
+    exportRows: InvestorRow[];
+    /** How many matched but did not fit the export's cap. */
+    exportOmitted: number;
+    businessName: string;
 };
 
 const money = new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 });
@@ -41,7 +51,34 @@ export default function InvestorsManager({
     page,
     filters,
     loadError,
+    options,
+    exportRows,
+    exportOmitted,
+    businessName,
 }: Props) {
+    const [exportFailed, setExportFailed] = useState<string | null>(null);
+
+    function downloadRegister() {
+        setExportFailed(null);
+
+        try {
+            downloadInvestorRegisterPdf(
+                exportRows,
+                filters,
+                businessName,
+                exportOmitted
+            );
+        } catch (error) {
+            // A failed save is silent otherwise: the file simply never appears
+            // and the operator is left wondering whether they missed it.
+            setExportFailed(
+                error instanceof Error
+                    ? error.message
+                    : "Could not build the register."
+            );
+        }
+    }
+
     const { confirm, alert } = useAlert();
     const [editing, setEditing] = useState<Investor | "new" | null>(null);
     const [busyId, setBusyId] = useState<number | null>(null);
@@ -89,12 +126,27 @@ export default function InvestorsManager({
                 title="Investors"
                 description="Capital put into the business by other people. Every balance is derived from the ledger below it, never stored."
                 actions={
-                    <Button onClick={() => setEditing("new")} stackOnMobile>
-                        <Icon name="plus" className="size-4" />
-                        Add investor
-                    </Button>
+                    <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-start">
+                        <Button
+                            variant="secondary"
+                            onClick={downloadRegister}
+                            disabled={exportRows.length === 0}
+                            stackOnMobile
+                        >
+                            <Icon name="download" className="size-4" />
+                            Download PDF
+                        </Button>
+                        <Button onClick={() => setEditing("new")} stackOnMobile>
+                            <Icon name="plus" className="size-4" />
+                            Add investor
+                        </Button>
+                    </div>
                 }
             />
+
+            {exportFailed ? (
+                <p className="mb-4 text-sm text-negative">{exportFailed}</p>
+            ) : null}
 
             {page.data.length > 0 ? (
                 <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -121,7 +173,7 @@ export default function InvestorsManager({
             ) : null}
 
             <form action="/investors" method="get" className={`mb-6 ${CARD_CLASS}`}>
-                <div className="grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto]">
+                <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto]">
                     <div className="relative">
                         <Icon
                             name="search"
@@ -135,6 +187,32 @@ export default function InvestorsManager({
                             className={`${controlClass} pl-9`}
                         />
                     </div>
+
+                    {/*
+                        Type-to-filter, listing every investor rather than the
+                        page in view — otherwise picking someone on page two
+                        would be impossible. The search box above still matches
+                        loosely across name, CNIC and mobile; this one names an
+                        exact person, which is a different question.
+
+                        It works in this plain GET form because the visible box
+                        carries only the search text and has no `name`; the
+                        hidden field submits `investor_id`.
+                    */}
+                    <ComboboxField
+                        label=""
+                        name="investor_id"
+                        placeholder="Any investor"
+                        defaultValue={filters.investor_id}
+                        options={[
+                            { value: "", label: "Any investor" },
+                            ...options.map((option) => ({
+                                value: String(option.id),
+                                label: option.label,
+                            })),
+                        ]}
+                    />
+
                     <select
                         name="status"
                         defaultValue={filters.status}
@@ -147,7 +225,7 @@ export default function InvestorsManager({
                     </select>
                     <div className="flex gap-2">
                         <Button type="submit">Apply</Button>
-                        {filters.search || filters.status ? (
+                        {filters.search || filters.status || filters.investor_id ? (
                             <ButtonLink
                                 href="/investors"
                                 variant="secondary"

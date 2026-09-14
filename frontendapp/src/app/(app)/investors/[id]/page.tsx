@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { InvestorActions } from "./investor-actions";
 import { MovementPanel } from "./movement-panel";
 import { ApiError } from "@/api/api.repository";
 import { Icon } from "@/components/icons";
@@ -12,6 +13,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { apiCall } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { BUCKET_LABEL, type InvestorDetail, type TxnType } from "@/types/investor";
+import type { BusinessIdentity, Setting } from "@/types/setting";
 
 export const metadata: Metadata = {
     title: "Investor · SmartPay Solutions",
@@ -101,6 +103,22 @@ export default async function InvestorPage({
 
     if (!investor) notFound();
 
+    /**
+     * The letterhead for the statement. `/settings` answers with the whole
+     * registry, so the one entry is picked out here rather than adding a route
+     * for it — the same read the funding register does.
+     *
+     * A failed read costs the name on the header and nothing else: the page
+     * still renders and the statement still downloads, under the default name.
+     */
+    const business = await apiCall<Setting[]>("/settings")
+        .then(
+            (settings) =>
+                settings.find((entry) => entry.key === "business_identity")
+                    ?.value as BusinessIdentity | undefined
+        )
+        .catch(() => undefined);
+
     const { balances, transactions } = investor;
 
     return (
@@ -110,7 +128,7 @@ export default async function InvestorPage({
                 title={investor.full_name}
                 description={`${investor.cnic_number}  |  ${investor.mobile_number}${investor.agreement_date ? `  |  agreed ${formatDate(investor.agreement_date)}` : ""}`}
                 actions={
-                    <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
                         {investor.status === "inactive" ? (
                             <Badge tone="neutral">inactive</Badge>
                         ) : null}
@@ -122,6 +140,10 @@ export default async function InvestorPage({
                             <Icon name="chevronLeft" className="size-4" />
                             All investors
                         </ButtonLink>
+                        <InvestorActions
+                            investor={investor}
+                            businessName={business?.name ?? "SmartPay Solutions"}
+                        />
                     </div>
                 }
             />

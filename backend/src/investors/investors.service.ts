@@ -55,7 +55,12 @@ export class InvestorsService {
 
   /** FR-IVT-01 */
   async findAll(query: ListInvestorsDto): Promise<Paginated<InvestorRow>> {
-    const where = query.status ? { status: query.status } : {};
+    // Spread into every branch below, so a search does not quietly drop the
+    // status or the chosen investor.
+    const where = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.investor_id ? { id: query.investor_id } : {}),
+    };
 
     const [rows, total] = await this.investors.findAndCount({
       where: query.search
@@ -200,6 +205,26 @@ export class InvestorsService {
       ),
       transactions: rows.map(toTransactionResponse),
     };
+  }
+
+  /**
+   * FR-IVT-01. Every investor as a picker option — id and a label that names
+   * them beyond doubt where two people share a first name.
+   *
+   * Separate from `fundable`, which answers a different question: that one
+   * lists who can take a deployment right now, this one lists everyone the
+   * register could be narrowed to, including the inactive and the broke.
+   */
+  async lookup(): Promise<{ id: number; label: string }[]> {
+    const rows = await this.investors.find({
+      select: { id: true, full_name: true, cnic_number: true },
+      order: { full_name: 'ASC' },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      label: `${row.full_name} · ${row.cnic_number}`,
+    }));
   }
 
   /**

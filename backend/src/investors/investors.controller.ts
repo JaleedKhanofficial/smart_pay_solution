@@ -67,6 +67,16 @@ export class InvestorsController {
   }
 
   /**
+   * FR-IVT-01. Every investor, for the register's picker. Declared before
+   * ':id' so the literal path is matched first.
+   */
+  @Get('lookup')
+  @ApiOperation({ summary: 'Every investor as a picker option' })
+  lookup() {
+    return this.investors.lookup();
+  }
+
+  /**
    * FR-CON-11. Investors with money to deploy, for the contract funding panel.
    * Declared before ':id' so the literal path is matched first.
    *
