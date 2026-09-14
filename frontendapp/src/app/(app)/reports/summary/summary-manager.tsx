@@ -304,7 +304,7 @@ export default function SummaryManager({
                         </div>
                         <div>
                             <dt className="text-xs text-muted">
-                                Principal in play
+                                Capital in play
                             </dt>
                             <dd className="tabular-nums text-foreground">
                                 {pkr(investors.principal_deployed)}

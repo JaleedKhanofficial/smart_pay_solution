@@ -7,7 +7,11 @@ import { Icon } from "@/components/icons";
 import { useAlert } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { PAYMENT_METHODS, type Bucket } from "@/types/investor";
+import {
+    BUCKET_LABEL,
+    PAYMENT_METHODS,
+    type Bucket,
+} from "@/types/investor";
 
 type Kind = "deposit" | "withdrawal" | "adjustment";
 
@@ -190,10 +194,10 @@ export function MovementPanel({
                                     label="Bucket"
                                     name="bucket"
                                     options={[
-                                        { value: "profit", label: "Profit" },
+                                        { value: "profit", label: BUCKET_LABEL.profit },
                                         {
                                             value: "principal",
-                                            label: "Principal",
+                                            label: BUCKET_LABEL.principal,
                                         },
                                     ]}
                                     value={bucket}
@@ -202,7 +206,7 @@ export function MovementPanel({
                                     }
                                     hint={
                                         kind === "withdrawal"
-                                            ? "Profit first keeps original principal intact."
+                                            ? "Profit first keeps the original capital intact."
                                             : undefined
                                     }
                                 />

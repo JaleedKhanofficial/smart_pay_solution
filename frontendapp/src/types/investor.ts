@@ -2,6 +2,19 @@ import type { FormState, Paginated } from "./customer";
 
 export type InvestorStatus = "active" | "inactive";
 export type Bucket = "principal" | "profit";
+
+/**
+ * What the two buckets are called on screen.
+ *
+ * The column, the enum and the API all still say `principal` — renaming a
+ * stored value costs a migration and buys nothing. This is the one place the
+ * screens read from, so the register, the ledger and the movement form cannot
+ * end up calling the same money by two different names.
+ */
+export const BUCKET_LABEL: Record<Bucket, string> = {
+    principal: "Capital",
+    profit: "Profit",
+};
 export type TxnType = "Deposit" | "Withdrawal" | "Adjustment" | "Loss";
 export type PaymentMethod = "Cash" | "Bank Transfer" | "Cheque";
 

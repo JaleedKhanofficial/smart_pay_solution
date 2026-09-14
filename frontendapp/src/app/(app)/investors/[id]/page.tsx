@@ -5,12 +5,13 @@ import { ApiError } from "@/api/api.repository";
 import { Icon } from "@/components/icons";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
+import { StatTile } from "@/components/stat-tile";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { apiCall } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import type { InvestorDetail, TxnType } from "@/types/investor";
+import { BUCKET_LABEL, type InvestorDetail, type TxnType } from "@/types/investor";
 
 export const metadata: Metadata = {
     title: "Investor · SmartPay Solutions",
@@ -32,33 +33,52 @@ const TXN_TONE: Record<TxnType, BadgeTone> = {
     Loss: "negative",
 };
 
-function Figure({
-    label,
-    value,
-    hint,
-    strong,
+/**
+ * How a band's three cards lay out as the screen grows.
+ *
+ * **money** — one per row on a phone. Two abreast leaves about 130px of card,
+ * and `Rs. 184,000` at this size wraps onto a second line in that space, which
+ * is what a figure must never do. Two from `sm`, three from `md`, and the tile
+ * itself steps the figure up a size at `lg` once there is room.
+ *
+ * **ratio** — two abreast on a phone, three from `sm`. `84.00%` has no space
+ * in it to wrap at, so a card too narrow for it clips the figure rather than
+ * running on: three abreast leaves 56px of card on a 320px screen and the
+ * number does not fit. Two does, and a lone third card below them is only
+ * untidy. Full width would be a whole screen spent on three short numbers.
+ *
+ * The sidebar takes no width until `lg`, so `md` has the entire 768px — three
+ * money cards are 229px there, and the figure fits with room to spare.
+ */
+const BAND_COLUMNS = {
+    money: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3",
+    ratio: "grid-cols-2 sm:grid-cols-3",
+} as const;
+
+/** A row of cards under a quiet heading, so the grouping survives. */
+function Band({
+    title,
+    note,
+    columns = "money",
+    children,
 }: {
-    label: string;
-    value: string;
-    hint?: string;
-    strong?: boolean;
+    title: string;
+    note?: string;
+    columns?: keyof typeof BAND_COLUMNS;
+    children: React.ReactNode;
 }) {
     return (
-        <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                {label}
-            </dt>
-            <dd
-                className={`tabular-nums ${
-                    strong
-                        ? "text-base font-semibold text-foreground"
-                        : "text-sm text-foreground"
-                }`}
-            >
-                {value}
-            </dd>
-            {hint ? <p className="text-[11px] text-muted">{hint}</p> : null}
-        </div>
+        <section className="mb-6">
+            <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    {title}
+                </h2>
+                {note ? <p className="text-xs text-muted">{note}</p> : null}
+            </div>
+            <div className={`grid gap-3 sm:gap-4 ${BAND_COLUMNS[columns]}`}>
+                {children}
+            </div>
+        </section>
     );
 }
 
@@ -106,79 +126,86 @@ export default async function InvestorPage({
                 }
             />
 
-            {/* FR-IVT-09. Three rows: principal, profit, position. */}
-            <Card className="mb-6">
-                <CardHeader
-                    title="Position"
-                    description="Every figure derived from the ledger below — nothing here is stored."
+            {/*
+                FR-IVT-09. Four bands rather than one dense card: these are the
+                figures the whole page exists to show, and a heading over each
+                keeps capital, profit and the position apart while every figure
+                still reads as one tile.
+            */}
+            <Band
+                title="Position"
+                note="Derived from the ledger below — nothing here is stored."
+            >
+                <StatTile
+                    label="Available"
+                    value={pkr(balances.available)}
+                    hint="Deployable or withdrawable now"
                 />
+                <StatTile
+                    label="Deployed"
+                    value={pkr(balances.deployed)}
+                    hint="Out in contracts"
+                />
+                <StatTile
+                    label="Payable"
+                    value={pkr(balances.payable)}
+                    hint="Owed if everything stopped today"
+                />
+            </Band>
 
-                <dl className="grid gap-4 border-b border-border px-4 py-4 sm:grid-cols-3 sm:px-5">
-                    <Figure
-                        label="Net principal"
-                        value={pkr(balances.net_principal)}
-                        hint="Deposited, less withdrawn and adjusted"
-                    />
-                    <Figure
-                        label="Principal idle"
-                        value={pkr(balances.principal_available)}
-                    />
-                    <Figure
-                        label="Principal deployed"
-                        value={pkr(balances.principal_deployed)}
-                    />
-                </dl>
+            <Band title="Capital">
+                <StatTile
+                    label="Net capital"
+                    value={pkr(balances.net_principal)}
+                    hint="Deposited, less withdrawn and adjusted"
+                />
+                <StatTile
+                    label="Capital idle"
+                    value={pkr(balances.principal_available)}
+                    hint="Waiting for a deal"
+                />
+                <StatTile
+                    label="Capital deployed"
+                    value={pkr(balances.principal_deployed)}
+                    hint="Bought a contract and not yet back"
+                />
+            </Band>
 
-                <dl className="grid gap-4 border-b border-border px-4 py-4 sm:grid-cols-3 sm:px-5">
-                    <Figure
-                        label="Profit earned"
-                        value={pkr(balances.lifetime_profit)}
-                        hint="Lifetime, even once withdrawn"
-                    />
-                    <Figure
-                        label="Profit idle"
-                        value={pkr(balances.profit_available)}
-                    />
-                    <Figure
-                        label="Profit deployed"
-                        value={pkr(balances.profit_deployed)}
-                    />
-                </dl>
+            <Band title="Profit">
+                <StatTile
+                    label="Profit earned"
+                    value={pkr(balances.lifetime_profit)}
+                    hint="Lifetime, even once withdrawn"
+                />
+                <StatTile
+                    label="Profit idle"
+                    value={pkr(balances.profit_available)}
+                    hint="Withdrawable, or it can fund the next deal (BR-23)"
+                />
+                <StatTile
+                    label="Profit deployed"
+                    value={pkr(balances.profit_deployed)}
+                    hint="Reinvested and still out"
+                />
+            </Band>
 
-                <dl className="grid gap-4 px-4 py-4 sm:grid-cols-3 sm:px-5 lg:grid-cols-6">
-                    <Figure
-                        label="Available"
-                        value={pkr(balances.available)}
-                        strong
-                        hint="Deployable or withdrawable now"
-                    />
-                    <Figure
-                        label="Deployed"
-                        value={pkr(balances.deployed)}
-                    />
-                    <Figure
-                        label="Payable"
-                        value={pkr(balances.payable)}
-                        strong
-                        hint="Owed if everything stopped today"
-                    />
-                    <Figure
-                        label="Return"
-                        value={`${balances.return_on_principal}%`}
-                        hint="Profit over net principal"
-                    />
-                    <Figure
-                        label="Turnover"
-                        value={`${balances.capital_turnover}×`}
-                        hint="Times their money was put to work"
-                    />
-                    <Figure
-                        label="Growth"
-                        value={`${balances.cumulative_growth}%`}
-                        hint="How far their money has grown"
-                    />
-                </dl>
-            </Card>
+            <Band title="Performance" columns="ratio">
+                <StatTile
+                    label="Return"
+                    value={`${balances.return_on_principal}%`}
+                    hint="Of net capital"
+                />
+                <StatTile
+                    label="Turnover"
+                    value={`${balances.capital_turnover}×`}
+                    hint="Times put to work"
+                />
+                <StatTile
+                    label="Growth"
+                    value={`${balances.cumulative_growth}%`}
+                    hint="On the money put in"
+                />
+            </Band>
 
             {/* FR-IVT-11's cycles table is not built. Saying where the money
                 goes beats an empty table. */}
@@ -253,7 +280,7 @@ export default async function InvestorPage({
                                             </Badge>
                                         </td>
                                         <td className="px-4 py-3 text-xs text-muted">
-                                            {txn.bucket}
+                                            {BUCKET_LABEL[txn.bucket]}
                                         </td>
                                         <td
                                             className={`px-4 py-3 text-right font-medium tabular-nums ${

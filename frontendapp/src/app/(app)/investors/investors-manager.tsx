@@ -103,7 +103,7 @@ export default function InvestorsManager({
                         value={String(page.total)}
                     />
                     <StatTile
-                        label="Net principal"
+                        label="Net capital"
                         value={pkr(total((row) => row.net_principal))}
                         hint="Deposited less withdrawn"
                     />
@@ -174,7 +174,7 @@ export default function InvestorsManager({
                         <tr>
                             <th className="px-4 py-3 font-medium">Investor</th>
                             <th className="px-4 py-3 text-right font-medium">
-                                Net principal
+                                Net capital
                             </th>
                             <th className="px-4 py-3 text-right font-medium">
                                 Profit earned

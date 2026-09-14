@@ -78,11 +78,11 @@ export function FundingCard({ fundings }: { fundings: ContractFunding[] }) {
                                             reinvested
                                         </Badge>
                                         {Number(row.funded_from_principal) > 0
-                                            ? `${pkr(row.funded_from_profit)} profit + ${pkr(row.funded_from_principal)} principal`
+                                            ? `${pkr(row.funded_from_profit)} profit + ${pkr(row.funded_from_principal)} capital`
                                             : `${pkr(row.funded_from_profit)} profit`}
                                     </span>
                                 ) : (
-                                    "Principal"
+                                    "Capital"
                                 )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs tabular-nums text-muted">
