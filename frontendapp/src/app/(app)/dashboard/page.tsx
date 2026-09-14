@@ -117,16 +117,22 @@ export default async function DashboardPage() {
                     label="Collected today"
                     value={pkr(collections.today)}
                     hint="Non-voided payments dated today"
+                    tone="positive"
+                    icon="creditCard"
                 />
                 <StatTile
                     label="Collected this month"
                     value={pkr(collections.month)}
                     hint="Since the 1st"
+                    tone="brand"
+                    icon="barChart"
                 />
                 <StatTile
                     label="Collected all time"
                     value={pkr(collections.all_time)}
                     hint="Every payment ever taken"
+                    tone="violet"
+                    icon="history"
                 />
             </div>
 
@@ -136,16 +142,22 @@ export default async function DashboardPage() {
                     label="Outstanding"
                     value={pkr(data.outstanding)}
                     hint="Across active plans, markup included"
+                    tone="warning"
+                    icon="alert"
                 />
                 <StatTile
                     label="Mature profit"
                     value={pkr(data.mature_profit)}
                     hint="Earned once a plan has repaid its investment (BR-09)"
+                    tone="positive"
+                    icon="trendingUp"
                 />
                 <StatTile
                     label="Unmatured profit"
                     value={pkr(data.unmatured_profit)}
                     hint="Markup still to be earned as plans are collected"
+                    tone="brand"
+                    icon="trendingUp"
                 />
             </div>
 
@@ -155,19 +167,27 @@ export default async function DashboardPage() {
                     label="Active plans"
                     value={String(counts.active_plans)}
                     hint={`of ${counts.contracts} contract${counts.contracts === 1 ? "" : "s"}`}
+                    tone="positive"
+                    icon="fileText"
                 />
                 <StatTile
                     label="Customers"
                     value={String(counts.customers)}
+                    tone="brand"
+                    icon="users"
                 />
                 <StatTile
                     label="Active products"
                     value={String(counts.active_products)}
+                    tone="violet"
+                    icon="box"
                 />
                 <StatTile
                     label="Contracts"
                     value={String(counts.contracts)}
                     hint="Including completed and cancelled"
+                    tone="navy"
+                    icon="dashboard"
                 />
             </div>
 
@@ -205,7 +225,7 @@ export default async function DashboardPage() {
                                 key={payment.id}
                                 className="flex items-center gap-3 px-4 py-3 sm:px-5"
                             >
-                                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-surface-muted text-muted">
+                                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-brand-ink/10 text-brand-ink">
                                     <Icon name="creditCard" className="size-4" />
                                 </span>
                                 <div className="min-w-0 flex-1">

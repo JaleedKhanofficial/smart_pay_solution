@@ -38,6 +38,10 @@
 
     --positive: #067647;
     --negative: #b42318;
+    /* Two more tile accents so the dashboard reads at a glance. Both are
+       measured as TEXT on the light page: amber 5.29, violet 7.09. */
+    --warning: #b54708;
+    --violet: #6941c6;
 }
 
 /*
@@ -58,6 +62,8 @@
     --brand-ink: var(--brand-soft);
     --positive: #3ccb7f;
     --negative: #f97066;
+    --warning: #fdb022;
+    --violet: #b692f6;
     }
 }
 
@@ -71,6 +77,8 @@
     --brand-ink: var(--brand-soft);
     --positive: #3ccb7f;
     --negative: #f97066;
+    --warning: #fdb022;
+    --violet: #b692f6;
 }
 
 @theme inline {
@@ -92,6 +100,8 @@
 
     --color-positive: var(--positive);
     --color-negative: var(--negative);
+    --color-warning: var(--warning);
+    --color-violet: var(--violet);
 
     --font-sans: var(--font-geist-sans);
     --font-mono: var(--font-geist-mono);
