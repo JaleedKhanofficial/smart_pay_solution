@@ -3,6 +3,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsIn,
   IsInt,
+  IsISO8601,
   IsOptional,
   IsString,
   MaxLength,
@@ -69,6 +70,24 @@ export class FundingReportQueryDto {
   @IsString()
   @MaxLength(150)
   search?: string;
+
+  /**
+   * Deals that started on or after this date. Inclusive, and compared against
+   * the contract's `start_date` — the day the deal was written, which is the
+   * date the register shows and the one a person means by "deals in March".
+   */
+  @ApiPropertyOptional({ example: '2026-01-01' })
+  @Transform(blankToUndefined)
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  from?: string;
+
+  /** Deals that started on or before this date. Inclusive. */
+  @ApiPropertyOptional({ example: '2026-12-31' })
+  @Transform(blankToUndefined)
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  to?: string;
 
   @ApiPropertyOptional({ enum: FUNDING_SORT_FIELDS, default: 'contract_id' })
   @Transform(blankToUndefined)

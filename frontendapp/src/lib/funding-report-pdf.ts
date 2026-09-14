@@ -74,6 +74,15 @@ function describeFilters(filters: FundingFilterValues): string {
     }
 
     if (filters.status) said.push(`status ${filters.status}`);
+
+    if (filters.from && filters.to) {
+        said.push(`started ${formatDate(filters.from)} to ${formatDate(filters.to)}`);
+    } else if (filters.from) {
+        said.push(`started from ${formatDate(filters.from)}`);
+    } else if (filters.to) {
+        said.push(`started up to ${formatDate(filters.to)}`);
+    }
+
     if (filters.search) said.push(`matching "${filters.search}"`);
 
     return said.length > 0
@@ -159,17 +168,19 @@ export function buildFundingReportPdf(
         },
         styles: { fontSize: 7, textColor: INK, cellPadding: 1.4 },
         columnStyles: {
-            0: { cellWidth: 20 },
-            1: { cellWidth: 38 },
-            2: { cellWidth: 18 },
-            3: { halign: "right", cellWidth: 24 },
-            4: { cellWidth: 70 },
-            5: { halign: "right", cellWidth: 24 },
+            0: { cellWidth: 10 },
+            1: { cellWidth: 20 },
+            2: { cellWidth: 36 },
+            3: { cellWidth: 18 },
+            4: { halign: "right", cellWidth: 24 },
+            5: { cellWidth: 66 },
             6: { halign: "right", cellWidth: 24 },
-            7: { halign: "right" },
+            7: { halign: "right", cellWidth: 24 },
+            8: { halign: "right" },
         },
         head: [
             [
+                "Sr #",
                 "Contract",
                 "Customer",
                 "Raised",
@@ -180,7 +191,8 @@ export function buildFundingReportPdf(
                 "Profit",
             ],
         ],
-        body: rows.map((row) => [
+        body: rows.map((row, index) => [
+            String(index + 1),
             `${row.reference}\n${row.status}${row.deleted ? " · in bin" : ""}`,
             `${row.customer_name}\n${row.product_name}`,
             row.arrangement === "joint"
@@ -200,7 +212,7 @@ export function buildFundingReportPdf(
             pkr(row.matured_profit),
         ]),
         didParseCell: (data) => {
-            if (data.section === "body" && data.column.index === 7) {
+            if (data.section === "body" && data.column.index === 8) {
                 const row = rows[data.row.index];
 
                 if (row && Number(row.matured_profit) > 0) {
@@ -235,15 +247,17 @@ export function buildFundingReportPdf(
             },
             styles: { fontSize: 7, textColor: INK, cellPadding: 1.4 },
             columnStyles: {
-                0: { cellWidth: 45 },
-                1: { cellWidth: 40 },
-                2: { halign: "right" },
+                0: { cellWidth: 10 },
+                1: { cellWidth: 45 },
+                2: { cellWidth: 40 },
                 3: { halign: "right" },
                 4: { halign: "right" },
                 5: { halign: "right" },
+                6: { halign: "right" },
             },
             head: [
                 [
+                    "Sr #",
                     "Investor",
                     "Deals",
                     "Funded",
@@ -252,7 +266,8 @@ export function buildFundingReportPdf(
                     "Profit",
                 ],
             ],
-            body: investors.map((investor) => [
+            body: investors.map((investor, index) => [
+                String(index + 1),
                 investor.investor_name,
                 `${investor.contracts} · ${investor.sole} sole, ${investor.joint} joint`,
                 pkr(investor.funded),

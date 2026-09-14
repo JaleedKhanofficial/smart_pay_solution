@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { CARD_CLASS } from "@/components/ui/card";
+import { ComboboxField } from "@/components/ui/combobox";
 import type {
     FundingFilterValues,
     InvestorFundingRollup,
@@ -16,9 +17,9 @@ const labelClass =
 /**
  * FR-IVT-16. The register's filters, as a plain GET form.
  *
- * No client component and no state: the filters live in the query string, so a
- * filtered view is a URL that can be bookmarked or sent to someone, and the
- * page it renders is the same one the server would render for them.
+ * No client state: the filters live in the query string, so a filtered view is
+ * a URL that can be bookmarked or sent to someone, and the page it renders is
+ * the same one the server would render for them.
  *
  * The investor list comes from the report itself rather than a second lookup —
  * an investor with no funding has nothing to filter to.
@@ -38,8 +39,8 @@ export function FundingFilters({
             method="get"
             className={`mb-6 ${CARD_CLASS} p-3`}
         >
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-                <div className="min-w-0">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                <div className="min-w-0 sm:col-span-2 lg:col-span-1">
                     <label className={labelClass} htmlFor="search">
                         Search
                     </label>
@@ -52,10 +53,35 @@ export function FundingFilters({
                             id="search"
                             name="search"
                             defaultValue={values.search}
-                            placeholder="Customer, product, investor or SPS-0001"
+                            placeholder="Customer, product or SPS-0001"
                             className={`${controlClass} pl-9`}
                         />
                     </div>
+                </div>
+
+                {/*
+                    Type-to-filter rather than a native select. The list grows
+                    with every investor taken on, and a picker you have to
+                    scroll to find a name in is not a picker.
+
+                    It still works inside a plain GET form: the visible box
+                    carries the search text and has no `name`, so only the
+                    hidden field is submitted — `investor_id` either way.
+                */}
+                <div className="min-w-0">
+                    <ComboboxField
+                        label="Investor"
+                        name="investor_id"
+                        placeholder="Everyone"
+                        defaultValue={values.investor_id}
+                        options={[
+                            { value: "", label: "Everyone" },
+                            ...investors.map((investor) => ({
+                                value: String(investor.investor_id),
+                                label: investor.investor_name,
+                            })),
+                        ]}
+                    />
                 </div>
 
                 <div className="min-w-0">
@@ -71,28 +97,6 @@ export function FundingFilters({
                         <option value="">Sole and joint</option>
                         <option value="sole">Sole — one investor</option>
                         <option value="joint">Joint — several</option>
-                    </select>
-                </div>
-
-                <div className="min-w-0">
-                    <label className={labelClass} htmlFor="investor_id">
-                        Investor
-                    </label>
-                    <select
-                        id="investor_id"
-                        name="investor_id"
-                        defaultValue={values.investor_id}
-                        className={controlClass}
-                    >
-                        <option value="">Everyone</option>
-                        {investors.map((investor) => (
-                            <option
-                                key={investor.investor_id}
-                                value={String(investor.investor_id)}
-                            >
-                                {investor.investor_name}
-                            </option>
-                        ))}
                     </select>
                 </div>
 
@@ -113,19 +117,53 @@ export function FundingFilters({
                     </select>
                 </div>
 
-                <div className="flex items-end gap-2">
-                    <Button type="submit" size="sm">
-                        Apply
-                    </Button>
-                    {active > 0 ? (
-                        <Link
-                            href="/reports/funding"
-                            className="text-sm text-muted underline hover:text-foreground"
-                        >
-                            Clear
-                        </Link>
-                    ) : null}
+                {/*
+                    Both ends inclusive, against the day the deal was written —
+                    the date the table shows under the customer. `max` and `min`
+                    point at each other so the picker itself refuses a range
+                    that runs backwards.
+                */}
+                <div className="min-w-0">
+                    <label className={labelClass} htmlFor="from">
+                        Started from
+                    </label>
+                    <input
+                        id="from"
+                        name="from"
+                        type="date"
+                        max={values.to || undefined}
+                        defaultValue={values.from}
+                        className={controlClass}
+                    />
                 </div>
+
+                <div className="min-w-0">
+                    <label className={labelClass} htmlFor="to">
+                        Started up to
+                    </label>
+                    <input
+                        id="to"
+                        name="to"
+                        type="date"
+                        min={values.from || undefined}
+                        defaultValue={values.to}
+                        className={controlClass}
+                    />
+                </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
+                <Button type="submit" size="sm">
+                    Apply
+                </Button>
+                {active > 0 ? (
+                    <Link
+                        href="/reports/funding"
+                        className="text-sm text-muted underline-offset-2 hover:text-foreground"
+                    >
+                        Clear {active} filter{active === 1 ? "" : "s"}
+                    </Link>
+                ) : null}
             </div>
         </form>
     );

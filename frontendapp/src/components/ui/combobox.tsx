@@ -85,6 +85,24 @@ export function ComboboxField({
         onValueChange?.(option.value);
     }
 
+    /**
+     * Opens the list and lands on the current choice rather than the first row.
+     *
+     * Selecting the text means typing replaces the choice instead of appending
+     * to it, and re-opening on a box that already holds a name is the common
+     * case — the reader is about to pick a different one.
+     */
+    function openList(input: HTMLInputElement) {
+        input.select();
+        setOpen(true);
+        setActive(
+            Math.max(
+                0,
+                options.findIndex((option) => option.value === value)
+            )
+        );
+    }
+
     function close() {
         setOpen(false);
         setQuery(selectedLabel);
@@ -191,20 +209,23 @@ export function ComboboxField({
                         setActive(0);
                         setOpen(true);
                     }}
-                    onFocus={(event) => {
-                        // Selecting the text means typing replaces the current
-                        // choice instead of appending to it.
-                        event.target.select();
-                        setOpen(true);
-                        // Land on the current choice, not always the first row.
-                        setActive(
-                            Math.max(
-                                0,
-                                options.findIndex(
-                                    (option) => option.value === value
-                                )
-                            )
-                        );
+                    onFocus={(event) => openList(event.currentTarget)}
+                    /**
+                     * Reopening after a choice depends on this, not on focus.
+                     *
+                     * Picking an option keeps focus on the input on purpose —
+                     * the option's `onPointerDown` prevents default so the
+                     * outside-click handler cannot close the list first. That
+                     * leaves the input already focused, and a click on an
+                     * already-focused element fires no focus event, so a
+                     * focus-only binding never reopened: the field looked dead
+                     * until you tabbed away and back.
+                     *
+                     * Guarded on `!open` so clicking to place the caret while
+                     * the list is up does not re-select the text mid-edit.
+                     */
+                    onClick={(event) => {
+                        if (!open) openList(event.currentTarget);
                     }}
                     onKeyDown={onKeyDown}
                     className={`${fieldClass} pr-9`}

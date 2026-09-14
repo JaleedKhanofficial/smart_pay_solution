@@ -287,6 +287,16 @@ export class FundingReportService {
 
       if (query.status && row.status !== query.status) return false;
 
+      /**
+       * Both ends inclusive, compared as `YYYY-MM-DD` strings.
+       *
+       * Lexicographic order is chronological order for that format, so this
+       * needs no Date at all — and parsing one would drag the server's time
+       * zone into a question that has nothing to do with clocks.
+       */
+      if (query.from && row.start_date < query.from) return false;
+      if (query.to && row.start_date > query.to) return false;
+
       if (
         query.investor_id !== undefined &&
         !row.stakes.some((stake) => stake.investor_id === query.investor_id)

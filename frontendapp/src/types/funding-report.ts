@@ -84,6 +84,10 @@ export type FundingFilterValues = {
     investor_id: string;
     status: string;
     search: string;
+    /** Deals started on or after this date, inclusive. `YYYY-MM-DD`. */
+    from: string;
+    /** Deals started on or before this date, inclusive. */
+    to: string;
 };
 
 export const EMPTY_FILTERS: FundingFilterValues = {
@@ -91,6 +95,8 @@ export const EMPTY_FILTERS: FundingFilterValues = {
     investor_id: "",
     status: "",
     search: "",
+    from: "",
+    to: "",
 };
 
 export const SORT_FIELDS = [

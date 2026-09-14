@@ -220,9 +220,12 @@ export default async function FundingReportPage({
                         title="By investor"
                         description="Each investor's position across the deals shown below."
                     />
-                    <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-                        <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
+                    <table className="w-full min-w-[780px] border-collapse text-left text-sm">
+                        <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide">
                             <tr>
+                                <th className="px-4 py-3 font-medium">
+                                    Sr #
+                                </th>
                                 <th className="px-4 py-3 font-medium">
                                     Investor
                                 </th>
@@ -242,8 +245,11 @@ export default async function FundingReportPage({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {investors.map((investor) => (
+                            {investors.map((investor, index) => (
                                 <tr key={investor.investor_id}>
+                                    <td className="px-4 py-3 tabular-nums">
+                                        {index + 1}
+                                    </td>
                                     <td className="px-4 py-3">
                                         <Link
                                             href={`/investors/${investor.investor_id}`}
@@ -297,9 +303,13 @@ export default async function FundingReportPage({
                     title="By contract"
                     description="Each deal with the investors behind it. A sole deal was bought by one investor; a joint deal was shared."
                 />
-                <table className="w-full min-w-[1020px] border-collapse text-left text-sm">
-                    <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
+                <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
+                    <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide">
                         <tr>
+                            {/* A position in the list as shown, not an id —
+                                sorting or filtering renumbers it. The contract
+                                keeps its own reference in the next column. */}
+                            <th className="px-4 py-3 font-medium">Sr #</th>
                             <th className="px-4 py-3 font-medium">
                                 <SortLink
                                     field="contract_id"
@@ -341,7 +351,7 @@ export default async function FundingReportPage({
                         {rows.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={7}
+                                    colSpan={8}
                                     className="px-4 py-12 text-center text-sm text-muted"
                                 >
                                     {filtered
@@ -350,8 +360,11 @@ export default async function FundingReportPage({
                                 </td>
                             </tr>
                         ) : (
-                            rows.map((row) => (
+                            rows.map((row, index) => (
                                 <tr key={row.contract_id} className="align-top">
+                                    <td className="px-4 py-3 tabular-nums">
+                                        {index + 1}
+                                    </td>
                                     <td className="px-4 py-3">
                                         <Link
                                             href={`/contracts/${row.contract_id}/ledger`}
