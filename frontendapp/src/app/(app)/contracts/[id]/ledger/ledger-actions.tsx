@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { DownloadPdfButton } from "@/components/download-pdf-button";
 import { downloadLedgerPdf } from "@/lib/ledger-pdf";
 import type { Ledger } from "@/types/ledger";
 
@@ -18,40 +18,21 @@ import type { Ledger } from "@/types/ledger";
  * choosing a printer.
  */
 export function LedgerActions({ ledger }: { ledger: Ledger }) {
-    const [failed, setFailed] = useState<string | null>(null);
-
-    function download() {
-        setFailed(null);
-
-        try {
-            downloadLedgerPdf(ledger);
-        } catch (error) {
-            // A failed save is silent otherwise: the file simply never appears,
-            // and the operator is left wondering whether they missed it.
-            setFailed(
-                error instanceof Error
-                    ? error.message
-                    : "Could not build the PDF."
-            );
-        }
-    }
-
     return (
         <div className="flex flex-col items-end gap-2">
             <div className="flex flex-col gap-2 sm:flex-row">
-                <Button variant="secondary" onClick={() => window.print()} stackOnMobile>
+                <Button
+                    variant="secondary"
+                    onClick={() => window.print()}
+                    stackOnMobile
+                >
                     <Icon name="fileText" className="size-4" />
                     Print
                 </Button>
-                <Button onClick={download} stackOnMobile>
-                    <Icon name="fileText" className="size-4" />
-                    Download PDF
-                </Button>
+                <DownloadPdfButton
+                    build={() => downloadLedgerPdf(ledger)}
+                />
             </div>
-
-            {failed ? (
-                <p className="text-xs text-negative">{failed}</p>
-            ) : null}
         </div>
     );
 }

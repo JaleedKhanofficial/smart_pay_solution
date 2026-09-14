@@ -13,6 +13,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { CARD_CLASS, Card } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { StatTile } from "@/components/stat-tile";
+import { DownloadPdfButton } from "@/components/download-pdf-button";
 import { ComboboxField } from "@/components/ui/combobox";
 import { downloadInvestorRegisterPdf } from "@/lib/investor-register-pdf";
 import type {
@@ -56,28 +57,6 @@ export default function InvestorsManager({
     exportOmitted,
     businessName,
 }: Props) {
-    const [exportFailed, setExportFailed] = useState<string | null>(null);
-
-    function downloadRegister() {
-        setExportFailed(null);
-
-        try {
-            downloadInvestorRegisterPdf(
-                exportRows,
-                filters,
-                businessName,
-                exportOmitted
-            );
-        } catch (error) {
-            // A failed save is silent otherwise: the file simply never appears
-            // and the operator is left wondering whether they missed it.
-            setExportFailed(
-                error instanceof Error
-                    ? error.message
-                    : "Could not build the register."
-            );
-        }
-    }
 
     const { confirm, alert } = useAlert();
     const [editing, setEditing] = useState<Investor | "new" | null>(null);
@@ -127,15 +106,17 @@ export default function InvestorsManager({
                 description="Capital put into the business by other people. Every balance is derived from the ledger below it, never stored."
                 actions={
                     <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-start">
-                        <Button
-                            variant="secondary"
-                            onClick={downloadRegister}
+                        <DownloadPdfButton
                             disabled={exportRows.length === 0}
-                            stackOnMobile
-                        >
-                            <Icon name="download" className="size-4" />
-                            Download PDF
-                        </Button>
+                            build={() =>
+                                downloadInvestorRegisterPdf(
+                                    exportRows,
+                                    filters,
+                                    businessName,
+                                    exportOmitted
+                                )
+                            }
+                        />
                         <Button onClick={() => setEditing("new")} stackOnMobile>
                             <Icon name="plus" className="size-4" />
                             Add investor
@@ -144,9 +125,6 @@ export default function InvestorsManager({
                 }
             />
 
-            {exportFailed ? (
-                <p className="mb-4 text-sm text-negative">{exportFailed}</p>
-            ) : null}
 
             {page.data.length > 0 ? (
                 <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">

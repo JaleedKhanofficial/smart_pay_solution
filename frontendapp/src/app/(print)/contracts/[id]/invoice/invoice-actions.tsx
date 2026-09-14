@@ -72,12 +72,20 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
                         <Icon name="fileText" className="size-4" />
                         Print
                     </button>
+                    {/*
+                        The same filled navy and `download` icon as every other
+                        Download PDF, but written as fixed hex rather than the
+                        theme tokens `DownloadPdfButton` uses: this bar sits on
+                        the white agreement sheet and must not follow the
+                        viewer's appearance. The hexes are chrome-900 and
+                        chrome-800 — the same two colours, pinned.
+                    */}
                     <button
                         type="button"
                         onClick={download}
                         className={`${button} bg-[#13365E] text-white hover:bg-[#1A4574]`}
                     >
-                        <Icon name="fileText" className="size-4" />
+                        <Icon name="download" className="size-4" />
                         Download PDF
                     </button>
                 </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { DownloadPdfButton } from "@/components/download-pdf-button";
 import { downloadSummaryPdf, summaryAsText } from "@/lib/summary-export";
 import type { Summary } from "@/types/report";
 
@@ -37,20 +38,6 @@ export function SummaryActions({ summary }: { summary: Summary }) {
         }
     }
 
-    function download() {
-        setFailed(null);
-
-        try {
-            downloadSummaryPdf(summary, summary.rows.data);
-        } catch (error) {
-            setFailed(
-                error instanceof Error
-                    ? error.message
-                    : "Could not build the PDF."
-            );
-        }
-    }
-
     return (
         <div className="flex flex-col items-end gap-2 print-hide">
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -66,10 +53,9 @@ export function SummaryActions({ summary }: { summary: Summary }) {
                     <Icon name="fileText" className="size-4" />
                     Print
                 </Button>
-                <Button onClick={download} stackOnMobile>
-                    <Icon name="barChart" className="size-4" />
-                    Download PDF
-                </Button>
+                <DownloadPdfButton
+                    build={() => downloadSummaryPdf(summary, summary.rows.data)}
+                />
             </div>
 
             {failed ? (
