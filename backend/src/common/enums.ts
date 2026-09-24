@@ -57,6 +57,14 @@ export enum InvestorBucket {
 }
 
 /** One value on purpose: investor money is never a capital entry (FR-SUM-10). */
+/** SRS §4.15. Who a cost belongs to. */
+export enum ExpenseKind {
+  /** Bought for the business; split across a period's investors (BR-28). */
+  common = 'common',
+  /** Incurred on one investor's deal; charged to them whole (BR-30). */
+  individual = 'individual',
+}
+
 export enum CapitalSource {
   own = 'own',
 }

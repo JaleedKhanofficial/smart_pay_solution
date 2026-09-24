@@ -18,6 +18,7 @@ import { RecycleBinModule } from './recycle-bin/recycle-bin.module';
 import { SettingsModule } from './settings/settings.module';
 import { CustomersModule } from './customers/customers.module';
 import { DatabaseModule } from './database/database.module';
+import { ExpensesModule } from './expenses/expenses.module';
 import { FilesModule } from './files/files.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     ReportsModule,
     RecycleBinModule,
     SettingsModule,
+    ExpensesModule,
   ],
   controllers: [AppController],
   providers: [

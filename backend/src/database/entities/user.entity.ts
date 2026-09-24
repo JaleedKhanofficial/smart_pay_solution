@@ -11,7 +11,6 @@ import {
 import { Role, UserStatus } from '../../common/enums';
 import { AuditLog } from './audit-log.entity';
 import { CapitalEntry } from './capital-entry.entity';
-import { ExpenseEntry } from './expense-entry.entity';
 import { File } from './file.entity';
 import { LedgerSnapshot } from './ledger-snapshot.entity';
 import { Payment } from './payment.entity';
@@ -83,9 +82,6 @@ export class User {
 
   @OneToMany(() => CapitalEntry, (entry) => entry.enteredBy)
   capitalEntries: Relation<CapitalEntry>[];
-
-  @OneToMany(() => ExpenseEntry, (entry) => entry.enteredBy)
-  expenseEntries: Relation<ExpenseEntry>[];
 
   @OneToMany(() => SummaryScenario, (scenario) => scenario.user)
   scenarios: Relation<SummaryScenario>[];

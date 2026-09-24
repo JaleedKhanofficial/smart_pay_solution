@@ -101,6 +101,17 @@ export const NAVIGATION: NavSection[] = [
                 capabilities: [],
             },
             {
+                module: 15,
+                label: "Expense Report",
+                href: "/reports/expenses",
+                icon: "barChart",
+                roles: ["admin"],
+                built: true,
+                summary:
+                    "Who carries which expense: common shares and each investor's own.",
+                capabilities: [],
+            },
+            {
                 module: 13,
                 label: "Funding Register",
                 href: "/reports/funding",
@@ -124,6 +135,17 @@ export const NAVIGATION: NavSection[] = [
                 roles: ["admin"],
                 built: true,
                 summary: "Capital put in by other people, and what it has earned.",
+                capabilities: [],
+            },
+            {
+                module: 15,
+                label: "Expenses",
+                href: "/expenses",
+                icon: "receipt",
+                roles: ["admin"],
+                built: true,
+                summary:
+                    "What the business spends, common or charged to one investor.",
                 capabilities: [],
             },
             {

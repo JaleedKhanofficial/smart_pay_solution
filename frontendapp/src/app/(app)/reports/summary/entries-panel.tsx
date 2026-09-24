@@ -11,9 +11,6 @@ import { formatDate } from "@/lib/format";
 import type { Entry } from "@/types/report";
 
 type Props = {
-    kind: "capital" | "expenses";
-    title: string;
-    description: string;
     total: string;
     entries: Entry[];
 };
@@ -31,14 +28,14 @@ function thisPeriod(): string {
     return new Date().toISOString().slice(0, 7);
 }
 
-/** FR-SUM-02-v2. Both panels are the same shape, so they are one component. */
-export function EntriesPanel({
-    kind,
-    title,
-    description,
-    total,
-    entries,
-}: Props) {
+/**
+ * FR-SUM-02-v2. Money the business has put in of its own.
+ *
+ * This was once two panels, capital and expenses. Expenses moved to their own
+ * module (SRS §4.15) where each one can say who carried it, and what is left
+ * here is the one list that genuinely is just a running total.
+ */
+export function EntriesPanel({ total, entries }: Props) {
     const { confirm, alert } = useAlert();
     const [open, setOpen] = useState(false);
     const [amount, setAmount] = useState("");
@@ -62,12 +59,7 @@ export function EntriesPanel({
         event.preventDefault();
 
         startTransition(async () => {
-            const result = await addEntry(
-                kind,
-                Number(amount),
-                period,
-                note
-            );
+            const result = await addEntry(Number(amount), period, note);
 
             if (result.ok) {
                 setAmount("");
@@ -91,15 +83,15 @@ export function EntriesPanel({
         if (!confirmed) return;
 
         startTransition(async () => {
-            report(await removeEntry(kind, entry.id));
+            report(await removeEntry(entry.id));
         });
     }
 
     return (
         <Card>
             <CardHeader
-                title={title}
-                description={description}
+                title="Capital"
+                description="Money the business has put in. Feeds the net balance (BR-10)."
                 actions={
                     <span className="text-sm font-semibold tabular-nums text-foreground">
                         {pkr(total)}
@@ -153,7 +145,7 @@ export function EntriesPanel({
                         <div className="grid gap-3 sm:grid-cols-3">
                             <TextField
                                 label="Amount (Rs.)"
-                                name={`${kind}_amount`}
+                                name="capital_amount"
                                 type="number"
                                 min={0.01}
                                 step="0.01"
@@ -165,7 +157,7 @@ export function EntriesPanel({
                             />
                             <TextField
                                 label="Period"
-                                name={`${kind}_period`}
+                                name="capital_period"
                                 required
                                 maxLength={20}
                                 value={period}
@@ -176,15 +168,11 @@ export function EntriesPanel({
                             />
                             <TextField
                                 label="Note"
-                                name={`${kind}_note`}
+                                name="capital_note"
                                 maxLength={500}
                                 value={note}
                                 onChange={(event) => setNote(event.target.value)}
-                                placeholder={
-                                    kind === "capital"
-                                        ? "Opening capital"
-                                        : "Shop rent"
-                                }
+                                placeholder="Opening capital"
                             />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -212,7 +200,7 @@ export function EntriesPanel({
                         onClick={() => setOpen(true)}
                     >
                         <Icon name="plus" className="size-4" />
-                        Record {kind === "capital" ? "capital" : "an expense"}
+                        Record capital
                     </Button>
                 )}
             </div>

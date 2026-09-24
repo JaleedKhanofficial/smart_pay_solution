@@ -78,6 +78,8 @@ export type BucketBalances = {
   /** What could be deployed or withdrawn right now, both buckets. */
   available: Paisa;
   deployed: Paisa;
+  /** BR-31. Expenses charged to this investor, common share and their own. */
+  expenses_charged: Paisa;
   /** What the business owes this investor if everything stopped today. */
   payable: Paisa;
 };
@@ -98,10 +100,19 @@ function sum(
  * An Adjustment carries its own sign — that is how FR-IVT-08 corrects a
  * mis-entered line without editing the original — so it is added rather than
  * subtracted whichever way it points.
+ *
+ * BR-31's expense charge comes in as a plain figure rather than as ledger
+ * lines, because expenses are editable and the ledger is not. It is taken off
+ * `payable` only: what the business owes at wind-up is less by what the
+ * investor has already had spent on their behalf. It does **not** touch
+ * `available`, because an expense is a charge to settle, not capital spent —
+ * the money is still there to deploy, and netting it out of `available` would
+ * quietly shrink the funding capacity of a deal in progress.
  */
 export function bucketBalances(
   txns: InvestorTxn[],
   deployments: DeploymentTerms = NO_DEPLOYMENTS,
+  expensesCharged: Paisa = 0,
 ): BucketBalances {
   const inBucket = (bucket: Bucket) => (txn: InvestorTxn) =>
     txn.bucket === bucket;
@@ -163,9 +174,11 @@ export function bucketBalances(
     profit_deployed,
     available,
     deployed,
-    // Idle money plus money still out working: what is owed if the business
-    // wound up today and every deployment came back whole.
-    payable: available + deployed,
+    expenses_charged: expensesCharged,
+    // Idle money plus money still out working, less what has been spent on
+    // their behalf: what is owed if the business wound up today and every
+    // deployment came back whole.
+    payable: available + deployed - expensesCharged,
   };
 }
 

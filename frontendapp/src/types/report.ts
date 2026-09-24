@@ -66,6 +66,8 @@ export type InvestorPosition = {
     deployed: string;
     available: string;
     lifetime_profit: string;
+    /** BR-31. Every expense charged to an investor, added up. */
+    expenses_charged: string;
     payable: string;
 };
 
@@ -117,7 +119,13 @@ export type Summary = {
     /** FR-SUM-11. The investor side of BR-25. */
     investors: InvestorPosition;
     capital: { total: string; entries: Entry[] };
-    expenses: { total: string; entries: Entry[] };
+    /**
+     * SRS §4.15. What the business has spent, in one figure.
+     *
+     * The list behind it lives at `/reports/expenses`, which is the only place
+     * that can say whose cost each one was.
+     */
+    expenses_total: string;
     deal_types: DealTypeShare[];
     missing: MissingData;
     /** FR-SUM-07. Null until there is a deal to rank. */

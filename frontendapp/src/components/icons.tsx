@@ -7,6 +7,7 @@ export type IconName =
     | "fileText"
     | "download"
     | "creditCard"
+    | "receipt"
     | "trendingUp"
     | "barChart"
     | "shield"
@@ -71,6 +72,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
         <>
             <rect x="2" y="5" width="20" height="14" rx="2" />
             <path d="M2 10h20" />
+        </>
+    ),
+    receipt: (
+        <>
+            <path d="M5 3v18l2.5-1.5L10 21l2-1.5L14 21l2.5-1.5L19 21V3z" />
+            <path d="M9 8h6M9 12h6" />
         </>
     ),
     trendingUp: (

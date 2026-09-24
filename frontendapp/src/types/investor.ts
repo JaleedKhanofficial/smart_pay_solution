@@ -41,6 +41,8 @@ export type InvestorRow = Investor & {
     lifetime_profit: string;
     available: string;
     deployed: string;
+    /** BR-31. Their share of common expenses plus their own. */
+    expenses_charged: string;
     payable: string;
 };
 
@@ -54,6 +56,8 @@ export type InvestorBalances = {
     profit_deployed: string;
     available: string;
     deployed: string;
+    /** BR-31. Their share of common expenses plus their own. */
+    expenses_charged: string;
     payable: string;
     return_on_principal: string;
     capital_turnover: string;

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ContractsModule } from '../contracts/contracts.module';
 import { Investor, InvestorTransaction } from '../database/entities';
+import { ExpensesModule } from '../expenses/expenses.module';
 import { InvestorsController } from './investors.controller';
 import { InvestorsService } from './investors.service';
 
@@ -12,6 +13,8 @@ import { InvestorsService } from './investors.service';
   imports: [
     TypeOrmModule.forFeature([Investor, InvestorTransaction]),
     ContractsModule,
+    // BR-31: an investor's payable is net of what has been spent on them.
+    ExpensesModule,
   ],
   controllers: [InvestorsController],
   providers: [InvestorsService],

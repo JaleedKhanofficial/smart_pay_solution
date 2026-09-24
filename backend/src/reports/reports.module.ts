@@ -4,10 +4,10 @@ import {
   CapitalEntry,
   Contract,
   ContractFunding,
-  ExpenseEntry,
   Investor,
   Payment,
 } from '../database/entities';
+import { ExpensesModule } from '../expenses/expenses.module';
 import { InvestorsModule } from '../investors/investors.module';
 import { FundingReportService } from './funding-report.service';
 import { ReportsController } from './reports.controller';
@@ -20,12 +20,13 @@ import { ReportsService } from './reports.service';
       Contract,
       Payment,
       CapitalEntry,
-      ExpenseEntry,
       ContractFunding,
       Investor,
     ]),
     // FR-SUM-11 reports the investor position beside the portfolio.
     InvestorsModule,
+    // SRS §4.15 owns what the business spends; the workbook only totals it.
+    ExpensesModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService, FundingReportService],

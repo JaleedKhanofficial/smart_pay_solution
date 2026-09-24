@@ -138,8 +138,16 @@ export function buildInvestorRegisterPdf(
                 pkr(sum((row) => row.available)),
                 "Deployed",
                 pkr(sum((row) => row.deployed)),
+                "Expenses",
+                pkr(sum((row) => row.expenses_charged)),
+            ],
+            [
                 "Payable",
                 pkr(sum((row) => row.payable)),
+                "",
+                "",
+                "",
+                "",
             ],
         ],
         margin: { left: MARGIN, right: MARGIN },
@@ -165,6 +173,7 @@ export function buildInvestorRegisterPdf(
             6: { halign: "right" },
             7: { halign: "right" },
             8: { halign: "right" },
+            9: { halign: "right" },
         },
         head: [
             [
@@ -176,6 +185,9 @@ export function buildInvestorRegisterPdf(
                 "Profit",
                 "Idle",
                 "Deployed",
+                // BR-31. Between deployed and payable, because that is where
+                // the difference between the two comes from.
+                "Expenses",
                 "Payable",
             ],
         ],
@@ -188,6 +200,7 @@ export function buildInvestorRegisterPdf(
             pkr(row.lifetime_profit),
             pkr(row.available),
             pkr(row.deployed),
+            pkr(row.expenses_charged),
             pkr(row.payable),
         ]),
         margin: { left: MARGIN, right: MARGIN },

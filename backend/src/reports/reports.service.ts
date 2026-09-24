@@ -5,12 +5,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CapitalSource } from '../common/enums';
 import { paginate, type Paginated } from '../common/pagination';
-import {
-  CapitalEntry,
-  Contract,
-  ExpenseEntry,
-  Payment,
-} from '../database/entities';
+import { CapitalEntry, Contract, Payment } from '../database/entities';
 import {
   scoreDeal,
   summariseClient,
@@ -23,6 +18,7 @@ import {
   type DealSummary,
   type PortfolioTotals,
 } from '../formulas';
+import { ExpensesService } from '../expenses/expenses.service';
 import type { InvestorPosition } from '../investors/investor.mapper';
 import { InvestorsService } from '../investors/investors.service';
 import { EntryDto } from './dto/entry.dto';
@@ -47,7 +43,7 @@ export type SummaryRow = DealSummary &
     start_date: string;
   };
 
-/** FR-SUM-02-v2. A capital or expense record. */
+/** FR-SUM-02-v2. A capital record. */
 export type EntryResponse = {
   id: number;
   amount: string;
@@ -88,7 +84,14 @@ export type SummaryResponse = {
   /** FR-SUM-11. The investor side of BR-25. */
   investors: InvestorPosition;
   capital: { total: string; entries: EntryResponse[] };
-  expenses: { total: string; entries: EntryResponse[] };
+  /**
+   * SRS §4.15. What the business has spent, in one figure.
+   *
+   * The entry list that used to sit here is gone: expenses are their own
+   * module now, because a total with no way to say *whose* cost it was
+   * could not produce the per-investor bill the business actually keeps.
+   */
+  expenses_total: string;
   deal_types: DealTypeShare[];
   missing: MissingData;
   /** FR-SUM-07. Null until at least one deal exists to rank. */
@@ -106,9 +109,8 @@ export class ReportsService {
     private readonly payments: Repository<Payment>,
     @InjectRepository(CapitalEntry)
     private readonly capital: Repository<CapitalEntry>,
-    @InjectRepository(ExpenseEntry)
-    private readonly expenses: Repository<ExpenseEntry>,
     private readonly audit: AuditService,
+    private readonly expenses: ExpensesService,
     private readonly investors: InvestorsService,
   ) {}
 
@@ -124,13 +126,14 @@ export class ReportsService {
   async summary(query: SummaryQueryDto): Promise<SummaryResponse> {
     const rows = await this.allRows();
 
-    const [capital, expenses] = await Promise.all([
+    const [capital, expenseTotal] = await Promise.all([
       this.listEntries(this.capital),
-      this.listEntries(this.expenses),
+      // SRS §4.15. Both kinds of expense count against the business, the
+      // waived shares included — somebody paid for those too.
+      this.expenses.totalSpent(),
     ]);
 
     const capitalTotal = this.sumEntries(capital);
-    const expenseTotal = this.sumEntries(expenses);
 
     const matching = this.applySearch(rows, query);
 
@@ -141,7 +144,7 @@ export class ReportsService {
       // is not a footnote to the portfolio — it is whose money it all is.
       investors: await this.investors.portfolioPosition(),
       capital: { total: toAmount(capitalTotal), entries: capital },
-      expenses: { total: toAmount(expenseTotal), entries: expenses },
+      expenses_total: toAmount(expenseTotal),
       deal_types: this.dealTypes(rows),
       missing: this.missingData(rows),
       top_performer: this.topPerformer(rows),
@@ -248,7 +251,7 @@ export class ReportsService {
     };
   }
 
-  // ---------------------------------------------- capital and expenses --
+  // ------------------------------------------------------------ capital --
 
   /** FR-SUM-02-v2 */
   async addCapital(
@@ -273,26 +276,6 @@ export class ReportsService {
     return this.describeEntry(await this.loadCapital(saved.id));
   }
 
-  /** FR-SUM-02-v2 */
-  async addExpense(
-    dto: EntryDto,
-    actor: AuthenticatedUser,
-    ip?: string,
-  ): Promise<EntryResponse> {
-    const saved = await this.expenses.save(
-      this.expenses.create({
-        amount: toAmount(toPaisa(dto.amount)),
-        period_label: dto.period_label,
-        note: dto.note ?? null,
-        entered_by: actor.id,
-      }),
-    );
-
-    await this.recordEntry('expense_entry', saved.id, dto, actor, ip);
-
-    return this.describeEntry(await this.loadExpense(saved.id));
-  }
-
   async removeCapital(
     id: number,
     actor: AuthenticatedUser,
@@ -302,17 +285,6 @@ export class ReportsService {
 
     await this.capital.softDelete(id);
     await this.recordRemoval('capital_entry', id, row, actor, ip);
-  }
-
-  async removeExpense(
-    id: number,
-    actor: AuthenticatedUser,
-    ip?: string,
-  ): Promise<void> {
-    const row = await this.loadExpense(id);
-
-    await this.expenses.softDelete(id);
-    await this.recordRemoval('expense_entry', id, row, actor, ip);
   }
 
   // --------------------------------------------------------- internals --
@@ -466,7 +438,7 @@ export class ReportsService {
   }
 
   private async listEntries(
-    repository: Repository<CapitalEntry> | Repository<ExpenseEntry>,
+    repository: Repository<CapitalEntry>,
   ): Promise<EntryResponse[]> {
     const rows = await repository.find({
       relations: { enteredBy: true },
@@ -480,7 +452,7 @@ export class ReportsService {
     return entries.reduce((sum, entry) => sum + toPaisa(entry.amount), 0);
   }
 
-  private describeEntry(row: CapitalEntry | ExpenseEntry): EntryResponse {
+  private describeEntry(row: CapitalEntry): EntryResponse {
     return {
       id: row.id,
       amount: row.amount,
@@ -492,9 +464,6 @@ export class ReportsService {
     };
   }
 
-  // Two concrete loaders rather than one generic: TypeORM's find options are
-  // typed per entity, and a generic repository would need a cast at each use
-  // to satisfy them. Ten lines is cheaper than teaching the compiler a lie.
   private async loadCapital(id: number): Promise<CapitalEntry> {
     const row = await this.capital.findOne({
       where: { id },
@@ -506,21 +475,10 @@ export class ReportsService {
     return row;
   }
 
-  private async loadExpense(id: number): Promise<ExpenseEntry> {
-    const row = await this.expenses.findOne({
-      where: { id },
-      relations: { enteredBy: true },
-    });
-
-    if (!row) throw new NotFoundException(`Expense entry ${id} not found`);
-
-    return row;
-  }
-
   private async recordRemoval(
     entity: string,
     id: number,
-    row: CapitalEntry | ExpenseEntry,
+    row: CapitalEntry,
     actor: AuthenticatedUser,
     ip?: string,
   ): Promise<void> {

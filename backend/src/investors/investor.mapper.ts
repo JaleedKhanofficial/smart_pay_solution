@@ -29,6 +29,8 @@ export type InvestorRow = InvestorResponse & {
   lifetime_profit: string;
   available: string;
   deployed: string;
+  /** BR-31. Their share of common expenses plus their own. */
+  expenses_charged: string;
   payable: string;
 };
 
@@ -49,6 +51,8 @@ export type InvestorPosition = {
   /** Idle: deployable or withdrawable right now. */
   available: string;
   lifetime_profit: string;
+  /** BR-31. Every expense charged to an investor, added up. */
+  expenses_charged: string;
   /** What the business owes them all if everything stopped today. */
   payable: string;
 };

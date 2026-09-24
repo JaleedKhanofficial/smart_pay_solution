@@ -37,8 +37,8 @@ import {
  * Module 8 (SRS §4.8). The internal workbook.
  *
  * Admin only, and not because of the deal rows — an operator may read the
- * summary per §2.3 — but because capital, expenses and net balance are the
- * business's own position, which NFR-15 keeps to the owner. Splitting the
+ * summary per §2.3 — but because capital and net balance are the business's
+ * own position, which NFR-15 keeps to the owner. Splitting the
  * response by role would mean two shapes for one screen; a second read-only
  * route for operators is the cleaner answer if that is ever wanted.
  */
@@ -101,25 +101,5 @@ export class ReportsController {
     @Req() req: Request,
   ): Promise<void> {
     return this.reports.removeCapital(id, user, req.ip);
-  }
-
-  @Post('expenses')
-  @ApiOperation({ summary: 'Record an expense (FR-SUM-02-v2)' })
-  addExpense(
-    @Body() body: EntryDto,
-    @CurrentUser() user: AuthenticatedUser,
-    @Req() req: Request,
-  ): Promise<EntryResponse> {
-    return this.reports.addExpense(body, user, req.ip);
-  }
-
-  @Delete('expenses/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  removeExpense(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: AuthenticatedUser,
-    @Req() req: Request,
-  ): Promise<void> {
-    return this.reports.removeExpense(id, user, req.ip);
   }
 }

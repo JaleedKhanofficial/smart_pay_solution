@@ -142,6 +142,9 @@ export function buildInvestorPdf(
         [
             ["Available", pkr(balances.available)],
             ["Deployed", pkr(balances.deployed)],
+            // BR-31. Printed even at zero: a payable short of available plus
+            // deployed with nothing to explain it reads as an arithmetic fault.
+            ["Expenses charged", pkr(balances.expenses_charged)],
             ["Payable", pkr(balances.payable)],
         ],
         37,

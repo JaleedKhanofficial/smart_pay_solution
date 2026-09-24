@@ -27,18 +27,21 @@ function toFailure(error: unknown): FormState {
 }
 
 /**
- * FR-SUM-02-v2. Capital and expenses are database records, not browser
- * storage — v1 kept them in localStorage, so the net balance depended on which
- * machine you opened the report from (§9.6).
+ * FR-SUM-02-v2. Capital is a database record, not browser storage — v1 kept it
+ * in localStorage, so the net balance depended on which machine you opened the
+ * report from (§9.6).
+ *
+ * Expenses used to be recorded here too. They are their own module now
+ * (SRS §4.15), because a total with nowhere to say whose cost it was could not
+ * produce the per-investor bill the business actually keeps.
  */
 export async function addEntry(
-    kind: "capital" | "expenses",
     amount: number,
     period_label: string,
     note: string
 ): Promise<FormState> {
     try {
-        await apiCallWithRefresh<Entry>(`${REPORTS_PATH}/${kind}`, "POST", {
+        await apiCallWithRefresh<Entry>(`${REPORTS_PATH}/capital`, "POST", {
             amount,
             period_label,
             note: note.trim() || undefined,
@@ -51,20 +54,16 @@ export async function addEntry(
 
     return {
         ok: true,
-        message:
-            kind === "capital" ? "Capital recorded." : "Expense recorded.",
+        message: "Capital recorded.",
         errors: [],
         attempt: 0,
     };
 }
 
-export async function removeEntry(
-    kind: "capital" | "expenses",
-    id: number
-): Promise<FormState> {
+export async function removeEntry(id: number): Promise<FormState> {
     try {
         await apiCallWithRefresh<void>(
-            `${REPORTS_PATH}/${kind}/${id}`,
+            `${REPORTS_PATH}/capital/${id}`,
             "DELETE"
         );
     } catch (error) {

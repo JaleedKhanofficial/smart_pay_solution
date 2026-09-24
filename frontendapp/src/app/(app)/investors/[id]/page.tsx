@@ -169,9 +169,14 @@ export default async function InvestorPage({
                     hint="Out in contracts"
                 />
                 <StatTile
+                    label="Expenses"
+                    value={pkr(balances.expenses_charged)}
+                    hint="Common shares plus their own (BR-31)"
+                />
+                <StatTile
                     label="Payable"
                     value={pkr(balances.payable)}
-                    hint="Owed if everything stopped today"
+                    hint="Owed if everything stopped today, less expenses"
                 />
             </Band>
 

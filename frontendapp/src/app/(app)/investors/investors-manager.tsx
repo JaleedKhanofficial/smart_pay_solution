@@ -225,7 +225,7 @@ export default function InvestorsManager({
             ) : null}
 
             <Card className="overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[960px] border-collapse text-left text-sm">
                     <thead className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
                         <tr>
                             <th className="w-16 px-4 py-3 font-medium">
@@ -244,6 +244,12 @@ export default function InvestorsManager({
                             <th className="px-4 py-3 text-right font-medium">
                                 Idle
                             </th>
+                            {/* BR-31. Between idle and payable, because that
+                                is where the difference between them comes
+                                from — an expense charged to this investor. */}
+                            <th className="px-4 py-3 text-right font-medium">
+                                Expenses
+                            </th>
                             <th className="px-4 py-3 text-right font-medium">
                                 Payable
                             </th>
@@ -255,7 +261,7 @@ export default function InvestorsManager({
                     <tbody className="divide-y divide-border">
                         {page.data.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-4 py-14 text-center">
+                                <td colSpan={9} className="px-4 py-14 text-center">
                                     <span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-surface-muted text-muted">
                                         <Icon name="users" className="size-5" />
                                     </span>
@@ -315,6 +321,9 @@ export default function InvestorsManager({
                                     </td>
                                     <td className="px-4 py-3 text-right tabular-nums">
                                         {pkr(row.available)}
+                                    </td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-muted">
+                                        {pkr(row.expenses_charged)}
                                     </td>
                                     <td className="px-4 py-3 text-right font-medium tabular-nums">
                                         {pkr(row.payable)}

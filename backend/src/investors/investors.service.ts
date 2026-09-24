@@ -25,6 +25,7 @@ import {
   type InvestorTxn,
 } from '../formulas';
 import { FundingService } from '../contracts/funding.service';
+import { ExpensesService } from '../expenses/expenses.service';
 import { SettingsService } from '../settings/settings.service';
 import { CreateAdjustmentDto } from './dto/create-adjustment.dto';
 import { CreateInvestorDto } from './dto/create-investor.dto';
@@ -51,6 +52,7 @@ export class InvestorsService {
     private readonly settings: SettingsService,
     private readonly funding: FundingService,
     private readonly audit: AuditService,
+    private readonly expenses: ExpensesService,
   ) {}
 
   /** FR-IVT-01 */
@@ -80,12 +82,15 @@ export class InvestorsService {
     const ids = rows.map((row) => row.id);
     const ledgers = await this.ledgersFor(ids);
     const deployments = await this.funding.deploymentsFor(ids);
+    // BR-31. One grouped read for the page, same as the other two.
+    const charged = await this.expenses.chargedByInvestor();
 
     return paginate(
       rows.map((row) => {
         const balances = bucketBalances(
           ledgers.get(row.id) ?? [],
           deployments.get(row.id) ?? NO_DEPLOYMENTS,
+          charged.get(row.id) ?? 0,
         );
 
         return {
@@ -94,6 +99,7 @@ export class InvestorsService {
           lifetime_profit: toAmount(balances.lifetime_profit),
           available: toAmount(balances.available),
           deployed: toAmount(balances.deployed),
+          expenses_charged: toAmount(balances.expenses_charged),
           payable: toAmount(balances.payable),
         };
       }),
@@ -128,6 +134,7 @@ export class InvestorsService {
       deployed: '0.00',
       available: '0.00',
       lifetime_profit: '0.00',
+      expenses_charged: '0.00',
       payable: '0.00',
     };
 
@@ -135,6 +142,7 @@ export class InvestorsService {
 
     const ledgers = await this.ledgersFor(ids);
     const deployments = await this.funding.deploymentsFor(ids);
+    const charged = await this.expenses.chargedByInvestor();
 
     let deposited = 0;
     let withdrawn = 0;
@@ -145,6 +153,7 @@ export class InvestorsService {
       deployed: 0,
       available: 0,
       lifetime_profit: 0,
+      expenses_charged: 0,
       payable: 0,
     };
 
@@ -159,6 +168,7 @@ export class InvestorsService {
       const balances = bucketBalances(
         ledger,
         deployments.get(id) ?? NO_DEPLOYMENTS,
+        charged.get(id) ?? 0,
       );
 
       for (const key of Object.keys(sums) as (keyof typeof sums)[]) {
@@ -176,6 +186,7 @@ export class InvestorsService {
       deployed: toAmount(sums.deployed),
       available: toAmount(sums.available),
       lifetime_profit: toAmount(sums.lifetime_profit),
+      expenses_charged: toAmount(sums.expenses_charged),
       payable: toAmount(sums.payable),
     };
   }
@@ -196,12 +207,14 @@ export class InvestorsService {
     });
 
     const deployments = await this.funding.deploymentsFor([id]);
+    const charged = await this.expenses.chargedByInvestor();
 
     return {
       ...toInvestorResponse(investor),
       balances: this.describeBalances(
         rows.map(toLedgerLine),
         deployments.get(id),
+        charged.get(id) ?? 0,
       ),
       transactions: rows.map(toTransactionResponse),
     };
@@ -362,6 +375,9 @@ export class InvestorsService {
     const balances = bucketBalances(
       await this.ledgerFor(id),
       (await this.funding.deploymentsFor([id])).get(id) ?? NO_DEPLOYMENTS,
+      // BR-31. An unsettled expense charge is money owed the other way, and
+      // leaving with one outstanding is still leaving with a balance.
+      (await this.expenses.chargedByInvestor()).get(id) ?? 0,
     );
 
     if (balances.payable !== 0) {
@@ -511,8 +527,13 @@ export class InvestorsService {
   private describeBalances(
     lines: InvestorTxn[],
     deployment?: DeploymentTerms & { total_deployed?: number },
+    expensesCharged = 0,
   ) {
-    const balances = bucketBalances(lines, deployment ?? NO_DEPLOYMENTS);
+    const balances = bucketBalances(
+      lines,
+      deployment ?? NO_DEPLOYMENTS,
+      expensesCharged,
+    );
 
     // BR-24's turnover counts every rupee ever put to work, not what is out
     // right now — money that went out and came back still did its job.
@@ -530,6 +551,7 @@ export class InvestorsService {
       profit_deployed: toAmount(balances.profit_deployed),
       available: toAmount(balances.available),
       deployed: toAmount(balances.deployed),
+      expenses_charged: toAmount(balances.expenses_charged),
       payable: toAmount(balances.payable),
       ...metrics,
     };

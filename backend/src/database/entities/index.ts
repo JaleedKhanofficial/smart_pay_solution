@@ -4,7 +4,9 @@ import { ContractRecycleSnapshot } from './contract-recycle-snapshot.entity';
 import { Contract } from './contract.entity';
 import { ContractFunding } from './contract-funding.entity';
 import { Customer } from './customer.entity';
-import { ExpenseEntry } from './expense-entry.entity';
+import { Expense } from './expense.entity';
+import { ExpensePeriod } from './expense-period.entity';
+import { ExpensePeriodMember } from './expense-period-member.entity';
 import { File } from './file.entity';
 import { Guarantor } from './guarantor.entity';
 import { Installment } from './installment.entity';
@@ -26,7 +28,9 @@ export {
   ContractFunding,
   ContractRecycleSnapshot,
   Customer,
-  ExpenseEntry,
+  Expense,
+  ExpensePeriod,
+  ExpensePeriodMember,
   File,
   Guarantor,
   Installment,
@@ -54,7 +58,9 @@ export const ENTITIES = [
   ContractFunding,
   ContractRecycleSnapshot,
   Customer,
-  ExpenseEntry,
+  Expense,
+  ExpensePeriod,
+  ExpensePeriodMember,
   File,
   Guarantor,
   Installment,

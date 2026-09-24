@@ -94,7 +94,8 @@ export default function SummaryManager({
     sort,
     loadError,
 }: Props) {
-    const { rows, totals, capital, expenses, deal_types, missing } = summary;
+    const { rows, totals, capital, expenses_total, deal_types, missing } =
+        summary;
     const investors = summary.investors;
 
     // BR-25. Only worth distinguishing the house's figures from the
@@ -358,22 +359,41 @@ export default function SummaryManager({
                 </Card>
             ) : null}
 
-            {/* FR-SUM-02-v2 */}
+            {/* FR-SUM-02-v2, and SRS §4.15 for the half that moved out. */}
             <div className="mb-6 grid gap-6 lg:grid-cols-2">
                 <EntriesPanel
-                    kind="capital"
-                    title="Capital"
-                    description="Money the business has put in. Feeds the net balance (BR-10)."
                     total={capital.total}
                     entries={capital.entries}
                 />
-                <EntriesPanel
-                    kind="expenses"
-                    title="Expenses"
-                    description="Costs to subtract from the net balance."
-                    total={expenses.total}
-                    entries={expenses.entries}
-                />
+
+                <Card>
+                    <CardHeader
+                        title="Expenses"
+                        description="Costs subtracted from the net balance. Each one is charged to somebody — a share of a common pot, or an investor's own — which is why they live in a register of their own."
+                        actions={
+                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                                {pkr(expenses_total)}
+                            </span>
+                        }
+                    />
+
+                    <div className="flex flex-wrap gap-2 px-4 py-4 sm:px-5">
+                        <Link
+                            href="/expenses"
+                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-muted"
+                        >
+                            <Icon name="plus" className="size-4" />
+                            Record an expense
+                        </Link>
+                        <Link
+                            href="/reports/expenses"
+                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-muted"
+                        >
+                            <Icon name="barChart" className="size-4" />
+                            Who carries what
+                        </Link>
+                    </div>
+                </Card>
             </div>
 
             {/* FR-SUM-06 */}
