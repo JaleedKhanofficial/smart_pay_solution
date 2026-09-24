@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { InvestorFilter } from "./investor-filter";
 import { Icon } from "@/components/icons";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
@@ -25,11 +26,26 @@ function pkr(value: string): string {
     return Number.isFinite(amount) ? `Rs. ${money.format(amount)}` : value;
 }
 
-export default async function DashboardPage() {
-    // FR-DSH-01..12 in a single aggregate call, replacing v1's nine (NFR-07).
-    const data = await apiCall<Dashboard>("/dashboard").catch(
-        (error: unknown) => (error instanceof Error ? error.message : "failed")
-    );
+export default async function DashboardPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ investor?: string }>;
+}) {
+    const { investor } = await searchParams;
+    const selected = /^\d+$/.test(investor ?? "") ? (investor as string) : "";
+
+    // FR-DSH-01..13 in a single aggregate call, replacing v1's nine (NFR-07).
+    // The investor lookup drives the filter; without it the page still shows.
+    const [data, investors] = await Promise.all([
+        apiCall<Dashboard>(
+            selected ? `/dashboard?investor_id=${selected}` : "/dashboard"
+        ).catch((error: unknown) =>
+            error instanceof Error ? error.message : "failed"
+        ),
+        apiCall<{ id: number; label: string }[]>("/investors/lookup").catch(
+            () => [] as { id: number; label: string }[]
+        ),
+    ]);
 
     if (typeof data === "string") {
         return (
@@ -47,13 +63,18 @@ export default async function DashboardPage() {
     }
 
     const { collections, counts, recent_payments, past_due_contracts } = data;
+    const scoped = data.investor !== null;
 
     return (
         <PageContainer>
             <PageHeader
                 eyebrow="Module 1"
                 title="Dashboard"
-                description="Every figure derived from the payments and installments tables, so nothing here can drift from the contracts."
+                description={
+                    scoped
+                        ? `${data.investor?.full_name}'s share of every contract their money is in.`
+                        : "Every figure derived from the payments and installments tables, so nothing here can drift from the contracts."
+                }
                 actions={
                     <div className="flex flex-col gap-2 sm:flex-row">
                         <ButtonLink
@@ -71,6 +92,19 @@ export default async function DashboardPage() {
                     </div>
                 }
             />
+
+            {/* FR-DSH-13 */}
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <InvestorFilter investors={investors} selected={selected} />
+                {scoped ? (
+                    <Link
+                        href={`/investors/${data.investor?.id}`}
+                        className="text-sm text-muted underline-offset-4 hover:underline"
+                    >
+                        Open {data.investor?.full_name}&rsquo;s register →
+                    </Link>
+                ) : null}
+            </div>
 
             {/* FR-DSH-12 */}
             {past_due_contracts > 0 ? (
@@ -136,12 +170,30 @@ export default async function DashboardPage() {
                 />
             </div>
 
-            {/* FR-DSH-04-v2 and FR-DSH-10-v2 */}
-            <div className="mb-6 grid gap-4 sm:grid-cols-3">
+            {/* FR-DSH-04-v2, FR-DSH-10-v2 and BR-24 */}
+            <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <StatTile
+                    label="Net capital"
+                    value={pkr(data.net_capital)}
+                    hint={
+                        scoped
+                            ? "Deposited less withdrawn"
+                            : "All investors, deposited less withdrawn"
+                    }
+                    tone="navy"
+                    icon="users"
+                    href={
+                        scoped ? `/investors/${data.investor?.id}` : "/investors"
+                    }
+                />
                 <StatTile
                     label="Outstanding"
                     value={pkr(data.outstanding)}
-                    hint="Across active plans, markup included"
+                    hint={
+                        scoped
+                            ? "Their share, across active plans"
+                            : "Across active plans, markup included"
+                    }
                     tone="warning"
                     icon="alert"
                 />
@@ -180,7 +232,13 @@ export default async function DashboardPage() {
                 <StatTile
                     label="Investors"
                     value={String(counts.active_investors)}
-                    hint={`of ${counts.investors} on the register`}
+                    hint={
+                        scoped
+                            ? counts.active_investors === 1
+                                ? "Active"
+                                : "Inactive"
+                            : `of ${counts.investors} on the register`
+                    }
                     tone="violet"
                     icon="users"
                     href="/investors"
@@ -198,7 +256,11 @@ export default async function DashboardPage() {
             <Card>
                 <CardHeader
                     title="Recent collections"
-                    description="The last five payments recorded."
+                    description={
+                        scoped
+                            ? "The last five payments on contracts they funded, in full."
+                            : "The last five payments recorded."
+                    }
                     actions={
                         <Link
                             href="/payments"

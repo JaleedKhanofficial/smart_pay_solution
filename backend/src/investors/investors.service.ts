@@ -23,6 +23,7 @@ import {
   toPaisa,
   type DeploymentTerms,
   type InvestorTxn,
+  type LifetimeMetrics,
 } from '../formulas';
 import { FundingService } from '../contracts/funding.service';
 import { ExpensesService } from '../expenses/expenses.service';
@@ -40,6 +41,20 @@ import {
   type InvestorRow,
   type TransactionResponse,
 } from './investor.mapper';
+
+/** FR-IVT-09. The KPI strip: every bucket balance plus the BR-24 metrics. */
+export type InvestorBalances = LifetimeMetrics & {
+  net_principal: string;
+  principal_available: string;
+  principal_deployed: string;
+  lifetime_profit: string;
+  profit_available: string;
+  profit_deployed: string;
+  available: string;
+  deployed: string;
+  expenses_charged: string;
+  payable: string;
+};
 
 /** Module 13 (SRS amendment §J–§L). Investor capital; admin only. */
 @Injectable()
@@ -194,7 +209,7 @@ export class InvestorsService {
   /** FR-IVT-09. The KPI strip: everything derived, nothing stored. */
   async findOne(id: number): Promise<
     InvestorResponse & {
-      balances: ReturnType<typeof this.describeBalances>;
+      balances: InvestorBalances;
       transactions: TransactionResponse[];
     }
   > {
@@ -528,7 +543,7 @@ export class InvestorsService {
     lines: InvestorTxn[],
     deployment?: DeploymentTerms & { total_deployed?: number },
     expensesCharged = 0,
-  ) {
+  ): InvestorBalances {
     const balances = bucketBalances(
       lines,
       deployment ?? NO_DEPLOYMENTS,

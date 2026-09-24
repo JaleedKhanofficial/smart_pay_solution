@@ -213,7 +213,18 @@ The database owner runs this: `npm run migration:run` in `backend/`.
 
 ---
 
-## M. Build order
+## M. §4.1 Module 1: Dashboard, additions
+
+| ID | Requirement |
+| --- | --- |
+| FR-DSH-13 | An **Investor** filter. Unfiltered, every tile is the whole portfolio. Filtered to one investor, only the contracts their money is in count, and each money figure is **their share**: collections and outstanding weighted by their stake against cost price, profit through `splitRecovery` (BR-18, BR-26) so it agrees with the funding register to the paisa. Counts are the contracts and customers behind those stakes. Recent collections show the whole payment, since a payment is a record, not a share. |
+| FR-DSH-14 | A **Net capital** tile (BR-24): all investors' deposits less withdrawals, adjustments and losses; or one investor's when filtered. Links to the investor register, or to that investor. |
+
+`GET /dashboard` gains an optional `investor_id`, and the response gains `investor` (null or `{id, full_name}`) and `net_capital`.
+
+---
+
+## N. Build order
 
 1. `backend/src/formulas/expenses.ts` and its unit tests against §I before
    anything else in Module 15 is called done. Every figure in that table is a

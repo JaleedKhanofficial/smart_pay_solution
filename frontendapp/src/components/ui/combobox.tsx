@@ -65,6 +65,13 @@ export function ComboboxField({
     const [open, setOpen] = useState(false);
     const [active, setActive] = useState(0);
 
+    /**
+     * Whether the reader has typed since the list opened. Until they have, the
+     * box still holds the current choice, and filtering by that would show
+     * one row — the one already chosen — with no way to reach the others.
+     */
+    const [typed, setTyped] = useState(false);
+
     const rootRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
 
@@ -72,7 +79,8 @@ export function ComboboxField({
     // nothing does not linger and read as if it were chosen.
     const selectedLabel = labelFor(value);
 
-    const matches = open
+    const matches =
+        open && typed
         ? options.filter((option) =>
               option.label.toLowerCase().includes(query.trim().toLowerCase())
           )
@@ -95,6 +103,7 @@ export function ComboboxField({
     function openList(input: HTMLInputElement) {
         input.select();
         setOpen(true);
+        setTyped(false);
         setActive(
             Math.max(
                 0,
@@ -139,6 +148,7 @@ export function ComboboxField({
 
             if (!open) {
                 setOpen(true);
+                setTyped(false);
                 setActive(
                     Math.max(
                         0,
@@ -206,6 +216,7 @@ export function ComboboxField({
                     placeholder={placeholder}
                     onChange={(event) => {
                         setQuery(event.target.value);
+                        setTyped(true);
                         setActive(0);
                         setOpen(true);
                     }}

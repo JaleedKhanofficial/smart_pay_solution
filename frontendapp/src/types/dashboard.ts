@@ -17,6 +17,10 @@ export type RecentPayment = {
  * v1 had (§9.3 item 1).
  */
 export type Dashboard = {
+    /** FR-DSH-13. Set when the figures are one investor's; null for all. */
+    investor: { id: number; full_name: string } | null;
+    /** BR-24. Deposits less withdrawals, adjustments and losses. */
+    net_capital: string;
     collections: { today: string; month: string; all_time: string };
     outstanding: string;
     mature_profit: string;

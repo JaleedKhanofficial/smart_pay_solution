@@ -1,15 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ContractStatus, InvestorStatus } from '../common/enums';
 import {
   Contract,
+  ContractFunding,
   Customer,
   Installment,
   Investor,
   Payment,
 } from '../database/entities';
-import { matureProfit, outstandingOf, toAmount, toPaisa } from '../formulas';
+import {
+  matureProfit,
+  outstandingOf,
+  splitRecovery,
+  toAmount,
+  toPaisa,
+  type FundingRow,
+} from '../formulas';
+import { InvestorsService } from '../investors/investors.service';
 
 /** FR-DSH-09. A recent collection, with enough context to recognise it. */
 export type RecentPayment = {
@@ -24,6 +33,13 @@ export type RecentPayment = {
 
 /** FR-DSH-01..12. One payload; the whole screen renders from it. */
 export type DashboardResponse = {
+  /**
+   * FR-DSH-13. Set when the figures below are one investor's, null for the
+   * whole portfolio.
+   */
+  investor: { id: number; full_name: string } | null;
+  /** BR-24. Deposits less withdrawals, adjustments and losses. */
+  net_capital: string;
   collections: { today: string; month: string; all_time: string };
   /** FR-DSH-04-v2. Markup included, so it agrees with the contract screen. */
   outstanding: string;
@@ -63,19 +79,27 @@ export class DashboardService {
     private readonly customers: Repository<Customer>,
     @InjectRepository(Investor)
     private readonly investors: Repository<Investor>,
+    @InjectRepository(ContractFunding)
+    private readonly fundings: Repository<ContractFunding>,
+    private readonly investorsService: InvestorsService,
   ) {}
 
-  async summary(): Promise<DashboardResponse> {
-    const [collections, money, counts, recent, past_due_contracts] =
+  async summary(investorId?: number): Promise<DashboardResponse> {
+    if (investorId !== undefined) return this.forInvestor(investorId);
+
+    const [collections, money, counts, recent, past_due_contracts, position] =
       await Promise.all([
         this.collections(),
         this.portfolioMoney(),
         this.counts(),
         this.recentPayments(),
         this.pastDueCount(),
+        this.investorsService.portfolioPosition(),
       ]);
 
     return {
+      investor: null,
+      net_capital: position.net_principal,
       collections,
       outstanding: money.outstanding,
       mature_profit: money.mature,
@@ -85,6 +109,205 @@ export class DashboardService {
       past_due_contracts,
       generated_at: new Date().toISOString(),
     };
+  }
+
+  /**
+   * FR-DSH-13. The same screen for one investor.
+   *
+   * Only the contracts their money is in count, and every money figure is
+   * **their share** of it: a 90,000 stake in a 140,000 unit sees 64.29% of
+   * what that contract collects and owes, not all of it. Profit goes through
+   * `splitRecovery` (BR-18) so the tile agrees with the funding register to
+   * the paisa, capital first and the residual on the largest stake (BR-26).
+   *
+   * Counts are the contracts and customers behind those stakes, and Net
+   * capital is theirs alone (BR-24). Recent collections show the whole
+   * payment, since a payment is a record, not a share.
+   */
+  private async forInvestor(investorId: number): Promise<DashboardResponse> {
+    const investor = await this.investors.findOne({
+      where: { id: investorId },
+    });
+
+    if (!investor) {
+      throw new NotFoundException(`Investor ${investorId} not found`);
+    }
+
+    const own = await this.fundings.find({
+      where: { investor_id: investorId },
+      select: { contract_id: true },
+    });
+
+    const ids = [...new Set(own.map((row) => row.contract_id))];
+    const position = await this.investorsService.findOne(investorId);
+    const named = { id: investor.id, full_name: investor.full_name };
+    const activeInvestor = investor.status === InvestorStatus.active ? 1 : 0;
+
+    if (ids.length === 0) {
+      return {
+        investor: named,
+        net_capital: position.balances.net_principal,
+        collections: { today: '0.00', month: '0.00', all_time: '0.00' },
+        outstanding: '0.00',
+        mature_profit: '0.00',
+        unmatured_profit: '0.00',
+        counts: {
+          active_plans: 0,
+          customers: 0,
+          contracts: 0,
+          investors: 1,
+          active_investors: activeInvestor,
+        },
+        recent_payments: [],
+        past_due_contracts: 0,
+        generated_at: new Date().toISOString(),
+      };
+    }
+
+    // Every stake on those contracts, not only this investor's: a share is
+    // only defined against the whole set (BR-26).
+    const [contracts, stakes, payments, dueToDate] = await Promise.all([
+      this.contracts.find({ where: { id: In(ids) } }),
+      this.fundings.find({ where: { contract_id: In(ids) } }),
+      this.payments
+        .createQueryBuilder('payment')
+        .select('payment.contract_id', 'contract_id')
+        .addSelect('payment.amount', 'amount')
+        .addSelect('payment.payment_date = CURRENT_DATE', 'is_today')
+        .addSelect(
+          `payment.payment_date >= date_trunc('month', CURRENT_DATE)`,
+          'is_month',
+        )
+        .where('payment.contract_id IN (:...ids)', { ids })
+        .getRawMany<{
+          contract_id: number;
+          amount: string;
+          is_today: boolean;
+          is_month: boolean;
+        }>(),
+      this.dueToDateBy(ids),
+    ]);
+
+    const paidBy = new Map<number, number>();
+
+    for (const row of payments) {
+      paidBy.set(
+        row.contract_id,
+        (paidBy.get(row.contract_id) ?? 0) + toPaisa(row.amount),
+      );
+    }
+
+    const stakesBy = new Map<number, FundingRow[]>();
+
+    for (const row of stakes) {
+      const list = stakesBy.get(row.contract_id) ?? [];
+
+      list.push({
+        investor_id: row.investor_id,
+        amount: toPaisa(row.amount),
+        share_pct: row.share_pct,
+        funded_from_principal: toPaisa(row.funded_from_principal),
+        funded_from_profit: toPaisa(row.funded_from_profit),
+      });
+      stakesBy.set(row.contract_id, list);
+    }
+
+    /** This investor's fraction of a contract, by amount against cost. */
+    const fraction = new Map<number, number>();
+
+    for (const contract of contracts) {
+      const mine = stakesBy
+        .get(contract.id)
+        ?.find((row) => row.investor_id === investorId);
+      const cost = toPaisa(contract.cost_price);
+
+      fraction.set(contract.id, mine && cost > 0 ? mine.amount / cost : 0);
+    }
+
+    const collections = { today: 0, month: 0, all_time: 0 };
+
+    for (const row of payments) {
+      const share = Math.round(
+        toPaisa(row.amount) * (fraction.get(row.contract_id) ?? 0),
+      );
+
+      collections.all_time += share;
+      if (row.is_month) collections.month += share;
+      if (row.is_today) collections.today += share;
+    }
+
+    let outstanding = 0;
+    let mature = 0;
+    let unmatured = 0;
+    let activePlans = 0;
+    let pastDue = 0;
+    const customers = new Set<number>();
+
+    for (const contract of contracts) {
+      const paid = paidBy.get(contract.id) ?? 0;
+
+      customers.add(contract.customer_id);
+
+      if (contract.status === ContractStatus.active) {
+        activePlans += 1;
+        outstanding += Math.round(
+          outstandingOf(toPaisa(contract.financed_amount), paid) *
+            (fraction.get(contract.id) ?? 0),
+        );
+
+        if ((dueToDate.get(contract.id) ?? 0) > paid) pastDue += 1;
+      }
+
+      const share = splitRecovery(
+        {
+          down_payment: contract.down_payment,
+          paid,
+          markup_amount: contract.markup_amount,
+          cost_price: contract.cost_price,
+        },
+        stakesBy.get(contract.id) ?? [],
+      ).shares.find((row) => row.investor_id === investorId);
+
+      mature += share?.matured_profit ?? 0;
+      unmatured += share?.unmatured_profit ?? 0;
+    }
+
+    return {
+      investor: named,
+      net_capital: position.balances.net_principal,
+      collections: {
+        today: toAmount(collections.today),
+        month: toAmount(collections.month),
+        all_time: toAmount(collections.all_time),
+      },
+      outstanding: toAmount(outstanding),
+      mature_profit: toAmount(mature),
+      unmatured_profit: toAmount(unmatured),
+      counts: {
+        active_plans: activePlans,
+        customers: customers.size,
+        contracts: contracts.length,
+        investors: 1,
+        active_investors: activeInvestor,
+      },
+      recent_payments: await this.recentPayments(ids),
+      past_due_contracts: pastDue,
+      generated_at: new Date().toISOString(),
+    };
+  }
+
+  /** Installments fallen due to date, per contract, in paisa. */
+  private async dueToDateBy(ids: number[]): Promise<Map<number, number>> {
+    const rows = await this.contracts.manager
+      .createQueryBuilder(Installment, 'i')
+      .select('i.contract_id', 'contract_id')
+      .addSelect('COALESCE(SUM(i.amount), 0)', 'due')
+      .where('i.contract_id IN (:...ids)', { ids })
+      .andWhere('i.due_date < CURRENT_DATE')
+      .groupBy('i.contract_id')
+      .getRawMany<{ contract_id: number; due: string }>();
+
+    return new Map(rows.map((row) => [row.contract_id, toPaisa(row.due)]));
   }
 
   /**
@@ -205,9 +428,12 @@ export class DashboardService {
     };
   }
 
-  /** FR-DSH-09 */
-  private async recentPayments(): Promise<RecentPayment[]> {
+  /** FR-DSH-09. Narrowed to the given contracts when any are given. */
+  private async recentPayments(
+    contractIds?: number[],
+  ): Promise<RecentPayment[]> {
     const rows = await this.payments.find({
+      where: contractIds ? { contract_id: In(contractIds) } : {},
       relations: { contract: { customer: true, product: true } },
       order: { payment_date: 'DESC', id: 'DESC' },
       take: 5,
