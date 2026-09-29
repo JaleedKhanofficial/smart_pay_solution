@@ -69,10 +69,47 @@ const TONES: Record<StatTone, ToneStyle> = {
     },
 };
 
+/**
+ * A change against an earlier period, shown as an arrow and a figure beside
+ * the value. `value` is a percentage or a plain count; `good` says which
+ * direction is welcome, since a rising outstanding balance is not the same
+ * news as rising collections. Null `value` means nothing to compare with —
+ * the chip is skipped rather than showing 0%.
+ */
+export type StatDelta = {
+    value: number | null;
+    /**
+     * "%" for a rate of change, "" for a raw difference, "pts" for a move in
+     * a percentage — 37% to 41% is 4 points, not 11%.
+     */
+    unit?: "%" | "" | "pts";
+    /** Shown instead of the figure — "new" when there was nothing before. */
+    text?: string;
+    good?: "up" | "down";
+    /** Read on hover: "vs the same days last month". */
+    title?: string;
+};
+
+/**
+ * FR-DSH-20. A percentage read under the value: "71% on time · 14 of 84
+ * installments due", with its own arrow for the move in points. `pct` null
+ * means nothing was measured, and the line says so rather than showing 0%.
+ */
+export type StatRate = {
+    pct: string | null;
+    /** What the percentage is: "on time", "recovered", "past due". */
+    label: string;
+    /** The two numbers behind it: "14 of 84 installments due". */
+    of: string;
+    delta?: StatDelta;
+};
+
 type Props = {
     label: string;
     value: string;
     hint?: string;
+    delta?: StatDelta;
+    rate?: StatRate;
     /** Marks a figure the API cannot supply yet. */
     pending?: boolean;
     tone?: StatTone;
@@ -85,6 +122,45 @@ type Props = {
     href?: string;
 };
 
+/**
+ * The arrow and figure. Colour follows whether the move is welcome, and the
+ * arrow carries the direction on its own — a red ▲ on outstanding and a red
+ * ▼ on collections both read as bad news without the colour.
+ */
+function DeltaChip({ delta }: { delta: StatDelta }) {
+    const value = delta.value ?? 0;
+    const flat = Math.abs(value) < 0.05;
+    const up = value > 0;
+    const welcome = flat ? null : (delta.good ?? "up") === (up ? "up" : "down");
+    const unit = delta.unit ?? "%";
+    const figure = delta.text
+        ? delta.text
+        : unit === "pts"
+          ? `${Math.abs(value).toFixed(Math.abs(value) < 10 ? 1 : 0)}%`
+          : unit === "%"
+            ? `${Math.abs(value) >= 1000 ? ">999" : Math.abs(value).toFixed(Math.abs(value) < 10 ? 1 : 0)}%`
+            : String(Math.abs(Math.round(value)));
+
+    return (
+        <span
+            className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
+                flat
+                    ? "text-muted"
+                    : welcome
+                      ? "text-positive"
+                      : "text-negative"
+            }`}
+            title={delta.title}
+        >
+            <span aria-hidden>{flat ? "▬" : up ? "▲" : "▼"}</span>
+            <span className="sr-only">
+                {flat ? "no change" : up ? "up" : "down"}
+            </span>
+            {figure}
+        </span>
+    );
+}
+
 export function StatTile({
     label,
     value,
@@ -93,6 +169,8 @@ export function StatTile({
     tone = "neutral",
     icon,
     href,
+    delta,
+    rate,
 }: Props) {
     const { card, bar, chip, ink } = TONES[tone];
 
@@ -133,12 +211,37 @@ export function StatTile({
             <p
                 // Three tiles abreast on a narrow tablet leave roughly 190px
                 // each; the figure steps up only once there is room for it.
-                className={`mt-3 text-xl font-semibold tracking-tight tabular-nums lg:text-2xl ${
+                className={`mt-3 flex flex-wrap items-baseline gap-x-2 text-xl font-semibold tracking-tight tabular-nums lg:text-2xl ${
                     pending ? "text-muted/50" : "text-foreground"
                 }`}
             >
                 {value}
+                {delta && delta.value !== null ? (
+                    <DeltaChip delta={delta} />
+                ) : null}
             </p>
+            {rate ? (
+                <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-xs">
+                    {rate.pct === null ? (
+                        <span className="text-muted">
+                            Nothing {rate.of} yet
+                        </span>
+                    ) : (
+                        <>
+                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                                {Math.round(Number(rate.pct))}%
+                            </span>
+                            <span className="text-muted">{rate.label}</span>
+                            {rate.delta && rate.delta.value !== null ? (
+                                <DeltaChip delta={rate.delta} />
+                            ) : null}
+                            <span className="w-full font-mono text-[11px] text-muted">
+                                {rate.of}
+                            </span>
+                        </>
+                    )}
+                </p>
+            ) : null}
             {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
         </>
     );

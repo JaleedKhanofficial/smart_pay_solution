@@ -13,8 +13,8 @@ export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Portfolio KPIs in one aggregate (FR-DSH-01..13)' })
+  @ApiOperation({ summary: 'Portfolio KPIs in one aggregate (FR-DSH-01..16)' })
   summary(@Query() query: DashboardQueryDto): Promise<DashboardResponse> {
-    return this.dashboard.summary(query.investor_id);
+    return this.dashboard.summary(query);
   }
 }

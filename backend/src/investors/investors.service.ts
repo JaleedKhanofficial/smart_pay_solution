@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, In, Repository } from 'typeorm';
+import { ILike, In, LessThanOrEqual, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import {
@@ -204,6 +204,24 @@ export class InvestorsService {
       expenses_charged: toAmount(sums.expenses_charged),
       payable: toAmount(sums.payable),
     };
+  }
+
+  /**
+   * BR-24 as at a day. Net capital depends on the ledger alone — deposits
+   * less withdrawals, adjustments and losses from the principal bucket — so
+   * it can be read back to any date without replaying deployments. For the
+   * whole register, or one investor.
+   */
+  async netCapital(asAt?: string, investorId?: number): Promise<string> {
+    const rows = await this.transactions.find({
+      where: {
+        ...(investorId !== undefined ? { investor_id: investorId } : {}),
+        ...(asAt ? { txn_date: LessThanOrEqual(asAt) } : {}),
+      },
+      select: { type: true, bucket: true, amount: true, reason: true },
+    });
+
+    return toAmount(bucketBalances(rows.map(toLedgerLine)).net_principal);
   }
 
   /** FR-IVT-09. The KPI strip: everything derived, nothing stored. */
